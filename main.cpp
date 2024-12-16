@@ -285,8 +285,14 @@ void updateGame(GameState *gameState) {
         // pushLine(gameState->renderer, T2, lineColor);
         // pushLine(gameState->renderer, T3, lineColor);
         
-        float3 scale = make_float3(VOXEL_SIZE_IN_METERS, VOXEL_SIZE_IN_METERS, VOXEL_SIZE_IN_METERS);
-        const float16 T = sqt_to_float16(e->T.rotation, scale, make_float3(0, 0, 0));
+        float3 center = make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z);
+        
+        const float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
+        float halfVoxel = 0.5f*VOXEL_SIZE_IN_METERS;
+        float4 color = make_float4(1, 0.5f, 0, 1);
+        if(e->inverseMass == 0) {
+            color.x = 0;
+        }
         for(int z = 0; z < e->depth; ++z) {
             for(int y = 0; y < e->pitch; ++y) {
                 for(int x = 0; x < e->stride; ++x) {
@@ -297,19 +303,20 @@ void updateGame(GameState *gameState) {
                         if(state & VOXEL_INSIDE) {
                             
                         } else {
-                            float4 color = make_float4(1, 0.5f, 0, 1);
-                            if(state & VOXEL_COLLIDING) {
-                                color = make_float4(0, 0.5f, 0, 1);
-                            } else if(state & VOXEL_CORNER) {
-                                color = make_float4(1, 0, 1, 1);
-                            } else if(state & VOXEL_EDGE) {
-                                color = make_float4(0, 1, 1, 1);
-                            }
+                            // float4 color = make_float4(1, 0.5f, 0, 1);
+                            // if(state & VOXEL_COLLIDING) {
+                            //     color = make_float4(0, 0.5f, 0, 1);
+                            // } else if(state & VOXEL_CORNER) {
+                            //     color = make_float4(1, 0, 1, 1);
+                            // } else if(state & VOXEL_EDGE) {
+                            //     color = make_float4(0, 1, 1, 1);
+                            // }
 
-                            //TODO: This function is too slow
-                            float3 p = voxelToWorldP(e, x, y, z);
-                            float16 T1 = float16_set_pos(T, p);
-                            pushBlockItem(gameState->renderer, T1, color);
+                            float x1 = x*VOXEL_SIZE_IN_METERS + halfVoxel - center.x;
+                            float y1 = y*VOXEL_SIZE_IN_METERS + halfVoxel - center.y;
+                            float z1 = z*VOXEL_SIZE_IN_METERS + halfVoxel - center.z;
+
+                            pushBlockItem(gameState->renderer, T, make_float4(x1, y1, z1, VOXEL_SIZE_IN_METERS), color);
                         }
                     }
                 }

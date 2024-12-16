@@ -10,6 +10,7 @@ static char *blockSameColorVertexShader =
 "in mat4 M;"
 "in vec4 uvAtlas;"
 "in vec4 color;"
+"in vec4 voxelP;"
 
 //uniform variables
 "uniform mat4 V;"
@@ -23,7 +24,7 @@ static char *blockSameColorVertexShader =
 
 "void main() {"
     "mat4 MV = V * M;"
-    "gl_Position = projection * MV * vec4((vertex), 1);"
+    "gl_Position = projection * MV * vec4(((voxelP.w * vertex) + voxelP.xyz), 1);"
     "color_frag = color;"
     "normal_frag_view_space = mat3(transpose(inverse(MV))) * normal;"
     "sunAngle = mat3(transpose(inverse(V))) * vec3(0.7071, 0.7071, 0);"

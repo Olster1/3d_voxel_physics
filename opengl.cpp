@@ -16,6 +16,7 @@
 #define JOINT_WEIGHTS 9
 #define JOINT_INDEXES 10
 #define MODEL_TRANSFORM_ATTRIB_LOCATION 11
+#define VOXEL_POS_ATTRIB_LOCATION 15
 
 
 #define renderCheckError() renderCheckError_(__LINE__, (char *)__FILE__)
@@ -120,6 +121,8 @@ Shader loadShader(char *vertexShader, char *fragShader) {
     glBindAttribLocation(result.handle, SAMPLER_INDEX_ATTRIB_LOCATION, "samplerIndex");
     renderCheckError();
     glBindAttribLocation(result.handle, MODEL_TRANSFORM_ATTRIB_LOCATION, "M");
+    renderCheckError();
+    glBindAttribLocation(result.handle, VOXEL_POS_ATTRIB_LOCATION, "voxelP");
     renderCheckError();
     glBindAttribLocation(result.handle, JOINT_WEIGHTS, "jointWeights");
     renderCheckError();
@@ -240,6 +243,10 @@ void addInstancingAttribsForShader(AttribInstancingType type) {
         renderCheckError();
         unsigned int modelOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->M));
         addInstancingAttrib (MODEL_TRANSFORM_ATTRIB_LOCATION, 16, offsetForStruct, modelOffset);
+        renderCheckError();
+
+        unsigned int voxelOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->voxelP));
+        addInstancingAttrib(VOXEL_POS_ATTRIB_LOCATION, 4, offsetForStruct, voxelOffset);
         renderCheckError();
     } else {
         assert(false);

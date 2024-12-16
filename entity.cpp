@@ -465,62 +465,6 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
             }
         }
 
-        //NOTE: Check if have 3 or more points
-        if(pointCount < 3) {
-            //NOTE: Check the edges now
-
-             //NOTE: Check corners with corners & edges first
-            for(int i = 0; i < getArrayLength(a->edges) && pointCount < 3; i++) {
-                float3 corner = a->edges[i];
-                int x = corner.x;
-                int y = corner.y;
-                int z = corner.z;
-                u8 byte = getByteFromVoxelEntity(a, x, y, z);
-                
-                assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
-                CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-                int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(a, x, y, z), b, x, y, z, true, pointsFound, a);
-
-                if(numPointsFound > 0) {
-                    //NOTE: Found a point
-                    a->data[getVoxelIndex(a, x, y, z)] |= VOXEL_COLLIDING;
-
-                    for(int j = 0; j < numPointsFound; ++j) {
-                        assert(pointCount < arrayCount(points));
-                        if(pointCount < arrayCount(points)) {
-                            points[pointCount++] = pointsFound[j];
-                        }
-                    }
-                }
-            }
-
-            for(int i = 0; i < getArrayLength(b->edges) && pointCount < 3; i++) {
-                float3 corner = b->edges[i];
-                int x = corner.x;
-                int y = corner.y;
-                int z = corner.z;
-                u8 byte = getByteFromVoxelEntity(b, x, y, z);
-                
-                assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
-                CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-                int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(b, x, y, z), a, x, y, z, false, pointsFound, b);
-
-                if(numPointsFound > 0) {
-                    //NOTE: Found a point
-                    b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
-
-                    for(int j = 0; j < numPointsFound; ++j) {
-                        assert(pointCount < arrayCount(points));
-                        if(pointCount < arrayCount(points)) {
-                            points[pointCount++] = pointsFound[j];
-                        }
-                    }
-                }
-            }
-
-        }
-
-
         mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
     }
 }

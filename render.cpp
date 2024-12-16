@@ -184,6 +184,7 @@ struct InstanceDataWithRotation {
     float16 M;
     float4 color;
     float4 uv;
+    float4 voxelP;
 };
 
 struct Renderer {
@@ -465,13 +466,14 @@ void pushModel(Renderer *renderer, float16 T, float4 color) {
 }
 
 
-void pushBlockItem(Renderer *renderer, float16 T, float4 color) {
+void pushBlockItem(Renderer *renderer, float16 T, float4 voxelP, float4 color) {
     if(renderer->blockItemsCount < arrayCount(renderer->blockItemsData)) {
         InstanceDataWithRotation *cube = &renderer->blockItemsData[renderer->blockItemsCount++];
 
         cube->M = T;
         cube->uv = make_float4(0, 1, 0, 1);
         cube->color = color;
+        cube->voxelP = voxelP;
 
     } else {
         assert(false);

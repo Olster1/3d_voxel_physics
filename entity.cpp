@@ -107,6 +107,7 @@ struct VoxelEntity {
     bool asleep;
 
     float3 *corners;
+    float3 *edges;
 
     int occupiedCount;
     u8 *data;
@@ -355,7 +356,7 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
                 result.inverseMassNormal = 0;
                 result.velocityBias = 0;
 
-                assert(pointCount < MAX_CONTACT_POINTS_PER_PAIR);
+                // assert(pointCount < MAX_CONTACT_POINTS_PER_PAIR);
                 if(pointCount < MAX_CONTACT_POINTS_PER_PAIR) {
                     points[pointCount++] = result;
                 }
@@ -432,7 +433,7 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
                 a->data[getVoxelIndex(a, x, y, z)] |= VOXEL_COLLIDING;
 
                 for(int j = 0; j < numPointsFound; ++j) {
-                    assert(pointCount < arrayCount(points));
+                    // assert(pointCount < arrayCount(points));
                     if(pointCount < arrayCount(points)) {
                         points[pointCount++] = pointsFound[j];
                     }
@@ -456,13 +457,69 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
                 b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
 
                 for(int j = 0; j < numPointsFound; ++j) {
-                    assert(pointCount < arrayCount(points));
+                    // assert(pointCount < arrayCount(points));
                     if(pointCount < arrayCount(points)) {
                         points[pointCount++] = pointsFound[j];
                     }
                 }
             }
         }
+
+        //NOTE: Check if have 3 or more points
+        if(pointCount < 3) {
+            //NOTE: Check the edges now
+
+             //NOTE: Check corners with corners & edges first
+            for(int i = 0; i < getArrayLength(a->edges) && pointCount < 3; i++) {
+                float3 corner = a->edges[i];
+                int x = corner.x;
+                int y = corner.y;
+                int z = corner.z;
+                u8 byte = getByteFromVoxelEntity(a, x, y, z);
+                
+                assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
+                CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+                int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(a, x, y, z), b, x, y, z, true, pointsFound, a);
+
+                if(numPointsFound > 0) {
+                    //NOTE: Found a point
+                    a->data[getVoxelIndex(a, x, y, z)] |= VOXEL_COLLIDING;
+
+                    for(int j = 0; j < numPointsFound; ++j) {
+                        assert(pointCount < arrayCount(points));
+                        if(pointCount < arrayCount(points)) {
+                            points[pointCount++] = pointsFound[j];
+                        }
+                    }
+                }
+            }
+
+            for(int i = 0; i < getArrayLength(b->edges) && pointCount < 3; i++) {
+                float3 corner = b->edges[i];
+                int x = corner.x;
+                int y = corner.y;
+                int z = corner.z;
+                u8 byte = getByteFromVoxelEntity(b, x, y, z);
+                
+                assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
+                CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+                int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(b, x, y, z), a, x, y, z, false, pointsFound, b);
+
+                if(numPointsFound > 0) {
+                    //NOTE: Found a point
+                    b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
+
+                    for(int j = 0; j < numPointsFound; ++j) {
+                        assert(pointCount < arrayCount(points));
+                        if(pointCount < arrayCount(points)) {
+                            points[pointCount++] = pointsFound[j];
+                        }
+                    }
+                }
+            }
+
+        }
+
 
         mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
     }
@@ -490,6 +547,7 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
         freeResizeArray(e->corners);
     }
     e->corners = initResizeArray(float3);
+    e->edges = initResizeArray(float3);
 
     CornerPair pairs[] = {
         makeCornerPair(make_float3(1, 0, 0), make_float3(0, 1, 0), make_float3(1, 1, 0)),
@@ -522,6 +580,8 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
                     inertia += massPerVoxel*(modelP.x*modelP.x + modelP.y*modelP.y + modelP.z*modelP.z);
                     
                     bool found = false;
+
+                    //NOTE: Check if corner
                     
                     for(int i = 0; i < arrayCount(pairs) && !found; i++) {
                         CornerPair p = pairs[i];

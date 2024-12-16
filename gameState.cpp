@@ -341,7 +341,7 @@ void initGameState(GameState *gameState) {
 
     gameState->guiState.grabbedId = 0;
 
-    gameState->useCameraMovement = false;
+    gameState->useCameraMovement = true;
     gameState->perlinNoiseValue.x = 0.5f;
     gameState->perlinNoiseValue.y = 0.5f;
     gameState->perlinNoiseValue.z = 0.5f;

@@ -1,4 +1,59 @@
 
+static char *blockSameColorVertexShader = 
+"#version 330\n"
+//per vertex variables
+"in vec3 vertex;"
+"in vec3 normal;"
+"in vec2 texUV;	"
+
+//per instanced variables
+"in mat4 M;"
+"in vec4 uvAtlas;"
+"in vec4 color;"
+
+//uniform variables
+"uniform mat4 V;"
+"uniform mat4 projection;"
+
+//outgoing variables
+"out vec4 color_frag;"
+"out vec3 normal_frag_view_space;"
+"out vec3 fragPosInViewSpace;"
+"out vec3 sunAngle;"
+
+"void main() {"
+    "mat4 MV = V * M;"
+    "gl_Position = projection * MV * vec4((vertex), 1);"
+    "color_frag = color;"
+    "normal_frag_view_space = mat3(transpose(inverse(MV))) * normal;"
+    "sunAngle = mat3(transpose(inverse(V))) * vec3(0.7071, 0.7071, 0);"
+    "fragPosInViewSpace = vec3(MV * vec4(vertex, 1));"
+"}";
+
+
+static char *blockSameColorFragShader = 
+"#version 330\n"
+"in vec4 color_frag;" 
+"in vec3 normal_frag_view_space;"//viewspace
+"in vec2 uv_frag; "
+"in vec3 sunAngle;"
+"in vec3 fragPosInViewSpace;" //view space
+"in float AOValue;"
+"in float distanceFromEye;"
+"uniform sampler2D diffuse;"
+"uniform vec3 lookingAxis;"
+"uniform vec4 fogColor;"
+"uniform float fogSeeDistance;"
+"uniform float fogFadeDistance;"
+"float darkness = 0.95;"
+
+"out vec4 color;"
+"void main() {"
+    "float mixValue = max(dot(normal_frag_view_space, sunAngle), 0);"
+    "color = mix(darkness*color_frag, color_frag, mixValue);"
+"}";
+
+
 static char *blockPickupVertexShader = 
 "#version 330\n"
 //per vertex variables

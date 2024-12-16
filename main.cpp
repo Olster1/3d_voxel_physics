@@ -7,6 +7,13 @@ uint64_t getBitWiseFlag(uint64_t bitWise) {
 static float global_fogFarDistance;
 static float global_fogSeeDistance;
 
+
+#define HOP_ENABLED 1
+#define HOP_IMPLEMENTATION 1
+#include "./Hop.h"
+
+static int global_updateArbCount = 0;
+
 #include "./easy_memory.h"
 #include "./resize_array.cpp"
 #include "./memory_arena.h"
@@ -28,7 +35,9 @@ static float global_fogSeeDistance;
 #include "./load_gltf.cpp"
 
 
+
 Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture) {
+    
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     
     renderer->cubeCount = 0;
@@ -51,6 +60,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->skeletalModelShader = loadShader(skeletalVertexShader, skeletalFragShader);
     renderer->blockSameTextureShader = loadShader(blockSameTextureVertexShader, blockPickupFragShader);
     renderer->blockColorShader = loadShader(blockVertexShader, blockFragShader);
+
+    renderer->plainBlockColorShader = loadShader(blockSameColorVertexShader, blockSameColorFragShader);
     
     renderer->blockModel = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36);
     renderer->quadModel = generateVertexBuffer(global_quadData, 4, global_quadIndices, 6, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
@@ -90,6 +101,8 @@ TimeOfDayValues getTimeOfDayValues(GameState *gameState) {
     return result;
 }
 
+static int physicsLoopsCount = 0;
+
 
 void updateAndDrawDebugCode(GameState *gameState) {
     {
@@ -98,6 +111,19 @@ void updateAndDrawDebugCode(GameState *gameState) {
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 5), 0.1f);
     }
+    {
+        char s[255];
+        int charsRendered = sprintf (s, "Physics Loops: %d", (int)(physicsLoopsCount));
+        assert(charsRendered < arrayCount(s));
+        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
+    }
+    {
+        char s[255];
+        int charsRendered = sprintf (s, "Arb update loops: %d", global_updateArbCount);
+        assert(charsRendered < arrayCount(s));
+        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
+    }
+    
 }
 
 void updateGame(GameState *gameState) {
@@ -110,6 +136,8 @@ void updateGame(GameState *gameState) {
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
     }
+
+    HOP_PROF_FUNC();
 
     updateCamera(gameState);
   
@@ -126,28 +154,35 @@ void updateGame(GameState *gameState) {
     gameState->physicsAccum += gameState->dt;
 
     float minStep = 1.0f / 120.0f;
+    global_updateArbCount = 0;
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         VoxelEntity *e = &gameState->voxelEntities[i];
         e->ddPForFrame = make_float3(0, 0, 0);
-        e->ddAForFrame = 0;
+        e->ddAForFrame = make_float3(0, 0, 0);
         if(e->inverseMass > 0 && e != gameState->grabbed) {
             e->ddPForFrame.y -= 10.0f; //NOTE: Gravity
-            // e->ddAForFrame = 1;
+            // e->ddAForFrame = make_float3(0, 0, 1);
         }
 
         e->inBounds = false;
 
         //NOTE: Remove debug flags
-        for(int y = 0; y < e->pitch; y++) {
-            for(int x = 0; x < e->stride; x++) {
-                e->data[y*e->stride + x] &= ~(VOXEL_COLLIDING);
+        for(int z = 0; z < e->depth; z++) {
+            for(int y = 0; y < e->pitch; y++) {
+                for(int x = 0; x < e->stride; x++) {
+                    e->data[getVoxelIndex(e, x, y, z)] &= ~(VOXEL_COLLIDING);
+                }
             }
         }
     }
 
+    physicsLoopsCount = 0;
+    
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep) {
+        HOP_PROF("PHYSICS UPDATE");
+        physicsLoopsCount++;
         float dt = minStep;
 
         for(int i = 0; i < gameState->voxelEntityCount; ++i) {
@@ -172,10 +207,11 @@ void updateGame(GameState *gameState) {
 
         //NOTE: Integrate forces
         for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+            HOP_PROF("INTEGRATE FORCES");
             VoxelEntity *e = &gameState->voxelEntities[i];
             
             e->dP = plus_float3(e->dP, scale_float3(dt, e->ddPForFrame));
-            e->dA = e->dA + dt*e->ddAForFrame;
+            e->dA = plus_float3(e->dA, scale_float3(dt, e->ddAForFrame));
 
             float size = float2_magnitude(e->dP.xy);
             
@@ -206,8 +242,12 @@ void updateGame(GameState *gameState) {
             VoxelEntity *e = &gameState->voxelEntities[i];
 
             // if(!e->asleep) 
-            {
-                e->T.rotation.z += dt * e->dA;
+            {   
+                float3 v = e->dA;
+                v.x *= -1;
+                v.y *= -1;
+                v.z *= -1;
+                e->T.rotation = integrateAngularVelocity(e->T.rotation, v, dt);
                 e->T.pos = plus_float3(e->T.pos, scale_float3(dt, e->dP));
             }
         }
@@ -221,47 +261,57 @@ void updateGame(GameState *gameState) {
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         VoxelEntity *e = &gameState->voxelEntities[i];
 
-        TransformX TTemp = e->T;
-        TTemp.rotation.z = radiansToDegrees(TTemp.rotation.z);
-        //NOTE: Draw with colliding margin
-        TTemp.scale.xy = plus_float2(make_float2(BOUNDING_BOX_MARGIN, BOUNDING_BOX_MARGIN), e->worldBounds);
-        float16 A = getModelToViewSpace(TTemp);
-        float16 I = float16_identity();
+        // TransformX TTemp = e->T;
+        // //TODO: ROTATION
+        // TTemp.rotation.z = radiansToDegrees(TTemp.rotation.z);
+        // //NOTE: Draw with colliding margin
+        // TTemp.scale = plus_float3(make_float3(BOUNDING_BOX_MARGIN, BOUNDING_BOX_MARGIN, BOUNDING_BOX_MARGIN), e->worldBounds);
+        // float16 A = getModelToViewSpace(TTemp);
+        // float16 I = float16_identity();
 
-        float16 T0 =  float16_multiply(A, float16_set_pos(I, make_float3(0, -0.5f, 0)));
-        float16 T1 =  float16_multiply(A, float16_set_pos(I, make_float3(0, 0.5f, 0)));
-        float16 T2 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(-0.5f, 0, 0)));
-        float16 T3 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(0.5f, 0, 0)));
+        // float16 T0 =  float16_multiply(A, float16_set_pos(I, make_float3(0, -0.5f, 0)));
+        // float16 T1 =  float16_multiply(A, float16_set_pos(I, make_float3(0, 0.5f, 0)));
+        // float16 T2 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(-0.5f, 0, 0)));
+        // float16 T3 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(0.5f, 0, 0)));
         
 
-        //NOTE: Debug lines
-        float4 lineColor = make_float4(0, 0, 0, 1);
-        if(e->inBounds) {
-            lineColor.y = 1;
-        }
-        pushLine(gameState->renderer, T0, lineColor);
-        pushLine(gameState->renderer, T1, lineColor);
-        pushLine(gameState->renderer, T2, lineColor);
-        pushLine(gameState->renderer, T3, lineColor);
+        // //NOTE: Debug lines
+        // float4 lineColor = make_float4(0, 0, 0, 1);
+        // if(e->inBounds) {
+        //     lineColor.y = 1;
+        // }
+        // pushLine(gameState->renderer, T0, lineColor);
+        // pushLine(gameState->renderer, T1, lineColor);
+        // pushLine(gameState->renderer, T2, lineColor);
+        // pushLine(gameState->renderer, T3, lineColor);
+        
+        float3 scale = make_float3(VOXEL_SIZE_IN_METERS, VOXEL_SIZE_IN_METERS, VOXEL_SIZE_IN_METERS);
+        const float16 T = sqt_to_float16(e->T.rotation, scale, make_float3(0, 0, 0));
+        for(int z = 0; z < e->depth; ++z) {
+            for(int y = 0; y < e->pitch; ++y) {
+                for(int x = 0; x < e->stride; ++x) {
+                    u8 state = e->data[getVoxelIndex(e, x, y, z)];
 
-        for(int y = 0; y < e->pitch; ++y) {
-            for(int x = 0; x < e->stride; ++x) {
-                u8 state = e->data[y*e->stride + x];
+                    if(state & VOXEL_OCCUPIED) 
+                    {
+                        if(state & VOXEL_INSIDE) {
+                            
+                        } else {
+                            float4 color = make_float4(1, 0.5f, 0, 1);
+                            if(state & VOXEL_COLLIDING) {
+                                color = make_float4(0, 0.5f, 0, 1);
+                            } else if(state & VOXEL_CORNER) {
+                                color = make_float4(1, 0, 1, 1);
+                            } else if(state & VOXEL_EDGE) {
+                                color = make_float4(0, 1, 1, 1);
+                            }
 
-                if(state & VOXEL_OCCUPIED) 
-                {
-                    float4 color = make_float4(1, 0.5f, 0, 1);
-                    if(state & VOXEL_COLLIDING) {
-                        color = make_float4(0, 0.5f, 0, 1);
-                    } else if(state & VOXEL_CORNER) {
-                        color = make_float4(1, 0, 1, 1);
-                    } else if(state & VOXEL_EDGE) {
-                        color = make_float4(0, 1, 1, 1);
+                            //TODO: This function is too slow
+                            float3 p = voxelToWorldP(e, x, y, z);
+                            float16 T1 = float16_set_pos(T, p);
+                            pushBlockItem(gameState->renderer, T1, color);
+                        }
                     }
-
-                    float2 p = voxelToWorldP(e, x, y);
-                    pushColoredQuad(gameState->renderer, make_float3(p.x, p.y, 0), make_float2(VOXEL_SIZE_IN_METERS, VOXEL_SIZE_IN_METERS), color);
-                    // pushCircleOutline(gameState->renderer, p, VOXEL_SIZE_IN_METERS, color);
                 }
             }
         }
@@ -274,7 +324,7 @@ void updateGame(GameState *gameState) {
          if(gameState->mouseLeftBtn == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
         
         // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
-            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
+            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
         }
 
         if(gameState->grabbed) {

@@ -10,8 +10,8 @@ void updateCamera(GameState *gameState) {
 
         float2 mouseDelta = minus_float2(gameState->mouseP_screenSpace, gameState->lastMouseP);
 
-        // gameState->camera.T.rotation.y += gameState->dt*rotSpeed*-mouseDelta.x;
-        // gameState->camera.T.rotation.x += gameState->dt*rotSpeed*-mouseDelta.y;
+        gameState->camera.T.rotation.y += gameState->dt*rotSpeed*-mouseDelta.x;
+        gameState->camera.T.rotation.x += gameState->dt*rotSpeed*-mouseDelta.y;
 
         float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
 

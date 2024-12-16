@@ -137,13 +137,13 @@ void buildSkinningMatrix(GameState *gameState, SkeletalModel *model, AnimationSt
 			T->scale = a.xyz;
 		} else if(bone->type == BONE_ANIMATION_TRANSLATION) {
 			a = lerp_float4(a, b, t);
-			T->translate = a.xyz;
+			T->pos = a.xyz;
 		}
 	}
 
 	for(int i = 0; i < model->jointCount; ++i) {
 		SQT sqt = perJointTransform[i];
-		perJointTransforms[i] = sqt_to_float16(sqt.rotation, sqt.scale, sqt.translate);
+		perJointTransforms[i] = sqt_to_float16(sqt.rotation, sqt.scale, sqt.pos);
 
 		if(entityType == ENTITY_FOX) {
 			perJointTransforms[i] = float16_multiply(getFoxAnimation(animationState, &model->joints[i]), perJointTransforms[i]);

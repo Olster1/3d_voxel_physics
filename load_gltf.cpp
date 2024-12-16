@@ -479,7 +479,7 @@ SkeletalModel loadGLTF(char *fileName) {
 								model.joints[i].T.scale = make_float3(joint->scale[0], joint->scale[1], joint->scale[2]);
 							}
 							if(joint->has_translation) {
-								model.joints[i].T.translate = make_float3(joint->translation[0], joint->translation[1], joint->translation[2]);
+								model.joints[i].T.pos = make_float3(joint->translation[0], joint->translation[1], joint->translation[2]);
 							}
 
 							//NOTE: Find the parent index

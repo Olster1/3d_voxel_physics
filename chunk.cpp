@@ -1131,7 +1131,7 @@ void updateEntities(GameState *gameState) {
             T = float16_set_pos(T, plus_float3(e->offset, e->T.pos));
 
             // pushAlphaCube(gameState->renderer, e->T.pos, BLOCK_CLOUD, make_float4(0, 0, 1, 1.0f));
-            pushBlockItem(gameState->renderer, T, e->itemType, make_float4(1, 1, 1, 1));   
+            // pushBlockItem(gameState->renderer, T, e->itemType, make_float4(1, 1, 1, 1));   
         }
     }
 

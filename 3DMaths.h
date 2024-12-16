@@ -163,7 +163,6 @@ static inline float integrateRot2d(float rot, float omegah) {
 	float s = sin(rot);
 	float a = c - omegah * s;
 	float result = acos(a);
-	printf("%f\n", rot);
 	return result;
 }
 
@@ -255,7 +254,7 @@ static float3 make_float3(float x0, float y0, float z0) {
 	return result;
 }
 
-static float3 float3_crossProduct(float3 v1, float3 v2) {
+static float3 float3_cross(float3 v1, float3 v2) {
 	float3 result = {};
 
 	result.x = v1.y * v2.z - v1.z * v2.y;
@@ -1019,7 +1018,7 @@ bool rect3fInsideViewFrustrum(Rect3f rect, float3 cameraP, float16 cameraMatrix,
 
 		float3 v =  normalize_float3(minus_float3(b1, a1));
 
-		planes[2 + i].normal = float3_crossProduct(v, orthoVectors[i]);
+		planes[2 + i].normal = float3_cross(v, orthoVectors[i]);
 	}
 	
 	for(int i = 0; i < arrayCount(planes) && result; ++i) {
@@ -1150,36 +1149,42 @@ float4 identityQuaternion() {
 float16 quaternionToMatrix(float4 q) {
     float16 result = float16_identity();
     
-    float xx = q.x * q.x;
-    float yy = q.y * q.y;
-    float zz = q.z * q.z;
-    float xy = q.x * q.y;
-    float xz = q.x * q.z;
-    float yz = q.y * q.z;
-    float wx = q.w * q.x;
-    float wy = q.w * q.y;
-    float wz = q.w * q.z;
-
-    result.E_[0][0] = 1.0f - 2.0f * (yy + zz);
-    result.E_[0][1] = 2.0f * (xy - wz);
-    result.E_[0][2] = 2.0f * (xz + wy);
-    result.E_[0][3] = 0.0f;
-
-    result.E_[1][0] = 2.0f * (xy + wz);
-    result.E_[1][1] = 1.0f - 2.0f * (xx + zz);
-    result.E_[1][2] = 2.0f * (yz - wx);
-    result.E_[1][3] = 0.0f;
-
-    result.E_[2][0] = 2.0f * (xz - wy);
-    result.E_[2][1] = 2.0f * (yz + wx);
-    result.E_[2][2] = 1.0f - 2.0f * (xx + yy);
-    result.E_[2][3] = 0.0f;
-
-    //This is because we're using column notation instead of row notation
-    //TODO @speed: take this out and swap the values manually
-    // result = float16_transpose(result);
-    //
+    float x = q.x;
+    float y = q.y;
+    float z = q.z;
+    float w = q.w;
     
+    // Compute commonly used terms to avoid redundant calculations
+    float x2 = x * x;
+    float y2 = y * y;
+    float z2 = z * z;
+    float xy = x * y;
+    float xz = x * z;
+    float yz = y * z;
+    float wx = w * x;
+    float wy = w * y;
+    float wz = w * z;
+
+    result.E[0] = 1.0f - 2.0f * (y2 + z2);
+    result.E[1] = 2.0f * (xy - wz);
+    result.E[2] = 2.0f * (xz + wy);
+    result.E[3] = 0.0f;
+
+    result.E[4] = 2.0f * (xy + wz);
+    result.E[5] = 1.0f - 2.0f * (x2 + z2);
+    result.E[6] = 2.0f * (yz - wx);
+    result.E[7] = 0.0f;
+
+    result.E[8] = 2.0f * (xz - wy);
+    result.E[9] = 2.0f * (yz + wx);
+    result.E[10] = 1.0f - 2.0f * (x2 + y2);
+    result.E[11] = 0.0f;
+
+    result.E[12] = 0.0f;
+    result.E[13] = 0.0f;
+    result.E[14] = 0.0f;
+    result.E[15] = 1.0f;
+
     return result;
     
 }
@@ -1248,46 +1253,40 @@ float4 slerp(float4 q1, float4 q2, float t) {
     return result; // Return the interpolated quaternion
 }
 
-float4 eulerToQuaternion(float roll, float pitch, float yaw) {
-	// Convert angles to radians
-	roll = degreesToRadians(roll);
-	pitch = degreesToRadians(pitch);
-	yaw = degreesToRadians(yaw);
-    
-    roll  *= 0.5f;
-    pitch *= 0.5f;
-    yaw   *= 0.5f;
-
-	
-
-    // Precompute sines and cosines of half angles
-    float cosRoll = cosf(roll);
-    float sinRoll = sinf(roll);
-    float cosPitch = cosf(pitch);
-    float sinPitch = sinf(pitch);
-    float cosYaw = cosf(yaw);
-    float sinYaw = sinf(yaw);
-
-    // Compute quaternion components in the order (x, y, z, w)
-    float4 q;
-    q.x = sinRoll * cosPitch * cosYaw - cosRoll * sinPitch * sinYaw;
-    q.y = cosRoll * sinPitch * cosYaw + sinRoll * cosPitch * sinYaw;
-    q.z = cosRoll * cosPitch * sinYaw - sinRoll * sinPitch * cosYaw;
-    q.w = cosRoll * cosPitch * cosYaw + sinRoll * sinPitch * sinYaw;
-
-    return q;
+float4 multQuaternion(float4 q, float4 multiplier) {
+	float4 result = {};
+    result.w = q.w*multiplier.w - q.x*multiplier.x -
+        q.y*multiplier.y - q.z*multiplier.z;
+    result.x = q.w*multiplier.x + q.x*multiplier.w +
+        q.y*multiplier.z - q.z*multiplier.y;
+	result.y = q.w*multiplier.y + q.y*multiplier.w +
+		q.z*multiplier.x - q.x*multiplier.z;
+	result.z = q.w*multiplier.z + q.z*multiplier.w +
+		q.x*multiplier.y - q.y*multiplier.x;
+	return result;
 }
 
-//the arguments are in order of math operation ie. q1*q2 -> have q2 rotation and rotating by q1
-float4 quaternion_mult(float4 q1, float4 q2) {
-    float4 result = {};
-    
-    result.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
-    result.x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
-    result.y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
-    result.z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w;
+float4 integrateAngularVelocity(const float4 q, const float3 angularVelocity, float dt) {
+	float4 result = q;
 
-    return result;
+    // Quaternion representation of angular velocity
+    float4 omega = make_float4(angularVelocity.x*dt, angularVelocity.y*dt, angularVelocity.z*dt, 0);
+
+	omega = multQuaternion(q, omega);
+
+	result.x += 0.5f*omega.x;
+	result.y += 0.5f*omega.y;
+	result.z += 0.5f*omega.z;
+	result.w += 0.5f*omega.w;
+
+    // // Normalize quaternion
+    float magnitude = sqrt(result.w * result.w + result.x * result.x + result.y * result.y + result.z * result.z);
+    result.w /= magnitude;
+    result.x /= magnitude;
+    result.y /= magnitude;
+    result.z /= magnitude;
+
+	return result;
 }
 
 

@@ -820,6 +820,7 @@ void endChunkRender() {
 }
 
 void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle) {
+    HOP_PROF_FUNC();
     if(renderer->cubeCount > 0) {
         //NOTE: Draw Cubes
         // printf("cube size: %lu\n", renderer->cubeCount*sizeof(InstanceData));
@@ -831,7 +832,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
 
     if(renderer->blockItemsCount > 0) {
         updateInstanceData(renderer->blockModelWithInstancedT.instanceBufferhandle, renderer->blockItemsData, renderer->blockItemsCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->blockModelWithInstancedT, &renderer->blockPickupShader, renderer->terrainTextureHandle, renderer->blockItemsCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(&renderer->blockModelWithInstancedT, &renderer->plainBlockColorShader, renderer->terrainTextureHandle, renderer->blockItemsCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->blockItemsCount = 0;
     }

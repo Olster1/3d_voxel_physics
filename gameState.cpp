@@ -253,10 +253,11 @@ void createSearchOffsets(GameState *gameState) {
 void initGameState(GameState *gameState) {
     srand(time(NULL));
     gameState->randomStartUpID = rand();
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), 1.0f, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, make_float3(0, 2, 0), 1.0f, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, make_float3(0, 4, 0), 1.0f, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelPlaneEntity(100.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
+    float inverseMass = 1.0f / 50000.0f;
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelPlaneEntity(50.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
     // gameState->grabbed = &gameState->voxelEntities[2]; 
     
     assert(BLOCK_TYPE_COUNT < 255);
@@ -272,8 +273,6 @@ void initGameState(GameState *gameState) {
     createBlockFlags(gameState);
     memset(gameState->chunks, 0, arrayCount(gameState->chunks)*sizeof(Chunk *));
 
-    
-    
     gameState->entitiesToAddCount = 0;
 
     gameState->timeOfDay = 0.4f;

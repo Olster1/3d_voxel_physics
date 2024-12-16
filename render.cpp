@@ -235,6 +235,7 @@ struct Renderer {
     Shader lineShader;
     Shader skyboxShader;
     Shader blockColorShader;
+    Shader plainBlockColorShader;
     Shader blockSameTextureShader;
     Shader rayCastShader;
     
@@ -464,13 +465,12 @@ void pushModel(Renderer *renderer, float16 T, float4 color) {
 }
 
 
-void pushBlockItem(Renderer *renderer, float16 T, BlockType type, float4 color) {
+void pushBlockItem(Renderer *renderer, float16 T, float4 color) {
     if(renderer->blockItemsCount < arrayCount(renderer->blockItemsData)) {
         InstanceDataWithRotation *cube = &renderer->blockItemsData[renderer->blockItemsCount++];
 
         cube->M = T;
-        float2 uvs = getUVCoordForBlock(type);
-        cube->uv = make_float4(uvs.x, uvs.y, 0, 1);
+        cube->uv = make_float4(0, 1, 0, 1);
         cube->color = color;
 
     } else {

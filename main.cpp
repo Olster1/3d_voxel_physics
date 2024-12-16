@@ -13,6 +13,10 @@ static float global_fogSeeDistance;
 #include "./Hop.h"
 
 static int global_updateArbCount = 0;
+static float global_timeInPhysicsUpdate = 0;
+static float global_totalLoopTime = 0;
+static float global_totalCollisionCheck = 0;
+static float global_totalPhysicsSolver = 0;
 
 #include "./easy_memory.h"
 #include "./resize_array.cpp"
@@ -111,22 +115,43 @@ void updateAndDrawDebugCode(GameState *gameState) {
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 5), 0.1f);
     }
+    // {
+    //     char s[255];
+    //     int charsRendered = sprintf (s, "Physics Loops: %d", (int)(physicsLoopsCount));
+    //     assert(charsRendered < arrayCount(s));
+    //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
+    // }
+    // {
+    //     char s[255];
+    //     int charsRendered = sprintf (s, "Arb update loops: %d", global_updateArbCount);
+    //     assert(charsRendered < arrayCount(s));
+    //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
+    // }
     {
         char s[255];
-        int charsRendered = sprintf (s, "Physics Loops: %d", (int)(physicsLoopsCount));
+        int charsRendered = sprintf (s, "Total Physics: %d%%", (int)((global_timeInPhysicsUpdate / global_totalLoopTime)*100.0f));
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
     }
     {
         char s[255];
-        int charsRendered = sprintf (s, "Arb update loops: %d", global_updateArbCount);
+        int charsRendered = sprintf (s, "Physics Collision Check: %d%%", (int)((global_totalCollisionCheck / global_timeInPhysicsUpdate)*100.0f));
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
     }
-    
+    {
+        char s[255];
+        int charsRendered = sprintf (s, "Physics Solver: %d%%", (int)((global_totalPhysicsSolver / global_timeInPhysicsUpdate)*100.0f));
+        assert(charsRendered < arrayCount(s));
+        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 20), 0.1f);
+    }
+   
+
 }
 
 void updateGame(GameState *gameState) {
+    Uint32 start = SDL_GetTicks();
+    
     if(!gameState->inited) {
         globalLongTermArena = createArena(Kilobytes(200));
         globalPerFrameArena = createArena(Kilobytes(100));
@@ -178,13 +203,17 @@ void updateGame(GameState *gameState) {
     }
 
     physicsLoopsCount = 0;
+    global_totalCollisionCheck = 0;
+    global_totalPhysicsSolver = 0;
+    
+    Uint32 startPhysics = SDL_GetTicks();
     
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep) {
-        HOP_PROF("PHYSICS UPDATE");
         physicsLoopsCount++;
         float dt = minStep;
 
+        Uint32 startCollisionTime = SDL_GetTicks();
         for(int i = 0; i < gameState->voxelEntityCount; ++i) {
             VoxelEntity *e = &gameState->voxelEntities[i];
 
@@ -204,10 +233,10 @@ void updateGame(GameState *gameState) {
                 }
             }
         }
+        global_totalCollisionCheck += ((SDL_GetTicks() - startCollisionTime) / 1000.0f);
 
         //NOTE: Integrate forces
         for(int i = 0; i < gameState->voxelEntityCount; ++i) {
-            HOP_PROF("INTEGRATE FORCES");
             VoxelEntity *e = &gameState->voxelEntities[i];
             
             e->dP = plus_float3(e->dP, scale_float3(dt, e->ddPForFrame));
@@ -233,9 +262,11 @@ void updateGame(GameState *gameState) {
 
         //NOTE: Calculate constant values and conditions the iteration solver should use
         prestepAllArbiters(&gameState->physicsWorld, 1.0f / dt);
-
+        
+        Uint32 startSolverTime = SDL_GetTicks();
         //NOTE: Apply impluses
         updateAllArbiters(&gameState->physicsWorld);
+        global_totalPhysicsSolver += ((SDL_GetTicks() - startSolverTime) / 1000.0f);
 
         //NOTE: Integrate velocities
         for(int i = 0; i < gameState->voxelEntityCount; ++i) {
@@ -257,6 +288,7 @@ void updateGame(GameState *gameState) {
 
         gameState->physicsAccum -= minStep;
     }
+    global_timeInPhysicsUpdate = (SDL_GetTicks() - startPhysics) / 1000.0f;
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         VoxelEntity *e = &gameState->voxelEntities[i];
@@ -328,11 +360,13 @@ void updateGame(GameState *gameState) {
         float x = lerp(-p.x, p.x, make_lerpTValue(gameState->mouseP_01.x));
         float y = lerp(-p.y, p.y, make_lerpTValue(1.0f + gameState->mouseP_01.y));
 
-         if(gameState->mouseLeftBtn == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        
-        // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
+        if(gameState->keys.keys[KEY_T] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
+            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
+        }
+        if(gameState->keys.keys[KEY_Y] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
             gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
         }
+        
 
         if(gameState->grabbed) {
             gameState->grabbed->T.pos.x = x;
@@ -348,5 +382,6 @@ void updateGame(GameState *gameState) {
     updateAndDrawDebugCode(gameState);
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle);
 
-   
+    Uint32 end = SDL_GetTicks();
+    global_totalLoopTime = (end - start) / 1000.0f;
 }

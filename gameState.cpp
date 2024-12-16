@@ -254,8 +254,9 @@ void initGameState(GameState *gameState) {
     srand(time(NULL));
     gameState->randomStartUpID = rand();
     float inverseMass = 1.0f / 50000.0f;
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelPlaneEntity(50.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
     // gameState->grabbed = &gameState->voxelEntities[2]; 
@@ -280,7 +281,7 @@ void initGameState(GameState *gameState) {
     initPlayer(&gameState->player, gameState->randomStartUpID);
     gameState->player.T.pos = gameState->camera.T.pos;
 
-    gameState->physicsWorld.positionCorrecting = true;
+    gameState->physicsWorld.positionCorrecting = false;
     gameState->physicsWorld.warmStarting = true;
     gameState->physicsWorld.accumulateImpulses = true;
 

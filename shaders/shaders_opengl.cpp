@@ -51,7 +51,9 @@ static char *blockSameColorFragShader =
 "out vec4 color;"
 "void main() {"
     "float mixValue = max(dot(normal_frag_view_space, sunAngle), 0);"
-    "color = mix(darkness*color_frag, color_frag, mixValue);"
+    "vec4 a = mix(darkness*color_frag, color_frag, mixValue);"
+    "a.w = 1;"
+    "color = a;"
 "}";
 
 
@@ -469,7 +471,7 @@ static char *fontTextureFragShader =
 "out vec4 color;"
 "void main() {"
     "vec4 diffSample = texture(diffuse, uv_frag);"
-    "color = vec4(diffSample.r);"
+    "color = vec4(diffSample.r)*color_frag;"
 "}";
 
 static char *quadFragShader = 

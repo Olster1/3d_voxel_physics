@@ -100,8 +100,11 @@ void renderText(Renderer *renderer, Font *font, char *nullTerminatedString, floa
                 y1 = (scale*(y1 - start.y)) + start.y;
 
                 float4 uvCoords = make_float4(q.s0, q.s1, q.t1, q.t0);
-
+                
+                float offset = 0.2f;
+                pushGlyph(renderer, make_float3(x1 + offset, y1 + offset, 1), make_float3(scale*width, scale*height, 1), uvCoords, make_float4(0.3f, 0.3f, 0.3f, 1));
                 pushGlyph(renderer, make_float3(x1, y1, 1), make_float3(scale*width, scale*height, 1), uvCoords, make_float4(1, 1, 1, 1));
+                
             }
         } else {
             //NOTE: Move down a line

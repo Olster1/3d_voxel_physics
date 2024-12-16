@@ -58,6 +58,8 @@ enum KeyTypes {
   KEY_6,
   KEY_7,
   KEY_8,
+  KEY_T,
+  KEY_Y,
 
   ///////////
   KEY_COUNTS
@@ -202,6 +204,10 @@ int main(int argc, char **argv) {
     updateKeyState(gameState, KEY_6, currentKeyStates[SDL_SCANCODE_6] == 1);
     updateKeyState(gameState, KEY_7, currentKeyStates[SDL_SCANCODE_7] == 1);
     updateKeyState(gameState, KEY_8, currentKeyStates[SDL_SCANCODE_8] == 1);
+    updateKeyState(gameState, KEY_T, currentKeyStates[SDL_SCANCODE_T] == 1);
+    updateKeyState(gameState, KEY_Y, currentKeyStates[SDL_SCANCODE_Y] == 1);
+    
+
     int w; 
     int h;
     SDL_GetWindowSize(window, &w, &h);

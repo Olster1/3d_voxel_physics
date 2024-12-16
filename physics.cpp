@@ -106,7 +106,7 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
 
 void updateAllArbiters(PhysicsWorld *world) {
     HOP_PROF_FUNC();
-    const int iterationCount = 4;
+    const int iterationCount = 10;
     
     Arbiter *arb = world->arbiters;
     

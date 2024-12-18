@@ -196,14 +196,12 @@ FloodFillVoxel *popOffVoxelQueue(FloodFillVoxel *queue) {
 }
 
 float3 voxelToWorldP(VoxelEntity *e, int x, int y, int z) {
-    HOP_PROF_FUNC();
     float3 modelSpace = getVoxelPositionInModelSpaceFromCenter(e, make_float3(x, y, z));
     float3 p = float16_transform(getModelToViewSpaceWithoutScaleSQT(e->T), make_float4(modelSpace.x, modelSpace.y, modelSpace.z, 1)).xyz; 
     return p;
 }
 
 float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
-    HOP_PROF_FUNC();
     float16 T = transform_getInverseX_SQT(e->T);
     float3 p = float16_transform(T, make_float4(worldP.x, worldP.y, worldP.z, 1)).xyz;
     p = plus_float3(p, make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z));
@@ -281,7 +279,6 @@ float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
 // }
 
 int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
-    HOP_PROF_FUNC();
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
@@ -398,7 +395,6 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
 
 
 void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntity *b) {
-    HOP_PROF_FUNC();
     int pointCount = 0;
     CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
 

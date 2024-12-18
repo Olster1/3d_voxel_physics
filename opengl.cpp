@@ -827,7 +827,6 @@ void endChunkRender() {
 }
 
 void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle) {
-    HOP_PROF_FUNC();
     if(renderer->cubeCount > 0) {
         //NOTE: Draw Cubes
         // printf("cube size: %lu\n", renderer->cubeCount*sizeof(InstanceData));

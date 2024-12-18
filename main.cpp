@@ -7,11 +7,6 @@ uint64_t getBitWiseFlag(uint64_t bitWise) {
 static float global_fogFarDistance;
 static float global_fogSeeDistance;
 
-
-#define HOP_ENABLED 1
-#define HOP_IMPLEMENTATION 1
-#include "./Hop.h"
-
 static int global_updateArbCount = 0;
 static float global_timeInPhysicsUpdate = 0;
 static float global_totalLoopTime = 0;
@@ -22,6 +17,7 @@ static float global_totalPhysicsSolver = 0;
 #include "./resize_array.cpp"
 #include "./memory_arena.h"
 #include "./easy_string_utf8.h"
+#include "./profiler.cpp"
 #include "./easy_string.h"
 #include "./easy_files.h"
 #include "./easy_lex.h"
@@ -145,12 +141,22 @@ void updateAndDrawDebugCode(GameState *gameState) {
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 20), 0.1f);
     }
-   
 
+    float yAppend = 0;
+     for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
+            ProfileData *d = &global_profiler->data[i];
+            char s[255];
+            int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
+            assert(charsRendered < arrayCount(s));
+            renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
+            yAppend += 5;
+    }
 }
 
 void updateGame(GameState *gameState) {
     Uint32 start = SDL_GetTicks();
+
+    clearProfiler();
     
     if(!gameState->inited) {
         globalLongTermArena = createArena(Kilobytes(200));
@@ -161,8 +167,6 @@ void updateGame(GameState *gameState) {
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
     }
-
-    HOP_PROF_FUNC();
 
     updateCamera(gameState);
   
@@ -210,6 +214,7 @@ void updateGame(GameState *gameState) {
     
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep) {
+        PROFILE_FUNC(MainPhysics);
         physicsLoopsCount++;
         float dt = minStep;
 

@@ -45,7 +45,6 @@ struct PhysicsWorld {
 float2 worldPToVoxelP(VoxelEntity *e, float2 worldP);
 
 void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
-    HOP_PROF_FUNC();
     Arbiter *arb = world->arbiters;
 
     float allowedPenertration = 0.01;//NOTE: Meters
@@ -105,7 +104,6 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
 }
 
 void updateAllArbiters(PhysicsWorld *world) {
-    HOP_PROF_FUNC();
     const int iterationCount = 10;
     
     Arbiter *arb = world->arbiters;
@@ -174,7 +172,6 @@ void wakeUpEntity(VoxelEntity *e) {
 } 
 
 void mergePointsToArbiter(PhysicsWorld *world, CollisionPoint *points, int pointCount, VoxelEntity *a, VoxelEntity *b) {
-    HOP_PROF_FUNC();
     if(a > b) {
         VoxelEntity *temp = b;
         b = a;

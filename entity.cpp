@@ -279,12 +279,14 @@ float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
 // }
 
 int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
+    PROFILE_FUNC(doesVoxelCollide);
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
     int y = (int)(p.y);
     int z = (int)(p.z);
 
+    //TODO: This needs to be an array of 8 not 27
     float3 voxels[27] = {
         make_float3(-1, -1, -1), 
         make_float3(-1, -1,  0), 
@@ -325,7 +327,12 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
         int testZ = (int)voxelSpace.z;
 
         if(isVoxelOccupied(e, testX, testY, testZ)) {
-            float3 voxelWorldP = voxelToWorldP(e, testX, testY, testZ);
+            float3 voxelWorldP;
+            {
+                PROFILE_FUNC(voxelToWorldP);
+                voxelWorldP = voxelToWorldP(e, testX, testY, testZ);
+            }
+
             float3 diff = minus_float3(worldP, voxelWorldP);
 
             if(swap) {
@@ -395,9 +402,11 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
 
 
 void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntity *b) {
+    PROFILE_FUNC(collideVoxelEntities);
     int pointCount = 0;
     CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
 
+    //TODO: SPEED Need a overlap box check
     // Gjk_EPA_Info r = boundingBoxOverlapWithMargin(a, b, BOUNDING_BOX_MARGIN);
 
     // if(r.collided) 
@@ -460,8 +469,11 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
                 }
             }
         }
-
-        mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
+        {
+            PROFILE_FUNC(mergePointsToArbiter);
+            mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
+        }
+        
     }
 }
 

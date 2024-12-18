@@ -10,8 +10,6 @@ static float global_fogSeeDistance;
 static int global_updateArbCount = 0;
 static float global_timeInPhysicsUpdate = 0;
 static float global_totalLoopTime = 0;
-static float global_totalCollisionCheck = 0;
-static float global_totalPhysicsSolver = 0;
 
 #include "./easy_memory.h"
 #include "./resize_array.cpp"
@@ -129,18 +127,6 @@ void updateAndDrawDebugCode(GameState *gameState) {
         assert(charsRendered < arrayCount(s));
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
     }
-    {
-        char s[255];
-        int charsRendered = sprintf (s, "Physics Collision Check: %d%%", (int)((global_totalCollisionCheck / global_timeInPhysicsUpdate)*100.0f));
-        assert(charsRendered < arrayCount(s));
-        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
-    }
-    {
-        char s[255];
-        int charsRendered = sprintf (s, "Physics Solver: %d%%", (int)((global_totalPhysicsSolver / global_timeInPhysicsUpdate)*100.0f));
-        assert(charsRendered < arrayCount(s));
-        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 20), 0.1f);
-    }
 
     float yAppend = 0;
      for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
@@ -207,84 +193,91 @@ void updateGame(GameState *gameState) {
     }
 
     physicsLoopsCount = 0;
-    global_totalCollisionCheck = 0;
-    global_totalPhysicsSolver = 0;
-    
     Uint32 startPhysics = SDL_GetTicks();
     
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep) {
-        PROFILE_FUNC(MainPhysics);
         physicsLoopsCount++;
         float dt = minStep;
+        
+        {
+            PROFILE_FUNC(CollisionCheck);
+            for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+                VoxelEntity *e = &gameState->voxelEntities[i];
 
-        Uint32 startCollisionTime = SDL_GetTicks();
-        for(int i = 0; i < gameState->voxelEntityCount; ++i) {
-            VoxelEntity *e = &gameState->voxelEntities[i];
+                for(int j = i + 1; j < gameState->voxelEntityCount; ++j) {
+                    VoxelEntity *e1 = &gameState->voxelEntities[j];
 
-            for(int j = i + 1; j < gameState->voxelEntityCount; ++j) {
-                VoxelEntity *e1 = &gameState->voxelEntities[j];
+                    if(e != e1) {
+                        // 1st - check bounding box intersection
+                        // 2nd -  
 
-                if(e != e1) {
-                    // 1st - check bounding box intersection
-                    // 2nd -  
-
-                    if (!(e->inverseMass == 0.0f && e1->inverseMass == 0.0f)) {
-                        collideVoxelEntities(&gameState->physicsWorld, e, e1); 
+                        if (!(e->inverseMass == 0.0f && e1->inverseMass == 0.0f)) {
+                            collideVoxelEntities(&gameState->physicsWorld, e, e1); 
+                        }
+                        
+                    } else {
+                        assert(false);
                     }
-                    
-                } else {
-                    assert(false);
                 }
             }
         }
-        global_totalCollisionCheck += ((SDL_GetTicks() - startCollisionTime) / 1000.0f);
 
         //NOTE: Integrate forces
-        for(int i = 0; i < gameState->voxelEntityCount; ++i) {
-            VoxelEntity *e = &gameState->voxelEntities[i];
-            
-            e->dP = plus_float3(e->dP, scale_float3(dt, e->ddPForFrame));
-            e->dA = plus_float3(e->dA, scale_float3(dt, e->ddAForFrame));
+        {
+            PROFILE_FUNC(IntegrateForces);
+            for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+                VoxelEntity *e = &gameState->voxelEntities[i];
+                
+                e->dP = plus_float3(e->dP, scale_float3(dt, e->ddPForFrame));
+                e->dA = plus_float3(e->dA, scale_float3(dt, e->ddAForFrame));
 
-            float size = float2_magnitude(e->dP.xy);
-            
-            if(size < PHYSICS_VELOCITY_SLEEP_THRESHOLD) {
-                if(!e->asleep) {
-                    e->sleepTimer += dt;
+                float size = float2_magnitude(e->dP.xy);
+                
+                if(size < PHYSICS_VELOCITY_SLEEP_THRESHOLD) {
+                    if(!e->asleep) {
+                        e->sleepTimer += dt;
+                    }
+                } else {
+                    //NOTE: Make sure the entity is awake
+                    e->sleepTimer = 0;
+                    e->asleep = false;
                 }
-            } else {
-                //NOTE: Make sure the entity is awake
-                e->sleepTimer = 0;
-                e->asleep = false;
-            }
 
-            if(e->sleepTimer >= PHYSICS_SLEEP_TIME_THRESHOLD) {
-                //NOTE: Object is asleep now
-                // e->asleep = true;
+                if(e->sleepTimer >= PHYSICS_SLEEP_TIME_THRESHOLD) {
+                    //NOTE: Object is asleep now
+                    // e->asleep = true;
+                }
             }
         }
 
-        //NOTE: Calculate constant values and conditions the iteration solver should use
-        prestepAllArbiters(&gameState->physicsWorld, 1.0f / dt);
+        {
+            PROFILE_FUNC(PrestepArbiters);
+            //NOTE: Calculate constant values and conditions the iteration solver should use
+            prestepAllArbiters(&gameState->physicsWorld, 1.0f / dt);
+        }
         
-        Uint32 startSolverTime = SDL_GetTicks();
-        //NOTE: Apply impluses
-        updateAllArbiters(&gameState->physicsWorld);
-        global_totalPhysicsSolver += ((SDL_GetTicks() - startSolverTime) / 1000.0f);
+         {
+            PROFILE_FUNC(UpdateArbiters);
+            //NOTE: Apply impluses
+            updateAllArbiters(&gameState->physicsWorld);
+         }
+        
+        {
+            PROFILE_FUNC(IntegrateVelocities);
+            //NOTE: Integrate velocities
+            for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+                VoxelEntity *e = &gameState->voxelEntities[i];
 
-        //NOTE: Integrate velocities
-        for(int i = 0; i < gameState->voxelEntityCount; ++i) {
-            VoxelEntity *e = &gameState->voxelEntities[i];
-
-            // if(!e->asleep) 
-            {   
-                float3 v = e->dA;
-                v.x *= -1;
-                v.y *= -1;
-                v.z *= -1;
-                e->T.rotation = integrateAngularVelocity(e->T.rotation, v, dt);
-                e->T.pos = plus_float3(e->T.pos, scale_float3(dt, e->dP));
+                // if(!e->asleep) 
+                {   
+                    float3 v = e->dA;
+                    v.x *= -1;
+                    v.y *= -1;
+                    v.z *= -1;
+                    e->T.rotation = integrateAngularVelocity(e->T.rotation, v, dt);
+                    e->T.pos = plus_float3(e->T.pos, scale_float3(dt, e->dP));
+                }
             }
         }
 

@@ -25,9 +25,8 @@ struct ProfileBlock {
 
     ~ProfileBlock() {
         uint32_t end = SDL_GetTicks();
-        assert(end > start);
+        assert(end >= start);
         float seconds = ((end - start) / 1000.0f);
-        printf("%f seconds\n", seconds);
 
         if(!global_profiler) {
             global_profiler = pushStruct(&globalLongTermArena, Profiler);

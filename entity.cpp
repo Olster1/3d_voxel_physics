@@ -278,6 +278,13 @@ float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
 //     return result;
 // }
 
+
+float getFractionalPart(float number) {
+    // Use truncf to get the integer part of the float
+    float integerPart = truncf(number);
+    return number - integerPart;
+}
+
 int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
     PROFILE_FUNC(doesVoxelCollide);
     float3 p = worldPToVoxelP(e, worldP);
@@ -287,34 +294,51 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
     int z = (int)(p.z);
 
     //TODO: This needs to be an array of 8 not 27
-    float3 voxels[27] = {
-        make_float3(-1, -1, -1), 
-        make_float3(-1, -1,  0), 
-        make_float3(-1, -1,  1), 
-        make_float3(-1,  0, -1), 
-        make_float3(-1,  0,  0), 
-        make_float3(-1,  0,  1), 
-        make_float3(-1,  1, -1), 
-        make_float3(-1,  1,  0), 
-        make_float3(-1,  1,  1), 
-        make_float3( 0, -1, -1), 
-        make_float3( 0, -1,  0), 
-        make_float3( 0, -1,  1), 
-        make_float3( 0,  0, -1), 
-        make_float3( 0,  0,  0),
-        make_float3( 0,  0,  1), 
-        make_float3( 0,  1, -1), 
-        make_float3( 0,  1,  0), 
-        make_float3( 0,  1,  1), 
-        make_float3( 1, -1, -1), 
-        make_float3( 1, -1,  0), 
-        make_float3( 1, -1,  1), 
-        make_float3( 1,  0, -1), 
-        make_float3( 1,  0,  0), 
-        make_float3( 1,  0,  1), 
-        make_float3( 1,  1, -1), 
-        make_float3( 1,  1,  0), 
-        make_float3( 1,  1,  1)
+    // float3 voxels[27] = {
+    //     make_float3(-1, -1, -1), 
+    //     make_float3(-1, -1,  0), 
+    //     make_float3(-1, -1,  1), 
+    //     make_float3(-1,  0, -1), 
+    //     make_float3(-1,  0,  0), 
+    //     make_float3(-1,  0,  1), 
+    //     make_float3(-1,  1, -1), 
+    //     make_float3(-1,  1,  0), 
+    //     make_float3(-1,  1,  1), 
+    //     make_float3( 0, -1, -1), 
+    //     make_float3( 0, -1,  0), 
+    //     make_float3( 0, -1,  1), 
+    //     make_float3( 0,  0, -1), 
+    //     make_float3( 0,  0,  0),
+    //     make_float3( 0,  0,  1), 
+    //     make_float3( 0,  1, -1), 
+    //     make_float3( 0,  1,  0), 
+    //     make_float3( 0,  1,  1), 
+    //     make_float3( 1, -1, -1), 
+    //     make_float3( 1, -1,  0), 
+    //     make_float3( 1, -1,  1), 
+    //     make_float3( 1,  0, -1), 
+    //     make_float3( 1,  0,  0), 
+    //     make_float3( 1,  0,  1), 
+    //     make_float3( 1,  1, -1), 
+    //     make_float3( 1,  1,  0), 
+    //     make_float3( 1,  1,  1)
+    // };  
+
+    float xOffset = getFractionalPart(p.x) > 0.5f ? 1 : -1;
+    float yOffset = getFractionalPart(p.y) > 0.5f ? 1 : -1;
+    float zOffset = getFractionalPart(p.z) > 0.5f ? 1 : -1;
+
+    float3 voxels[8] = {
+        make_float3(0,  yOffset,  zOffset), 
+        make_float3(xOffset,  0,  zOffset),  
+        make_float3(xOffset,  yOffset,  zOffset), 
+
+        make_float3(0,  yOffset,  0), 
+        make_float3(xOffset,  0,  0),  
+        make_float3(xOffset,  yOffset,  0), 
+
+        make_float3(0, 0, 0), 
+        make_float3(0, 0, zOffset), 
     };  
 
     int pointCount = 0;
@@ -371,46 +395,118 @@ int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, 
     return pointCount;
 }
 
-// gjk_v2 modelSpaceToWorldSpaceGJK(VoxelEntity *e, float x, float y) {
-//     float16 T = float16_angle_aroundZ(e->T.rotation.z);
-//     float2 p = plus_float2(float16_transform(T, make_float4(x, y, 0, 1)).xy, e->T.pos.xy); 
-//     return gjk_V2(p.x, p.y);
-// }
+float3 modelSpaceToWorldSpace(VoxelEntity *e, float x, float y, float z) {
+    float16 T = quaternionToMatrix(e->T.rotation);
+    float3 p = plus_float3(float16_transform(T, make_float4(x, y, z, 1)).xyz, e->T.pos); 
+    return plus_float3(make_float3(x, y, z), e->T.pos);
+    // return make_float3(x, y, z);
+}
 
-// Gjk_EPA_Info boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) {
-//     Rect2f aH = make_rect2f_center_dim(make_float2(0, 0), plus_float2(make_float2(margin, margin), a->worldBounds));
-//     Rect2f bH = make_rect2f_center_dim(make_float2(0, 0), plus_float2(make_float2(margin, margin), b->worldBounds));
+bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) {
+    const Rect3f aH = make_rect3f_center_dim(make_float3(0, 0, 0), plus_float3(make_float3(margin, margin, margin), a->worldBounds));
+    const Rect3f bH = make_rect3f_center_dim(make_float3(0, 0, 0), plus_float3(make_float3(margin, margin, margin), b->worldBounds));
 
-//     assert(a != b);
+    assert(a != b);
 
-//     gjk_v2 pointsA[4] = { 
-//         modelSpaceToWorldSpaceGJK(a, aH.minX, aH.minY), 
-//         modelSpaceToWorldSpaceGJK(a, aH.minX, aH.maxY), 
-//         modelSpaceToWorldSpaceGJK(a, aH.maxX, aH.maxY),  
-//         modelSpaceToWorldSpaceGJK(a, aH.maxX, aH.minY), 
-//     };
+    float3 pointsA[8] = { 
+        modelSpaceToWorldSpace(a, aH.minX, aH.minY, aH.minZ), 
+        modelSpaceToWorldSpace(a, aH.minX, aH.maxY, aH.minZ), 
+        modelSpaceToWorldSpace(a, aH.maxX, aH.maxY, aH.minZ),  
+        modelSpaceToWorldSpace(a, aH.maxX, aH.minY, aH.minZ), 
 
-//     gjk_v2 pointsB[4] = { 
-//         modelSpaceToWorldSpaceGJK(b, bH.minX, bH.minY), 
-//         modelSpaceToWorldSpaceGJK(b, bH.minX, bH.maxY), 
-//         modelSpaceToWorldSpaceGJK(b, bH.maxX, bH.maxY),  
-//         modelSpaceToWorldSpaceGJK(b, bH.maxX, bH.minY), 
-//     };
+        modelSpaceToWorldSpace(a, aH.minX, aH.minY, aH.maxZ), 
+        modelSpaceToWorldSpace(a, aH.minX, aH.maxY, aH.maxZ), 
+        modelSpaceToWorldSpace(a, aH.maxX, aH.maxY, aH.maxZ),  
+        modelSpaceToWorldSpace(a, aH.maxX, aH.minY, aH.maxZ), 
+    };
 
-//     return gjk_objectsCollide_withEPA(pointsA, 4, pointsB, 4);
-// }
+    Rect3f aCheck = make_rect3f(FLT_MAX, FLT_MAX, FLT_MAX, -FLT_MAX,-FLT_MAX, -FLT_MAX);
+    Rect3f bCheck = aCheck;
+    
+    for(int i = 0; i < arrayCount(pointsA); ++i) {
+        float3 p = pointsA[i];
+        if(p.x <= aCheck.minX) {
+            aCheck.minX = p.x;
+        }
+        if(p.y <= aCheck.minY) {
+            aCheck.minY = p.y;
+        }
+        if(p.z <= aCheck.minZ) {
+            aCheck.minZ = p.z;
+        }
+
+        if(p.x >= aCheck.maxX) {
+            aCheck.maxX = p.x;
+        }
+        if(p.y >= aCheck.maxY) {
+            aCheck.maxY = p.y;
+        }
+        if(p.z >= aCheck.maxZ) {
+            aCheck.maxZ = p.z;
+        }
+    }
+
+    float3 pointsB[8] = { 
+        modelSpaceToWorldSpace(b, bH.minX, bH.minY, bH.minZ), 
+        modelSpaceToWorldSpace(b, bH.minX, bH.maxY, bH.minZ), 
+        modelSpaceToWorldSpace(b, bH.maxX, bH.maxY, bH.minZ),  
+        modelSpaceToWorldSpace(b, bH.maxX, bH.minY, bH.minZ), 
+
+        modelSpaceToWorldSpace(b, bH.minX, bH.minY, bH.maxZ), 
+        modelSpaceToWorldSpace(b, bH.minX, bH.maxY, bH.maxZ), 
+        modelSpaceToWorldSpace(b, bH.maxX, bH.maxY, bH.maxZ),  
+        modelSpaceToWorldSpace(b, bH.maxX, bH.minY, bH.maxZ), 
+    };
+
+    for(int i = 0; i < arrayCount(pointsB); ++i) {
+        float3 p = pointsB[i];
+        if(p.x <= bCheck.minX) {
+            bCheck.minX = p.x;
+        }
+        if(p.y <= bCheck.minY) {
+            bCheck.minY = p.y;
+        }
+        if(p.z <= bCheck.minZ) {
+            bCheck.minZ = p.z;
+        }
+
+        if(p.x >= bCheck.maxX) {
+            bCheck.maxX = p.x;
+        }
+        if(p.y >= bCheck.maxY) {
+            bCheck.maxY = p.y;
+        }
+        if(p.z >= bCheck.maxZ) {
+            bCheck.maxZ = p.z;
+        }
+    }
+
+    bool result = false;
+    
+    if (aCheck.maxX < bCheck.minX || bCheck.maxX < aCheck.minX) {
+        // Check for overlap on the X-axis
+    } else if (aCheck.maxY < bCheck.minY || bCheck.maxY < aCheck.minY) {
+        // Check for overlap on the Y-axis
+    } else if (aCheck.maxZ < bCheck.minZ || bCheck.maxZ < aCheck.minZ) {
+        // Check for overlap on the Z-axis
+    } else {
+        result = true;
+    }
+
+    return result;
+}
 
 
 void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntity *b) {
     PROFILE_FUNC(collideVoxelEntities);
-    int pointCount = 0;
-    CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
+    
+    bool collided = boundingBoxOverlapWithMargin(a, b, BOUNDING_BOX_MARGIN);
 
-    //TODO: SPEED Need a overlap box check
-    // Gjk_EPA_Info r = boundingBoxOverlapWithMargin(a, b, BOUNDING_BOX_MARGIN);
-
-    // if(r.collided) 
+    if(collided) 
     {
+        int pointCount = 0;
+        CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
+
         a->inBounds = true;
         b->inBounds = true;
 
@@ -474,7 +570,7 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
             mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
         }
         
-    }
+    } 
 }
 
 struct CornerPair {

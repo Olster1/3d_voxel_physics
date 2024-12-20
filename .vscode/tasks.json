@@ -4,9 +4,10 @@
         {
             "label": "Minecraft",
             "type": "cppbuild",
-            "command": "gcc",
+            "command": "g++",
             "args": [
                 "-g",
+                "-std=c++11",
                 "-DDEBUG_BUILD=1",
                 "-o", "${workspaceFolder}/Minecraft",
                 "${workspaceFolder}/platform_layer.cpp",

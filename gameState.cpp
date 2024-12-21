@@ -157,6 +157,9 @@ struct GameState {
 
     SkeletalModel foxModel;
     float3 modelLocation;
+
+    VoxelCollideData *voxelCollideDataFreeList;
+    VoxelCollideData *voxelCollideData;
 };
 
 void createBlockFlags(GameState *gameState) {
@@ -252,6 +255,9 @@ void createSearchOffsets(GameState *gameState) {
 
 void initGameState(GameState *gameState) {
     srand(time(NULL));
+    gameState->voxelCollideDataFreeList = 0;
+    gameState->voxelCollideData = 0;
+
     gameState->randomStartUpID = rand();
     float inverseMass = 1.0f / 50000.0f;
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);

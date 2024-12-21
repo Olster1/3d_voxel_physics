@@ -76,6 +76,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
 #include "./interaction.cpp"
 #include "./texture_atlas.cpp"
 #include "./gameState.cpp"
+#include "./entity_multithread.cpp"
 #include "./chunk.cpp"
 #include "./player.cpp"
 #include "./camera.cpp"
@@ -121,22 +122,22 @@ void updateAndDrawDebugCode(GameState *gameState) {
     //     assert(charsRendered < arrayCount(s));
     //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
     // }
-    {
-        char s[255];
-        int charsRendered = sprintf (s, "Total Physics: %d%%", (int)((global_timeInPhysicsUpdate / global_totalLoopTime)*100.0f));
-        assert(charsRendered < arrayCount(s));
-        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
-    }
+    // {
+    //     char s[255];
+    //     int charsRendered = sprintf (s, "Total Physics: %d%%", (int)((global_timeInPhysicsUpdate / global_totalLoopTime)*100.0f));
+    //     assert(charsRendered < arrayCount(s));
+    //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
+    // }
 
-    float yAppend = 0;
-     for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
-            ProfileData *d = &global_profiler->data[i];
-            char s[255];
-            int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
-            assert(charsRendered < arrayCount(s));
-            renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
-            yAppend += 5;
-    }
+    // float yAppend = 0;
+    //  for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
+    //         ProfileData *d = &global_profiler->data[i];
+    //         char s[255];
+    //         int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
+    //         assert(charsRendered < arrayCount(s));
+    //         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
+    //         yAppend += 5;
+    // }
 }
 
 void updateGame(GameState *gameState) {
@@ -209,19 +210,43 @@ void updateGame(GameState *gameState) {
                     VoxelEntity *e1 = &gameState->voxelEntities[j];
 
                     if(e != e1) {
-                        // 1st - check bounding box intersection
-                        // 2nd -  
-
                         if (!(e->inverseMass == 0.0f && e1->inverseMass == 0.0f)) {
-                            collideVoxelEntities(&gameState->physicsWorld, e, e1); 
+                            collideEntitiesMultiThread(gameState, e, e1); 
                         }
-                        
                     } else {
                         assert(false);
                     }
                 }
             }
+        }   
+
+        // {
+        //     VoxelCollideData *d = gameState->voxelCollideData;
+        //     while(d) {
+        //         //NOTE: Multi-threaded version
+        //         pushWorkOntoQueue(&gameState->threadsInfo, collideVoxelEntities, d);
+        //         d = d->next;
+        //     }
+        // }
+
+        //TODO: Wait for threads to finish.
+        waitForWorkToFinish(&gameState->threadsInfo);
+
+        {
+            PROFILE_FUNC(mergePointsToArbiter);
+            VoxelCollideData *d = gameState->voxelCollideData;
+            while(d) {
+                mergePointsToArbiter(&gameState->physicsWorld, d->points, d->pointCount, d->a, d->b);
+                VoxelCollideData *dTemp = d;
+                d = d->next;
+
+                dTemp->next = gameState->voxelCollideDataFreeList;
+                gameState->voxelCollideDataFreeList = dTemp;
+                
+            }
+            gameState->voxelCollideData = 0;
         }
+        
 
         //NOTE: Integrate forces
         {

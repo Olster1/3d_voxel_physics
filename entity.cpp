@@ -49,6 +49,7 @@ struct EntityID {
     uint32_t crc32Hash;
 };
 
+
 static int global_entityIdCreated = 0;
 
 EntityID makeEntityId(int randomStartUpID) {
@@ -117,6 +118,16 @@ struct VoxelEntity {
 };
 
 #include "./physics.cpp"
+
+struct VoxelCollideData {
+    VoxelEntity *a;
+    VoxelEntity *b;
+
+    int pointCount;
+    CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
+
+    VoxelCollideData *next;
+};
 
 int getVoxelIndex(VoxelEntity *e, int x, int y, int z) {
     return (z*e->pitch*e->stride + y*e->stride + x);
@@ -285,7 +296,7 @@ float getFractionalPart(float number) {
     return number - integerPart;
 }
 
-int doesVoxelCollide(PhysicsWorld *physicsWorld, float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
+int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
     PROFILE_FUNC(doesVoxelCollide);
     float3 p = worldPToVoxelP(e, worldP);
 
@@ -496,17 +507,19 @@ bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) 
     return result;
 }
 
-
-void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntity *b) {
+void collideVoxelEntities(void *data_) {
     PROFILE_FUNC(collideVoxelEntities);
+
+    VoxelCollideData *collideData = (VoxelCollideData *)data_;
+
+    VoxelEntity *a = collideData->a;
+    VoxelEntity *b = collideData->b;
+
     
-    bool collided = boundingBoxOverlapWithMargin(a, b, BOUNDING_BOX_MARGIN);
+    collideData->pointCount = 0;
 
-    if(collided) 
+    
     {
-        int pointCount = 0;
-        CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
-
         a->inBounds = true;
         b->inBounds = true;
 
@@ -527,7 +540,7 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
             
             assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(a, x, y, z), b, x, y, z, true, pointsFound, a);
+            int numPointsFound = doesVoxelCollide(voxelToWorldP(a, x, y, z), b, x, y, z, true, pointsFound, a);
 
             if(numPointsFound > 0) {
                 //NOTE: Found a point
@@ -535,8 +548,8 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
 
                 for(int j = 0; j < numPointsFound; ++j) {
                     // assert(pointCount < arrayCount(points));
-                    if(pointCount < arrayCount(points)) {
-                        points[pointCount++] = pointsFound[j];
+                    if(collideData->pointCount < arrayCount(collideData->points)) {
+                        collideData->points[collideData->pointCount++] = pointsFound[j];
                     }
                 }
             }
@@ -551,7 +564,7 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
             
             assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(physicsWorld, voxelToWorldP(b, x, y, z), a, x, y, z, false, pointsFound, b);
+            int numPointsFound = doesVoxelCollide(voxelToWorldP(b, x, y, z), a, x, y, z, false, pointsFound, b);
 
             if(numPointsFound > 0) {
                 //NOTE: Found a point
@@ -559,17 +572,13 @@ void collideVoxelEntities(PhysicsWorld *physicsWorld, VoxelEntity *a, VoxelEntit
 
                 for(int j = 0; j < numPointsFound; ++j) {
                     // assert(pointCount < arrayCount(points));
-                    if(pointCount < arrayCount(points)) {
-                        points[pointCount++] = pointsFound[j];
+                    if(collideData->pointCount < arrayCount(collideData->points)) {
+                        collideData->points[collideData->pointCount++] = pointsFound[j];
                     }
                 }
             }
         }
-        {
-            PROFILE_FUNC(mergePointsToArbiter);
-            mergePointsToArbiter(physicsWorld, points, pointCount, a, b);
-        }
-        
+       
     } 
 }
 

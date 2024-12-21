@@ -12,7 +12,6 @@ struct ThreadWork
 };
 
 struct ThreadsInfo {
-    int currentThreadId;
     SDL_sem *Semaphore;
      //NOTE: This is 9.6megabytes - not sure if this is alright. It's so the main thread never waits to put work on the queue. 
      //       It could be smaller if the ao mask calucations were batched into jobs as when there are alot it's most likely the whole chunk that's being calculated. 
@@ -47,8 +46,8 @@ void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void
         }
         else
         {   
-            //NOTE(ollie): Queue is full
-            // assert(false);
+            // NOTE(ollie): Queue is full
+            assert(false);
         }
     }
 }
@@ -72,11 +71,13 @@ ThreadWork *GetWorkOffQueue(ThreadsInfo *Info, ThreadWork **WorkRetrieved)
 }
 
 
-void doThreadWork(ThreadsInfo *Info, int id)
+void doThreadWork(ThreadsInfo *Info)
 {
     ThreadWork *Work;
+    // SDL_threadID id = SDL_ThreadID();
     while(GetWorkOffQueue(Info, &Work))
     {
+        // printf("%lu\n", id);
         Work->FunctionPtr(Work->Data);
         assert(!Work->Finished);
         
@@ -90,10 +91,8 @@ void doThreadWork(ThreadsInfo *Info, int id)
 int platformThreadEntryPoint(void *Info_) {
     ThreadsInfo *Info = (ThreadsInfo *)Info_;
 
-    int id = Info->currentThreadId;
-    
     for(;;) {
-        doThreadWork(Info, id);
+        doThreadWork(Info);
         SDL_SemWait(Info->Semaphore);
     }
     
@@ -118,7 +117,7 @@ void waitForWorkToFinish(ThreadsInfo *Info)
 {
     while(!isWorkFinished(Info))
     {
-        doThreadWork(Info, 0);        
+        doThreadWork(Info);        
     }
 }
 
@@ -142,13 +141,12 @@ void initThreadQueue(ThreadsInfo *threadsInfo) {
     SDL_Thread *Threads[12];
     int threadCount = 0;
 
-    int CoreCount = MathMin(numberOfUnusedProcessors, arrayCount(Threads));
+    int coreCount = MathMin(numberOfUnusedProcessors, arrayCount(Threads));
 
     for(int CoreIndex = 0;
-        CoreIndex < CoreCount;
+        CoreIndex < coreCount;
         ++CoreIndex)
     {
-        threadsInfo->currentThreadId = CoreIndex;
         assert(threadCount < arrayCount(Threads));
         Threads[threadCount++] = SDL_CreateThread(platformThreadEntryPoint, "", threadsInfo);
     }

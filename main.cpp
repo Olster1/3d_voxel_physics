@@ -129,15 +129,15 @@ void updateAndDrawDebugCode(GameState *gameState) {
     //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
     // }
 
-    // float yAppend = 0;
-    //  for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
-    //         ProfileData *d = &global_profiler->data[i];
-    //         char s[255];
-    //         int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
-    //         assert(charsRendered < arrayCount(s));
-    //         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
-    //         yAppend += 5;
-    // }
+    float yAppend = 0;
+     for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
+            ProfileData *d = &global_profiler->data[i];
+            char s[255];
+            int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
+            assert(charsRendered < arrayCount(s));
+            renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
+            yAppend += 5;
+    }
 }
 
 void updateGame(GameState *gameState) {
@@ -169,7 +169,16 @@ void updateGame(GameState *gameState) {
 
     gameState->physicsAccum += gameState->dt;
 
-    float minStep = 1.0f / 120.0f;
+    /*TODO: 
+
+    Make collision check use continous collision detection
+
+    Reduce number of 'corner' voxels to check. I'm not sure how to prioritize which voxels to choose. 
+
+    */
+    
+
+    float minStep = 1.0f / 240.0f;
     global_updateArbCount = 0;
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
@@ -228,9 +237,10 @@ void updateGame(GameState *gameState) {
         //         d = d->next;
         //     }
         // }
-
-        //TODO: Wait for threads to finish.
-        waitForWorkToFinish(&gameState->threadsInfo);
+        {
+            PROFILE_FUNC(WaitForThreadsCollision);
+            waitForWorkToFinish(&gameState->threadsInfo);
+        }
 
         {
             PROFILE_FUNC(mergePointsToArbiter);
@@ -357,15 +367,16 @@ void updateGame(GameState *gameState) {
                     {
                         if(state & VOXEL_INSIDE) {
                             
-                        } else {
-                            // float4 color = make_float4(1, 0.5f, 0, 1);
-                            // if(state & VOXEL_COLLIDING) {
-                            //     color = make_float4(0, 0.5f, 0, 1);
-                            // } else if(state & VOXEL_CORNER) {
-                            //     color = make_float4(1, 0, 1, 1);
-                            // } else if(state & VOXEL_EDGE) {
-                            //     color = make_float4(0, 1, 1, 1);
-                            // }
+                        } else 
+                        {
+                            float4 color = make_float4(1, 0.5f, 0, 1);
+                            if(state & VOXEL_COLLIDING) {
+                                color = make_float4(0, 0.5f, 0, 1);
+                            } else if(state & VOXEL_CORNER) {
+                                color = make_float4(1, 0, 1, 1);
+                            } else if(state & VOXEL_EDGE) {
+                                color = make_float4(0, 1, 1, 1);
+                            }
 
                             float x1 = x*VOXEL_SIZE_IN_METERS + halfVoxel - center.x;
                             float y1 = y*VOXEL_SIZE_IN_METERS + halfVoxel - center.y;

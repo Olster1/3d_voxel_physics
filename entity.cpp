@@ -297,7 +297,6 @@ float getFractionalPart(float number) {
 }
 
 int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
-    PROFILE_FUNC(doesVoxelCollide);
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
@@ -364,7 +363,6 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
         if(isVoxelOccupied(e, testX, testY, testZ)) {
             float3 voxelWorldP;
             {
-                PROFILE_FUNC(voxelToWorldP);
                 voxelWorldP = voxelToWorldP(e, testX, testY, testZ);
             }
 
@@ -508,7 +506,6 @@ bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) 
 }
 
 void collideVoxelEntities(void *data_) {
-    PROFILE_FUNC(collideVoxelEntities);
 
     VoxelCollideData *collideData = (VoxelCollideData *)data_;
 
@@ -517,8 +514,6 @@ void collideVoxelEntities(void *data_) {
 
     
     collideData->pointCount = 0;
-
-    
     {
         a->inBounds = true;
         b->inBounds = true;
@@ -554,7 +549,7 @@ void collideVoxelEntities(void *data_) {
                 }
             }
         }
-
+        
         for(int i = 0; i < getArrayLength(b->corners); i++) {
             float3 corner = b->corners[i];
             int x = corner.x;

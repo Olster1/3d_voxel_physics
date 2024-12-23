@@ -1,42 +1,22 @@
-# Minecraft clone
+# Voxel 3d physics engine 
 
-A minecraft clone for me to practice 3d games.
+A voxel 3d physics engine. Inspired by the game 'Teardown'. I plan to make a fantasy open-world voxel game with destructible physics.  
 
 Uses OpenGL 3.3 and SDL for platform layer.
 
 ## Goals
-- [x] Collision & physics
-- [x] Block mining
-- [ ] Clouds & Sky - Perlin noise relatistic clouds 
-- [x] Ambient Occulsion of blocks mult-threaded
-- [x] Multi-threaded chunk generation
-- [x] Tree & grasses generation
-- [x] Water generation with alpha 
-- [x] Health, Stamina & Item Hotbar
-- [x] Coal & Ore generation & better world generation 
-- [x] Load 3d models & skeletal animations from gltf file
-- [x] Load 3d models & animations in minecraft format from BlockBench\
-- [x] Clip the world that's being rendered to the view frustrum. 
-- [ ] Change chunk height to 256 instead of 16
-- [x] Culled meshing optimisation 
-- [ ] Environmental Sounds (walking on different materials like stone and grass. Point sounds)
-- [ ] Cows, Sheep & Zombie Mobs (move player movement code to be generic to any entity movement)
-- [ ] Snow and cliffs (learn more about simplex noise & SIMD library implementation of it)
-- [ ] Attacking mobs 
-- [ ] Cave generation
-- [ ] Day & Night cycle
-- [ ] Shadow Mapping (Cascading Shadow Maps)
-- [ ] PBR shading & materials
-- [ ] Point & Directional lights
-- [ ] Server side application to run on a Rasberry Pi 4 that accepts TCP (block transactions) & UDP (entity positions) packets using Berkely Sockets API (learn about writing a server and running it, and learn about cyber security concepts in practice)
-- [ ] Direct3d 11 & Win32 Api backend
-- [ ] Release game on steam as professional as possible - just exe & asset bundle 
+### Physics
+- [ ] Make collision check use continous collision detection.
+- [ ] Reduce number of 'corner' voxels to check. I'm not sure how to prioritize which voxels to choose. But right now a voxel sphere has 604 corner checks, which seems like a lot. 
+- [ ] Break apart shapes when you click on them. Use some sort of fracturing algorithm, and flood fill to decide if need to create a seperate physics body. 
 
-
+### Environment
+- [ ] Convert my minecraft chunk code to use 0.1metre size for voxels instead of 1metre. 
+- [ ] Add shadow maps. 
+    
 ## WHY's
 - [x] Fun & Challenging to program
-- [x] Get as good as I can at programming
-- [x] Add to my projects list
+- [x] Want to make a game
 - [x] Build confidence
 
 ![](screenshot2.png) 

@@ -169,15 +169,6 @@ void updateGame(GameState *gameState) {
 
     gameState->physicsAccum += gameState->dt;
 
-    /*TODO: 
-
-    Make collision check use continous collision detection
-
-    Reduce number of 'corner' voxels to check. I'm not sure how to prioritize which voxels to choose. 
-
-    */
-    
-
     float minStep = 1.0f / 240.0f;
     global_updateArbCount = 0;
 

@@ -104,7 +104,7 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
 }
 
 void updateAllArbiters(PhysicsWorld *world) {
-    const int iterationCount = 10;
+    const int iterationCount = PHYSICS_ITERATION_COUNT;
     
     Arbiter *arb = world->arbiters;
     

@@ -441,6 +441,19 @@ static Rect3f make_rect3f(float minX, float minY, float minZ, float maxX, float 
 	return result; 
 }
 
+static Rect3f rect3f_expand_uniform(Rect3f a, float size) {
+	a.minX -= size;
+	a.maxX += size;
+
+	a.minY -= size;
+	a.maxY += size;
+
+	a.minZ -= size;
+	a.maxZ += size;
+
+	return a;
+}
+
 static Rect3f make_rect3f_center_dim(float3 centre, float3 dim) {
 	Rect3f result = {};
 

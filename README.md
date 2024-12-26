@@ -6,6 +6,7 @@ Uses OpenGL 3.3 and SDL for platform layer.
 
 ## Goals
 ### Physics
+- [ ] Do bounds check per voxel to see if it's even in the shape
 - [ ] Make collision check use continous collision detection.
 - [ ] Reduce number of 'corner' voxels to check. I'm not sure how to prioritize which voxels to choose. But right now a voxel sphere has 604 corner checks, which seems like a lot. 
 - [ ] Break apart shapes when you click on them. Use some sort of fracturing algorithm, and flood fill to decide if need to create a seperate physics body. 

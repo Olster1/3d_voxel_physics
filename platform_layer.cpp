@@ -60,6 +60,7 @@ enum KeyTypes {
   KEY_8,
   KEY_T,
   KEY_Y,
+  KEY_P,
 
   ///////////
   KEY_COUNTS
@@ -206,7 +207,7 @@ int main(int argc, char **argv) {
     updateKeyState(gameState, KEY_8, currentKeyStates[SDL_SCANCODE_8] == 1);
     updateKeyState(gameState, KEY_T, currentKeyStates[SDL_SCANCODE_T] == 1);
     updateKeyState(gameState, KEY_Y, currentKeyStates[SDL_SCANCODE_Y] == 1);
-    
+    updateKeyState(gameState, KEY_P, currentKeyStates[SDL_SCANCODE_P] == 1);
 
     int w; 
     int h;

@@ -8,7 +8,7 @@ static float global_fogFarDistance;
 static float global_fogSeeDistance;
 
 static int global_updateArbCount = 0;
-static float global_timeInPhysicsUpdate = 0;
+static float global_timeInPhysicsUpdate_cycles = 0;
 static float global_totalLoopTime = 0;
 
 #include "./easy_memory.h"
@@ -122,21 +122,31 @@ void updateAndDrawDebugCode(GameState *gameState) {
     //     assert(charsRendered < arrayCount(s));
     //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 15), 0.1f);
     // }
-    // {
-    //     char s[255];
-    //     int charsRendered = sprintf (s, "Total Physics: %d%%", (int)((global_timeInPhysicsUpdate / global_totalLoopTime)*100.0f));
-    //     assert(charsRendered < arrayCount(s));
-    //     renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
-    // }
+    {
+        char s[255];
+        //NOTE: 16 milliseconds is 60fps
+        int charsRendered = sprintf (s, "Total Physics: %f milli seconds", (global_timeInPhysicsUpdate_cycles));
+        assert(charsRendered < arrayCount(s));
+        renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
+    }
 
     float yAppend = 0;
-     for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
-            ProfileData *d = &global_profiler->data[i];
-            char s[255];
-            int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / global_timeInPhysicsUpdate)*100.0f));
-            assert(charsRendered < arrayCount(s));
-            renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
-            yAppend += 5;
+    if(global_profiler && global_profiler->data) {
+        for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
+                ProfileData *d = &global_profiler->data[i];
+
+                float dividend = global_timeInPhysicsUpdate_cycles;
+
+                if(easyString_stringsMatch_nullTerminated(d->name, "RENDER_CUBES")) {
+                    dividend = global_totalLoopTime;
+                }
+
+                char s[255];
+                int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / dividend)*100.0f));
+                assert(charsRendered < arrayCount(s));
+                renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
+                yAppend += 5;
+        }
     }
 }
 
@@ -154,7 +164,7 @@ void updateGame(GameState *gameState) {
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
     }
-
+    
     updateCamera(gameState);
   
     float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
@@ -169,7 +179,7 @@ void updateGame(GameState *gameState) {
 
     gameState->physicsAccum += gameState->dt;
 
-    float minStep = 1.0f / 240.0f;
+    float minStep = PHYSICS_TIME_STEP;
     global_updateArbCount = 0;
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
@@ -194,15 +204,20 @@ void updateGame(GameState *gameState) {
     }
 
     physicsLoopsCount = 0;
-    Uint32 startPhysics = SDL_GetTicks();
+    Uint32 startPhysics = profiler_getCount();
+
+    int maxContinousIterations = 4;
     
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep) {
         physicsLoopsCount++;
-        float dt = minStep;
+        float dt = (gameState->gamePaused) ? 0 : minStep;
+
+        //NOTE: Find smallest TOI and assign dt to equal the smallestTOI, then advance the simulation by this amount
+        //TODO: Find smallest TOI 
+        // dt = smallestTOI;
         
         {
-            PROFILE_FUNC(CollisionCheck);
             for(int i = 0; i < gameState->voxelEntityCount; ++i) {
                 VoxelEntity *e = &gameState->voxelEntities[i];
 
@@ -220,14 +235,6 @@ void updateGame(GameState *gameState) {
             }
         }   
 
-        // {
-        //     VoxelCollideData *d = gameState->voxelCollideData;
-        //     while(d) {
-        //         //NOTE: Multi-threaded version
-        //         pushWorkOntoQueue(&gameState->threadsInfo, collideVoxelEntities, d);
-        //         d = d->next;
-        //     }
-        // }
         {
             PROFILE_FUNC(WaitForThreadsCollision);
             waitForWorkToFinish(&gameState->threadsInfo);
@@ -309,12 +316,15 @@ void updateGame(GameState *gameState) {
 
         //NOTE: Apply position correction - NGS - Non-linear Gauss Seidel
         // updateAllArbitersForPositionCorrection(&gameState->physicsWorld);
-
+        // gameState->physicsAccum -= smallestTOI;
         gameState->physicsAccum -= minStep;
     }
-    global_timeInPhysicsUpdate = (SDL_GetTicks() - startPhysics) / 1000.0f;
 
+    global_timeInPhysicsUpdate_cycles = profiler_getCount() - startPhysics;//SDL_GetTicks()
+
+    
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+        PROFILE_FUNC(RENDER_CUBES);
         VoxelEntity *e = &gameState->voxelEntities[i];
 
         // TransformX TTemp = e->T;
@@ -349,6 +359,7 @@ void updateGame(GameState *gameState) {
         if(e->inverseMass == 0) {
             color.x = 0;
         }
+        
         for(int z = 0; z < e->depth; ++z) {
             for(int y = 0; y < e->pitch; ++y) {
                 for(int x = 0; x < e->stride; ++x) {
@@ -361,9 +372,10 @@ void updateGame(GameState *gameState) {
                         } else 
                         {
                             float4 color = make_float4(1, 0.5f, 0, 1);
-                            if(state & VOXEL_COLLIDING) {
-                                color = make_float4(0, 0.5f, 0, 1);
-                            } else if(state & VOXEL_CORNER) {
+                            // if(state & VOXEL_COLLIDING) {
+                            //     // color = make_float4(0, 0.5f, 0, 1);
+                            // } else 
+                            if(state & VOXEL_CORNER) {
                                 color = make_float4(1, 0, 1, 1);
                             } else if(state & VOXEL_EDGE) {
                                 color = make_float4(0, 1, 1, 1);
@@ -391,6 +403,9 @@ void updateGame(GameState *gameState) {
         if(gameState->keys.keys[KEY_Y] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
             gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
         }
+        if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
+            gameState->gamePaused = !gameState->gamePaused;
+        }
         
 
         if(gameState->grabbed) {
@@ -408,5 +423,5 @@ void updateGame(GameState *gameState) {
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle);
 
     Uint32 end = SDL_GetTicks();
-    global_totalLoopTime = (end - start) / 1000.0f;
+    global_totalLoopTime = (end - start);
 }

@@ -7,26 +7,48 @@ struct Profiler {
     ProfileData *data;
 };  
 
+u64 _rdtsc(void)
+{
+    u64 val;
+
+    /*
+     * According to ARM DDI 0487F.c, from Armv8.0 to Armv8.5 inclusive, the
+     * system counter is at least 56 bits wide; from Armv8.6, the counter
+     * must be 64 bits wide.  So the system counter could be less than 64
+     * bits wide and it is attributed with the flag 'cap_user_time_short'
+     * is true.
+     */
+    asm volatile("mrs %0, cntvct_el0" : "=r" (val));
+
+    return val;
+}
+
 static Profiler *global_profiler;
 
 void initProfiler(Profiler *p) {
     p->data = initResizeArray(ProfileData);
 }
 
+u64 profiler_getCount() {
+    return SDL_GetTicks();
+    // return _rdtsc();
+}
+
+
 struct ProfileBlock {
     char *name;
-    uint32_t start;
+    u64 start;
     
     ProfileBlock(char *title) {
         name = title;
-        start = SDL_GetTicks();
+        start = profiler_getCount();
         
     }
 
     ~ProfileBlock() {
-        uint32_t end = SDL_GetTicks();
+        u64 end = profiler_getCount();
         assert(end >= start);
-        float seconds = ((end - start) / 1000.0f);
+        float seconds = (end - start);
 
         if(!global_profiler) {
             global_profiler = pushStruct(&globalLongTermArena, Profiler);

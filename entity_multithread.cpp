@@ -1,7 +1,9 @@
 
 
 void collideEntitiesMultiThread(GameState *gameState, VoxelEntity *a, VoxelEntity *b) {
-    bool collided = boundingBoxOverlapWithMargin(a, b, BOUNDING_BOX_MARGIN);
+    Rect3f aRect;
+    Rect3f bRect; 
+    bool collided = boundingBoxOverlapWithMargin(a, b, &aRect, &bRect, BOUNDING_BOX_MARGIN);
     if(collided) {
         VoxelCollideData *data = 0;
         if(gameState->voxelCollideDataFreeList) {
@@ -13,6 +15,8 @@ void collideEntitiesMultiThread(GameState *gameState, VoxelEntity *a, VoxelEntit
 
         data->a = a;
         data->b = b;
+        data->aRect = rect3f_expand_uniform(aRect, VOXEL_SIZE_IN_METERS);
+        data->bRect = rect3f_expand_uniform(bRect, VOXEL_SIZE_IN_METERS);
         data->pointCount = 0;
         data->next = 0;
 

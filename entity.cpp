@@ -123,6 +123,9 @@ struct VoxelCollideData {
     VoxelEntity *a;
     VoxelEntity *b;
 
+    Rect3f aRect;
+    Rect3f bRect;
+
     int pointCount;
     CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];
 
@@ -296,43 +299,12 @@ float getFractionalPart(float number) {
     return number - integerPart;
 }
 
-int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE) {
+int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE, VoxelPhysicsFlag flags) {
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
     int y = (int)(p.y);
     int z = (int)(p.z);
-
-    //TODO: This needs to be an array of 8 not 27
-    // float3 voxels[27] = {
-    //     make_float3(-1, -1, -1), 
-    //     make_float3(-1, -1,  0), 
-    //     make_float3(-1, -1,  1), 
-    //     make_float3(-1,  0, -1), 
-    //     make_float3(-1,  0,  0), 
-    //     make_float3(-1,  0,  1), 
-    //     make_float3(-1,  1, -1), 
-    //     make_float3(-1,  1,  0), 
-    //     make_float3(-1,  1,  1), 
-    //     make_float3( 0, -1, -1), 
-    //     make_float3( 0, -1,  0), 
-    //     make_float3( 0, -1,  1), 
-    //     make_float3( 0,  0, -1), 
-    //     make_float3( 0,  0,  0),
-    //     make_float3( 0,  0,  1), 
-    //     make_float3( 0,  1, -1), 
-    //     make_float3( 0,  1,  0), 
-    //     make_float3( 0,  1,  1), 
-    //     make_float3( 1, -1, -1), 
-    //     make_float3( 1, -1,  0), 
-    //     make_float3( 1, -1,  1), 
-    //     make_float3( 1,  0, -1), 
-    //     make_float3( 1,  0,  0), 
-    //     make_float3( 1,  0,  1), 
-    //     make_float3( 1,  1, -1), 
-    //     make_float3( 1,  1,  0), 
-    //     make_float3( 1,  1,  1)
-    // };  
 
     float xOffset = getFractionalPart(p.x) > 0.5f ? 1 : -1;
     float yOffset = getFractionalPart(p.y) > 0.5f ? 1 : -1;
@@ -360,7 +332,7 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
         int testY = (int)voxelSpace.y;
         int testZ = (int)voxelSpace.z;
 
-        if(isVoxelOccupied(e, testX, testY, testZ)) {
+        if(isVoxelOccupied(e, testX, testY, testZ, flags)) {
             float3 voxelWorldP;
             {
                 voxelWorldP = voxelToWorldP(e, testX, testY, testZ);
@@ -411,7 +383,7 @@ float3 modelSpaceToWorldSpace(VoxelEntity *e, float x, float y, float z) {
     // return make_float3(x, y, z);
 }
 
-bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) {
+bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, Rect3f *aRect, Rect3f *bRect, float margin) {
     const Rect3f aH = make_rect3f_center_dim(make_float3(0, 0, 0), plus_float3(make_float3(margin, margin, margin), a->worldBounds));
     const Rect3f bH = make_rect3f_center_dim(make_float3(0, 0, 0), plus_float3(make_float3(margin, margin, margin), b->worldBounds));
 
@@ -502,40 +474,32 @@ bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, float margin) 
         result = true;
     }
 
+    *aRect = aCheck;
+    *bRect = bCheck;
+
     return result;
 }
 
-void collideVoxelEntities(void *data_) {
+void checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, VoxelEntity *b, Rect3f rect, bool flip) {
+    //NOTE: Check corners with corners & edges first
+    for(int i = 0; i < getArrayLength(a->corners); i++) {
+        float3 corner = a->corners[i];
+        int x = corner.x;
+        int y = corner.y;
+        int z = corner.z;
+        u8 byte = getByteFromVoxelEntity(a, x, y, z);
 
-    VoxelCollideData *collideData = (VoxelCollideData *)data_;
-
-    VoxelEntity *a = collideData->a;
-    VoxelEntity *b = collideData->b;
-
-    
-    collideData->pointCount = 0;
-    {
-        a->inBounds = true;
-        b->inBounds = true;
-
-        //NOTE: Keep the order consistent with the order in the arbiter
-        if(a > b) {
-            VoxelEntity *temp = b;
-            b = a;
-            a = temp;
-        }
+        float3 voxelP = voxelToWorldP(a, x, y, z);
+        VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
         
-        //NOTE: Check corners with corners & edges first
-        for(int i = 0; i < getArrayLength(a->corners); i++) {
-            float3 corner = a->corners[i];
-            int x = corner.x;
-            int y = corner.y;
-            int z = corner.z;
-            u8 byte = getByteFromVoxelEntity(a, x, y, z);
-            
-            assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
+        if(in_rect3f_bounds(rect, voxelP)) 
+        {
+            assert((byte & VOXEL_CORNER && !(byte & VOXEL_EDGE)) || (byte & VOXEL_EDGE && !(byte & VOXEL_CORNER)));
+            if(byte & VOXEL_EDGE) {
+                flagToTest = VOXEL_EDGE;
+            }
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(voxelToWorldP(a, x, y, z), b, x, y, z, true, pointsFound, a);
+            int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, a, flagToTest);
 
             if(numPointsFound > 0) {
                 //NOTE: Found a point
@@ -549,31 +513,97 @@ void collideVoxelEntities(void *data_) {
                 }
             }
         }
-        
-        for(int i = 0; i < getArrayLength(b->corners); i++) {
-            float3 corner = b->corners[i];
-            int x = corner.x;
-            int y = corner.y;
-            int z = corner.z;
-            u8 byte = getByteFromVoxelEntity(b, x, y, z);
-            
-            assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
-            CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(voxelToWorldP(b, x, y, z), a, x, y, z, false, pointsFound, b);
+    }
+}
 
-            if(numPointsFound > 0) {
-                //NOTE: Found a point
-                b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
+void collideVoxelEntities(void *data_) {
 
-                for(int j = 0; j < numPointsFound; ++j) {
-                    // assert(pointCount < arrayCount(points));
-                    if(collideData->pointCount < arrayCount(collideData->points)) {
-                        collideData->points[collideData->pointCount++] = pointsFound[j];
-                    }
-                }
-            }
+    VoxelCollideData *collideData = (VoxelCollideData *)data_;
+
+    VoxelEntity *a = collideData->a;
+    VoxelEntity *b = collideData->b;
+    
+    collideData->pointCount = 0;
+    {
+        a->inBounds = true;
+        b->inBounds = true;
+
+        //NOTE: Keep the order consistent with the order in the arbiter
+        if(a > b) {
+            VoxelEntity *temp = b;
+            b = a;
+            a = temp;
         }
-       
+
+        checkCornerAndEdgeVoxels(collideData, a, b, collideData->aRect, true);
+        checkCornerAndEdgeVoxels(collideData, b, a, collideData->bRect, false);
+        
+        // //NOTE: Check corners with corners & edges first
+        // for(int i = 0; i < getArrayLength(a->corners); i++) {
+        //     float3 corner = a->corners[i];
+        //     int x = corner.x;
+        //     int y = corner.y;
+        //     int z = corner.z;
+        //     u8 byte = getByteFromVoxelEntity(a, x, y, z);
+
+        //     float3 voxelP = voxelToWorldP(a, x, y, z);
+        //     VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
+            
+        //     if(in_rect3f_bounds(collideData->aRect, voxelP)) 
+        //     {
+        //         assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
+        //         if(byte & VOXEL_EDGE) {
+        //             flagToTest = VOXEL_EDGE;
+        //         }
+        //         CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+        //         int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, true, pointsFound, a, flagToTest);
+
+        //         if(numPointsFound > 0) {
+        //             //NOTE: Found a point
+        //             a->data[getVoxelIndex(a, x, y, z)] |= VOXEL_COLLIDING;
+
+        //             for(int j = 0; j < numPointsFound; ++j) {
+        //                 // assert(pointCount < arrayCount(points));
+        //                 if(collideData->pointCount < arrayCount(collideData->points)) {
+        //                     collideData->points[collideData->pointCount++] = pointsFound[j];
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        
+        // for(int i = 0; i < getArrayLength(b->corners); i++) {
+        //     float3 corner = b->corners[i];
+        //     int x = corner.x;
+        //     int y = corner.y;
+        //     int z = corner.z;
+        //     u8 byte = getByteFromVoxelEntity(b, x, y, z);
+
+        //     float3 voxelP = voxelToWorldP(b, x, y, z);
+        //     VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
+
+        //     if(in_rect3f_bounds(collideData->bRect, voxelP)) 
+        //     {
+        //         assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
+        //         if(byte & VOXEL_EDGE) {
+        //             flagToTest = VOXEL_EDGE;
+        //         }
+        //         CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+        //         int numPointsFound = doesVoxelCollide(voxelP, a, x, y, z, false, pointsFound, b, flagToTest);
+
+        //         if(numPointsFound > 0) {
+        //             //NOTE: Found a point
+        //             b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
+
+        //             for(int j = 0; j < numPointsFound; ++j) {
+        //                 // assert(pointCount < arrayCount(points));
+        //                 if(collideData->pointCount < arrayCount(collideData->points)) {
+        //                     collideData->points[collideData->pointCount++] = pointsFound[j];
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     } 
 }
 
@@ -591,6 +621,24 @@ CornerPair makeCornerPair(float3 a, float3 b, float3 c) {
     return p;
 }
 
+struct CorneChecks {
+    float3 a[7];
+};
+
+CorneChecks makeCornerCheck(float3 a, float3 b, float3 c, float3 d, float3 e, float3 f, float3 g) {
+    CorneChecks p = {};
+
+    p.a[0] = a;
+    p.a[1] = b;
+    p.a[2] = c;
+    p.a[3] = d;
+    p.a[4] = e;
+    p.a[5] = f;
+    p.a[6] = g;
+    
+    return p;
+}
+
 
 void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = false) {
     float inertia = 0;
@@ -601,7 +649,7 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
     e->corners = initResizeArray(float3);
     e->edges = initResizeArray(float3);
 
-    CornerPair pairs[] = {
+    CornerPair edgePairs[] = {
         makeCornerPair(make_float3(1, 0, 0), make_float3(0, 1, 0), make_float3(1, 1, 0)),
         makeCornerPair(make_float3(1, 0, 0), make_float3(0, -1, 0), make_float3(1, -1, 0)),
         makeCornerPair(make_float3(-1, 0, 0), make_float3(0, 1, 0), make_float3(-1, 1, 0)),
@@ -617,7 +665,35 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
         makeCornerPair(make_float3(1, 0, 0), make_float3(0, 0, -1), make_float3(1, 0, -1)),
         makeCornerPair(make_float3(-1, 0, 0), make_float3(0, 0, -1), make_float3(-1, 0, -1)),
     };
-                    
+    
+    CorneChecks cornerChecks[8] = {
+        
+    };  
+
+    float3 offsets[8] = {
+        make_float3(1, 1, 1), 
+        make_float3(1, -1, 1),
+        make_float3(-1, 1, 1),
+        make_float3(-1, -1, 1),
+        make_float3(1, 1, -1), 
+        make_float3(1, -1, -1),
+        make_float3(-1, 1, -1),
+        make_float3(-1, -1, -1),
+        };
+
+    for(int i = 0; i < arrayCount(cornerChecks); i++) {
+        float3 o = offsets[i];
+
+        cornerChecks[i] = makeCornerCheck(make_float3(0,  o.y,  o.z), 
+        make_float3(o.x,  0,  o.z),  
+        make_float3(o.x,  o.y,  o.z), 
+
+        make_float3(0,  o.y,  0), 
+        make_float3(o.x,  0,  0),  
+        make_float3(o.x,  o.y,  0), 
+
+        make_float3(0, 0, o.z));
+    }
 
     for(int z = 0; z < e->depth; z++) {
         for(int y = 0; y < e->pitch; y++) {
@@ -633,34 +709,64 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
                     
                     bool found = false;
 
-                    //NOTE: Check if corner
-                    
-                    for(int i = 0; i < arrayCount(pairs) && !found; i++) {
-                        CornerPair p = pairs[i];
-                        bool empty = true;
-                        for(int j = 0; j < arrayCount(p.a) && empty; j++) {
-                            float3 dir = p.a[j];
-                            int testX = (int)(x + dir.x);
-                            int testY = (int)(y + dir.y);
-                            int testZ = (int)(z + dir.z);
+                    if(!isInfiniteShape) {
 
-                            if(isVoxelOccupied(e, testX, testY, testZ)) {
-                                empty = false;
+                        //NOTE: Check if CORNER
+                        for(int i = 0; i < arrayCount(cornerChecks) && !found; i++) {
+                            CorneChecks p = cornerChecks[i];
+                            bool empty = true;
+                            for(int j = 0; j < arrayCount(p.a) && empty; j++) {
+                                float3 dir = p.a[j];
+                                int testX = (int)(x + dir.x);
+                                int testY = (int)(y + dir.y);
+                                int testZ = (int)(z + dir.z);
+
+                                if(isVoxelOccupied(e, testX, testY, testZ)) {
+                                    empty = false;
+                                    break;
+                                }
+                            }
+
+                            if(empty) {
+                                float3 a = make_float3(x, y, z);
+                                pushArrayItem(&e->corners, a, float3);
+                                found = true;
+                                flags |= VOXEL_CORNER;
                                 break;
+                            } else {
+                                int h = 0;
                             }
                         }
 
-                        if(empty && !isInfiniteShape) {
-                            float3 a = make_float3(x, y, z);
-                            pushArrayItem(&e->corners, a, float3);
-                            found = true;
-                            flags |= VOXEL_EDGE;
-                            break;
-                        } else {
-                            int h = 0;
+                        //NOTE: Check if EDGE
+                        for(int i = 0; i < arrayCount(edgePairs) && !found; i++) {
+                            CornerPair p = edgePairs[i];
+                            bool empty = true;
+                            for(int j = 0; j < arrayCount(p.a) && empty; j++) {
+                                float3 dir = p.a[j];
+                                int testX = (int)(x + dir.x);
+                                int testY = (int)(y + dir.y);
+                                int testZ = (int)(z + dir.z);
+
+                                if(isVoxelOccupied(e, testX, testY, testZ)) {
+                                    empty = false;
+                                    break;
+                                }
+                            }
+
+                            if(empty) {
+                                float3 a = make_float3(x, y, z);
+                                pushArrayItem(&e->corners, a, float3);
+                                found = true;
+                                flags |= VOXEL_EDGE;
+                                break;
+                            } else {
+                                int h = 0;
+                            }
                         }
                     }
-
+                    
+                    //NOTE: Check if it's a face
                     if(!found) {
                         float3 offsets[6] = {
                             make_float3(1, 0, 0), 

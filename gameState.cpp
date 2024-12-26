@@ -158,6 +158,8 @@ struct GameState {
     SkeletalModel foxModel;
     float3 modelLocation;
 
+    bool gamePaused;
+
     VoxelCollideData *voxelCollideDataFreeList;
     VoxelCollideData *voxelCollideData;
 };
@@ -257,15 +259,16 @@ void initGameState(GameState *gameState) {
     srand(time(NULL));
     gameState->voxelCollideDataFreeList = 0;
     gameState->voxelCollideData = 0;
+    gameState->gamePaused = false;
 
     gameState->randomStartUpID = rand();
     float inverseMass = 1.0f / 50000.0f;
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);

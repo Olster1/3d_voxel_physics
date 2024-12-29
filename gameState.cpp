@@ -268,8 +268,8 @@ void initGameState(GameState *gameState) {
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
     gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
@@ -298,7 +298,7 @@ void initGameState(GameState *gameState) {
     initPlayer(&gameState->player, gameState->randomStartUpID);
     gameState->player.T.pos = gameState->camera.T.pos;
 
-    gameState->physicsWorld.positionCorrecting = false;
+    gameState->physicsWorld.positionCorrecting = true;
     gameState->physicsWorld.warmStarting = true;
     gameState->physicsWorld.accumulateImpulses = true;
 

@@ -103,12 +103,12 @@ struct VoxelEntity {
 
     //NOTE: Voxel data
     float3 worldBounds;
+    float3 furtherestVoxel; //NOTE: To calculate the max speed any voxel can have 
 
     float sleepTimer;
     bool asleep;
 
     float3 *corners;
-    float3 *edges;
 
     int occupiedCount;
     u8 *data;
@@ -231,67 +231,6 @@ float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
 
     return p;
 }
-
-
-// float findSeperationForShape(VoxelEntity *e, int startX, int startY, float2 startWorldP, float2 unitVector) {
-//     float x = startX;
-//     float y = startY;
-
-//     while(isVoxelOccupied(e, (int)x, (int)y, (int)z)) {
-//         x += unitVector.x;
-//         y += unitVector.y;
-//     }
-
-//     float2 v = minus_float2(voxelToWorldP(e, x, y), startWorldP);
-
-//     return float2_magnitude(v) * signOf(float2_dot(v, unitVector));
-// }
-
-// float2 getSeperationViaFloodFill(VoxelEntity *e, int startX, int startY, float2 startWorldP) {
-//     float2 result = {};
-//     perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
-
-//     bool *visited = pushArray(&globalPerFrameArena, e->stride*e->pitch, bool);
-//     easyMemory_zeroSize(visited, sizeof(bool)*e->stride*e->pitch);
-
-//     FloodFillVoxel queue = {};
-//     queue.next = queue.prev = &queue; 
-// 	pushOnVoxelQueue(e, &queue, visited, startX, startY);
-
-// 	bool searching = true;
-// 	while(searching) {	
-// 		FloodFillVoxel *node = popOffVoxelQueue(&queue);
-// 		if(node) {
-// 			int x = node->x;
-// 			int y = node->y;
-
-// 			if(!isVoxelOccupied(e, x, y)) {
-//                 result = minus_float2(voxelToWorldP(e, x, y), startWorldP);
-// 				searching = false;
-// 				break;
-// 			} else {
-// 				//push on more directions   
-// 				pushOnVoxelQueue(e, &queue, visited, x + 1, y);
-// 				pushOnVoxelQueue(e, &queue, visited, x - 1, y);
-// 				pushOnVoxelQueue(e, &queue, visited, x, y + 1);
-// 				pushOnVoxelQueue(e, &queue, visited, x, y - 1);
-
-// 				//Diagonal movements
-//                 pushOnVoxelQueue(e, &queue, visited, x + 1, y + 1);
-// 				pushOnVoxelQueue(e, &queue, visited, x + 1, y - 1);
-// 				pushOnVoxelQueue(e, &queue, visited, x - 1, y - 1);
-// 				pushOnVoxelQueue(e, &queue, visited, x - 1, y + 1);
-// 			}
-// 		} else {
-// 			searching = false;
-// 			break;
-// 		}
-// 	}
-
-//     releaseMemoryMark(&perFrameArenaMark);
-//     return result;
-// }
-
 
 float getFractionalPart(float number) {
     // Use truncf to get the integer part of the float
@@ -496,7 +435,9 @@ void checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Vox
         {
             assert((byte & VOXEL_CORNER && !(byte & VOXEL_EDGE)) || (byte & VOXEL_EDGE && !(byte & VOXEL_CORNER)));
             if(byte & VOXEL_EDGE) {
-                flagToTest = VOXEL_EDGE;
+                #if TEST_EDGES_EDGES
+                    flagToTest = VOXEL_EDGE;
+                #endif
             }
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
             int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, a, flagToTest);
@@ -537,73 +478,7 @@ void collideVoxelEntities(void *data_) {
 
         checkCornerAndEdgeVoxels(collideData, a, b, collideData->aRect, true);
         checkCornerAndEdgeVoxels(collideData, b, a, collideData->bRect, false);
-        
-        // //NOTE: Check corners with corners & edges first
-        // for(int i = 0; i < getArrayLength(a->corners); i++) {
-        //     float3 corner = a->corners[i];
-        //     int x = corner.x;
-        //     int y = corner.y;
-        //     int z = corner.z;
-        //     u8 byte = getByteFromVoxelEntity(a, x, y, z);
-
-        //     float3 voxelP = voxelToWorldP(a, x, y, z);
-        //     VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
-            
-        //     if(in_rect3f_bounds(collideData->aRect, voxelP)) 
-        //     {
-        //         assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
-        //         if(byte & VOXEL_EDGE) {
-        //             flagToTest = VOXEL_EDGE;
-        //         }
-        //         CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-        //         int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, true, pointsFound, a, flagToTest);
-
-        //         if(numPointsFound > 0) {
-        //             //NOTE: Found a point
-        //             a->data[getVoxelIndex(a, x, y, z)] |= VOXEL_COLLIDING;
-
-        //             for(int j = 0; j < numPointsFound; ++j) {
-        //                 // assert(pointCount < arrayCount(points));
-        //                 if(collideData->pointCount < arrayCount(collideData->points)) {
-        //                     collideData->points[collideData->pointCount++] = pointsFound[j];
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        
-        // for(int i = 0; i < getArrayLength(b->corners); i++) {
-        //     float3 corner = b->corners[i];
-        //     int x = corner.x;
-        //     int y = corner.y;
-        //     int z = corner.z;
-        //     u8 byte = getByteFromVoxelEntity(b, x, y, z);
-
-        //     float3 voxelP = voxelToWorldP(b, x, y, z);
-        //     VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
-
-        //     if(in_rect3f_bounds(collideData->bRect, voxelP)) 
-        //     {
-        //         assert(byte & VOXEL_CORNER || byte & VOXEL_EDGE);
-        //         if(byte & VOXEL_EDGE) {
-        //             flagToTest = VOXEL_EDGE;
-        //         }
-        //         CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-        //         int numPointsFound = doesVoxelCollide(voxelP, a, x, y, z, false, pointsFound, b, flagToTest);
-
-        //         if(numPointsFound > 0) {
-        //             //NOTE: Found a point
-        //             b->data[getVoxelIndex(b, x, y, z)] |= VOXEL_COLLIDING;
-
-        //             for(int j = 0; j < numPointsFound; ++j) {
-        //                 // assert(pointCount < arrayCount(points));
-        //                 if(collideData->pointCount < arrayCount(collideData->points)) {
-        //                     collideData->points[collideData->pointCount++] = pointsFound[j];
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+    
     } 
 }
 
@@ -639,6 +514,16 @@ CorneChecks makeCornerCheck(float3 a, float3 b, float3 c, float3 d, float3 e, fl
     return p;
 }
 
+float getRelativeSpeed(VoxelEntity *a, VoxelEntity *b) {
+     //NOTE: Get the distance of the point from center of mass 
+    float3 dpPointA = plus_float3(a->dP, float3_cross(a->dA, a->furtherestVoxel));
+    float3 dpPointB = plus_float3(b->dP, float3_cross(b->dA, b->furtherestVoxel));
+
+    float result = float3_magnitude(minus_float3(dpPointB, dpPointA));
+
+    return result;
+}
+
 
 void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = false) {
     float inertia = 0;
@@ -647,7 +532,6 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
         freeResizeArray(e->corners);
     }
     e->corners = initResizeArray(float3);
-    e->edges = initResizeArray(float3);
 
     CornerPair edgePairs[] = {
         makeCornerPair(make_float3(1, 0, 0), make_float3(0, 1, 0), make_float3(1, 1, 0)),
@@ -695,6 +579,8 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
         make_float3(0, 0, o.z));
     }
 
+    float maxIntertia = 0;
+
     for(int z = 0; z < e->depth; z++) {
         for(int y = 0; y < e->pitch; y++) {
             for(int x = 0; x < e->stride; x++) {
@@ -703,9 +589,16 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
                 if(flags & VOXEL_OCCUPIED) {
                     //NOTE: Clear flags
                     flags &= ~(VOXEL_CORNER | VOXEL_EDGE | VOXEL_FACE | VOXEL_INSIDE);
+                    
+                    float3 p = make_float3(x, y, z);
+                    float3 modelP = getVoxelPositionInModelSpaceFromCenter(e, p);
+                    
+                    float perInertia = massPerVoxel*(modelP.x*modelP.x + modelP.y*modelP.y + modelP.z*modelP.z);
+                    inertia += perInertia;
 
-                    float3 modelP = getVoxelPositionInModelSpaceFromCenter(e, make_float3(x, y, z));
-                    inertia += massPerVoxel*(modelP.x*modelP.x + modelP.y*modelP.y + modelP.z*modelP.z);
+                    if(maxIntertia < perInertia) {
+                        e->furtherestVoxel = modelP;
+                    }
                     
                     bool found = false;
 

@@ -206,17 +206,17 @@ void updateGame(GameState *gameState) {
     physicsLoopsCount = 0;
     Uint32 startPhysics = profiler_getCount();
 
-    int maxContinousIterations = 4;
+    const int maxContinousIterations = 8;
+    int interations = 0;
     
     //NOTE: Physics loop
-    while(gameState->physicsAccum >= minStep) {
+    while(gameState->physicsAccum >= minStep && interations < maxContinousIterations) {
         physicsLoopsCount++;
-        float dt = (gameState->gamePaused) ? 0 : minStep;
+        interations++;
+        float dt = minStep;
+     
 
-        //NOTE: Find smallest TOI and assign dt to equal the smallestTOI, then advance the simulation by this amount
-        //TODO: Find smallest TOI 
-        // dt = smallestTOI;
-        
+        float maxRelSpeed = 0;
         {
             for(int i = 0; i < gameState->voxelEntityCount; ++i) {
                 VoxelEntity *e = &gameState->voxelEntities[i];
@@ -226,6 +226,11 @@ void updateGame(GameState *gameState) {
 
                     if(e != e1) {
                         if (!(e->inverseMass == 0.0f && e1->inverseMass == 0.0f)) {
+                            float relSpeed = getRelativeSpeed(e, e1);
+
+                            if(maxRelSpeed < relSpeed) {
+                                maxRelSpeed = relSpeed;
+                            }
                             collideEntitiesMultiThread(gameState, e, e1); 
                         }
                     } else {
@@ -239,6 +244,15 @@ void updateGame(GameState *gameState) {
             PROFILE_FUNC(WaitForThreadsCollision);
             waitForWorkToFinish(&gameState->threadsInfo);
         }
+        #if CONTINOUS_COLLISION_DETECTION
+        if(maxRelSpeed > 0) {
+            dt = MathMinf(VOXEL_SIZE_IN_METERS / maxRelSpeed, dt); // sec / m * voxel_size = sec
+            dt = MathMaxf(dt, 1.0f / 480.0f);
+        }
+        #endif
+
+        float prevDt = dt;
+        dt = (gameState->gamePaused) ? 0 : dt;
 
         {
             PROFILE_FUNC(mergePointsToArbiter);
@@ -314,10 +328,7 @@ void updateGame(GameState *gameState) {
             }
         }
 
-        //NOTE: Apply position correction - NGS - Non-linear Gauss Seidel
-        // updateAllArbitersForPositionCorrection(&gameState->physicsWorld);
-        // gameState->physicsAccum -= smallestTOI;
-        gameState->physicsAccum -= minStep;
+        gameState->physicsAccum -= prevDt;
     }
 
     global_timeInPhysicsUpdate_cycles = profiler_getCount() - startPhysics;//SDL_GetTicks()

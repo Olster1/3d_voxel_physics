@@ -1,6 +1,6 @@
 #include <dirent.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "./stb_image_write.h"
+#include "./libs/stb_image_write.h"
 
     struct TextureAtlas {
         Texture texture;

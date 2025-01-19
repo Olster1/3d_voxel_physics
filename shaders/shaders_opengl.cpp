@@ -1,4 +1,40 @@
 
+static char *rayTraceVertexShader = 
+"#version 330\n"
+
+//per vertex variables
+"in vec3 vertex;"
+"in vec3 normal;"
+"in vec2 uv;"
+
+"out vec3 ray_dir;"
+
+"void main() {"
+    "ray_dir = normal;"
+    "gl_Position = vec4(vertex.x, vertex.y, -1, 1);"
+"}";
+
+static char *rayTraceFragShader = 
+"#version 330\n"
+
+//uniform variables
+"uniform mat4 V;"
+"uniform mat4 projection;"
+
+"in vec3 ray_dir;" 
+
+"out vec4 color;"
+"void main() {"
+    "vec3 ray = normalize(ray_dir);"
+    
+    //TODO: Do the Amanatides and Woo algorithm https://m4xc.dev/articles/amanatides-and-woo/
+    
+
+    "color = vec4(1, 1, 0, 1);"
+"}";
+
+
+
 static char *blockSameColorVertexShader = 
 "#version 330\n"
 //per vertex variables

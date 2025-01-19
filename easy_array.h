@@ -224,8 +224,6 @@ int addElement_(Array_Dynamic *array, void *elmData, size_t sizeofData) {
             pool = array->latestPool = initPool(array, array->sizeofType, array->poolIdAt++);
             printf("%s\n", "added new pool");
         } 
-        printf("%d\n", pool->indexAt);
-        printf("%d\n", pool->count);
         //add element
         assert(pool->indexAt < pool->count);
         

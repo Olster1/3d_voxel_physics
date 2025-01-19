@@ -1,6 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "./libs/stb_image.h"
-#include <OpenGL/gl3.h>
 #include "./shaders/shaders_opengl.cpp"
 
 // NOTE: Each location index in a vertex attribute index - i.e. 4 floats. that's why for matrix we skip 4 values
@@ -328,6 +327,65 @@ ChunkModelBuffer generateChunkVertexBuffer(void *triangleData, int vertexCount, 
     return result;
 }
 
+ModelBuffer generateRayTraceVertexBuffer(void *triangleData, int vertexCount, unsigned int *indicesData, int indexCount) {
+    ModelBuffer result = {};
+    glGenVertexArrays(1, &result.handle);
+    renderCheckError();
+    glBindVertexArray(result.handle);
+    renderCheckError();
+    
+    GLuint vertices;
+    GLuint indices;
+    
+    glGenBuffers(1, &vertices);
+    renderCheckError();
+    
+    glBindBuffer(GL_ARRAY_BUFFER, vertices);
+    renderCheckError();
+
+    size_t sizeOfVertex = sizeof(Vertex);
+    
+    glBufferData(GL_ARRAY_BUFFER, vertexCount*sizeOfVertex, triangleData, GL_STATIC_DRAW);
+    renderCheckError();
+    
+    glGenBuffers(1, &indices);
+    renderCheckError();
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+    renderCheckError();
+    
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount*sizeof(unsigned int), indicesData, GL_DYNAMIC_DRAW);
+    renderCheckError();
+    
+    result.indexCount = indexCount;
+
+    //NOTE: Assign the attribute locations with the data offsets & types
+    GLint vertexAttrib = VERTEX_ATTRIB_LOCATION;
+    renderCheckError();
+    glEnableVertexAttribArray(vertexAttrib);  
+    renderCheckError();
+    glVertexAttribPointer(vertexAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    renderCheckError();
+    
+    GLint texUVAttrib = UV_ATTRIB_LOCATION;
+    glEnableVertexAttribArray(texUVAttrib);  
+    renderCheckError();
+    unsigned int uvByteOffset = (intptr_t)(&(((Vertex *)0)->texUV));
+    glVertexAttribPointer(texUVAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + uvByteOffset);
+    renderCheckError();
+
+    GLint normalsAttrib = NORMAL_ATTRIB_LOCATION;
+    glEnableVertexAttribArray(normalsAttrib);  
+    renderCheckError();
+    unsigned int normalOffset = (intptr_t)(&(((Vertex *)0)->normal));
+    glVertexAttribPointer(normalsAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + normalOffset);
+    renderCheckError();
+
+    glBindVertexArray(0);
+
+    return result;
+}
+
 ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned int *indicesData, int indexCount, AttribInstancingType attribInstancingType = ATTRIB_INSTANCE_TYPE_DEFAULT) {
     ModelBuffer result = {};
     glGenVertexArrays(1, &result.handle);
@@ -505,7 +563,6 @@ struct Texture {
 
     uint32_t handle;
 };
-
 
 void deleteTexture(Texture *t) {
     glDeleteTextures(1, &t->handle);
@@ -762,7 +819,6 @@ void prepareChunkRender(ChunkModelBuffer *model, Shader *shader, uint32_t textur
 }
 
 void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES) {
-    // printf("%d\n", instanceCount);
     glUseProgram(shader->handle);
     renderCheckError();
     
@@ -826,10 +882,43 @@ void endChunkRender() {
     renderCheckError();
 }
 
+Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
+    Texture3d result;
+    result.w = width;
+    result.h = height;
+    result.d = depth;
+
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_3D, texture);
+    
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, width, height, depth, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Wrapping along X
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Wrapping along Y
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Wrapping along Z
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+
+    // GLuint64 handle = glGetTextureHandleARB(texture);
+    // glMakeTextureHandleResidentARB(handle);
+
+
+    glBindTexture(GL_TEXTURE_3D, 0); 
+
+    result.handle = texture;   
+
+    return result;
+}
+
 void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle) {
+    {
+        //NOTE: Raytrace the world
+        drawModels(&renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+    }
+
     if(renderer->cubeCount > 0) {
         //NOTE: Draw Cubes
-        // printf("cube size: %lu\n", renderer->cubeCount*sizeof(InstanceData));
         updateInstanceData(renderer->blockModel.instanceBufferhandle, renderer->cubeData, renderer->cubeCount*sizeof(InstanceData));
         drawModels(&renderer->blockModel, &renderer->blockShader, renderer->terrainTextureHandle, renderer->cubeCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
@@ -895,4 +984,6 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
 
         renderer->lineCount = 0;
     }
+
+   
 }

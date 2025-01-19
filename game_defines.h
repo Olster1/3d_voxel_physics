@@ -7,7 +7,6 @@
 #define SHOW_CIRCLE_DELAY 2
 #define STAMINA_DRAIN_SPEED 0.1f
 #define STAMINA_RECHARGE_SPEED 0.1f
-#define CLOUD_EVELVATION 100 //NOTE: This is 192 in actual minecraft - Clouds always float westward between layer 192 and 196
 #define WATER_ELEVATION 40 //NOTE: This is 62 in actual minecraft
 #define BLOCK_SIZE 1 
 #define AO_BIT_NOT_VISIBLE 61
@@ -32,6 +31,9 @@
 #define PHYSICS_TIME_STEP (1.0f / 60.0f)
 #define TEST_EDGES_EDGES 0
 #define CONTINOUS_COLLISION_DETECTION 1
+
+#define INVERSE_CHUNK_DIM_METRES 0.625 //NOTE: 1 / (CHUNK_DIM * VOXEL_SIZE_IN_METERS)
+#define CHUNK_SIZE_IN_METERS 1.6 //NOTE: 16 * 0.1
 
 //NOTE: DEBUGGING CONSTANTS
 #define PERLIN_SIZE 128

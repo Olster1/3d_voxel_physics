@@ -19,6 +19,13 @@ static Vertex global_quadData[] = {
     makeVertex(make_float3(0.5f, 0.5f, 0), make_float2(1, 0), make_float3(0, 0, 1)),
 };
 
+static Vertex global_quadRaytraceData[] = {
+    makeVertex(make_float3(1.0f, -1.0f, 0), make_float2(1, 1), make_float3(0, 0, 1)),
+    makeVertex(make_float3(-1.0f, -1.0f, 0), make_float2(0, 1), make_float3(0, 0, 1)),
+    makeVertex(make_float3(-1.0f,  1.0f, 0), make_float2(0, 0), make_float3(0, 0, 1)),
+    makeVertex(make_float3(1.0f, 1.0f, 0), make_float2(1, 0), make_float3(0, 0, 1)),
+};
+
 static unsigned int global_quadIndices[] = {
     0, 1, 2, 0, 2, 3,
 };
@@ -236,6 +243,7 @@ struct Renderer {
     Shader lineShader;
     Shader skyboxShader;
     Shader blockColorShader;
+    Shader rayTraceShader;
     Shader plainBlockColorShader;
     Shader blockSameTextureShader;
     Shader rayCastShader;
@@ -243,6 +251,7 @@ struct Renderer {
     ModelBuffer blockModel;
     ModelBuffer blockModelWithInstancedT;
     ModelBuffer quadModel;
+    ModelBuffer rayTraceModel;
     ModelBuffer triangleModel;
     ModelBuffer avocadoModel;
     ModelBuffer blockModelSameTexture;
@@ -496,4 +505,3 @@ void pushTriangle(Renderer *renderer, float3 worldP, float4 color) {
         assert(false);
     }
 }
-

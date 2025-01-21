@@ -753,6 +753,7 @@ void updateInstanceData(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
 enum ShaderFlags {
     SHADER_CUBE_MAP = 1 << 0,
     SHADER_TEXTURE_BUFFER = 1 << 1,
+    SHADER_3D_TEXTURE = 1 << 2,
 };
 
 void bindTexture(char *uniformName, int slotId, GLint textureId, Shader *shader, uint32_t flags) {
@@ -771,15 +772,13 @@ void bindTexture(char *uniformName, int slotId, GLint textureId, Shader *shader,
     } else if(flags & SHADER_TEXTURE_BUFFER) { 
         glBindTexture(GL_TEXTURE_BUFFER, textureId); 
         renderCheckError();
+    } else if(flags & SHADER_3D_TEXTURE) {
+        glBindTexture(GL_TEXTURE_3D, textureId); 
+        renderCheckError();
     } else {
         glBindTexture(GL_TEXTURE_2D, textureId); 
         renderCheckError();
     }
-}
-
-
-void bindTextureArray(char *uniformName, GLint textureId, Shader *shader, uint32_t flags) {
-
 }
 
 void prepareChunkRender(ChunkModelBuffer *model, Shader *shader, uint32_t textureId, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater) {
@@ -818,7 +817,7 @@ void prepareChunkRender(ChunkModelBuffer *model, Shader *shader, uint32_t textur
    
 }
 
-void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES) {
+void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1) {
     glUseProgram(shader->handle);
     renderCheckError();
     
@@ -857,6 +856,11 @@ void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int inst
 
     bindTexture("diffuse", 1, textureId, shader, flags);
     renderCheckError();
+    
+    if(voxelTextureHandle >= 0) {
+        bindTexture("voxelShape", 1, voxelTextureHandle, shader, SHADER_3D_TEXTURE);
+        renderCheckError();
+    }
 
     if(skinningTextureId >= 0) {
         bindTexture("boneMatrixBuffer", 2, skinningTextureId, shader, SHADER_TEXTURE_BUFFER);
@@ -911,10 +915,10 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
     return result;
 }
 
-void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle) {
+void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle, VoxelEntity *voxelEntity) {
     {
         //NOTE: Raytrace the world
-        drawModels(&renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(&renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, voxelEntity->textureData.handle);
     }
 
     if(renderer->cubeCount > 0) {

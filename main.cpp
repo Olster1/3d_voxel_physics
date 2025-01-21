@@ -180,7 +180,7 @@ void updateGame(GameState *gameState) {
     float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
     float3 lookingAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
 
-    updatePhysicsSim(gameState);
+    // updatePhysicsSim(gameState);
     renderVoxelEntities(gameState);
 
     // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
@@ -213,7 +213,7 @@ void updateGame(GameState *gameState) {
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);
-    rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle);
+    rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0]);
 
     Uint32 end = SDL_GetTicks();
     global_totalLoopTime = (end - start);

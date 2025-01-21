@@ -21,6 +21,8 @@ static char *rayTraceFragShader =
 "uniform mat4 V;"
 "uniform mat4 projection;"
 
+"uniform sampler3D voxelShape;"
+
 "in vec3 ray_dir;" 
 
 "out vec4 color;"
@@ -28,7 +30,7 @@ static char *rayTraceFragShader =
     "vec3 ray = normalize(ray_dir);"
     
     //TODO: Do the Amanatides and Woo algorithm https://m4xc.dev/articles/amanatides-and-woo/
-    
+    "vec4 diffSample = texture(voxelShape, ray);"
 
     "color = vec4(1, 1, 0, 1);"
 "}";

@@ -51,7 +51,7 @@ struct GameState {
     bool inited;
     float dt;
     float screenWidth;
-    float aspectRatio_y_over_x;
+    float aspectRatio_x_over_y;
 
     TextureAtlas spriteTextureAtlas;
 

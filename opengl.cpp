@@ -334,13 +334,12 @@ ModelBuffer generateRayTraceVertexBuffer(void *triangleData, int vertexCount, un
     glBindVertexArray(result.handle);
     renderCheckError();
     
-    GLuint vertices;
-    GLuint indices;
     
-    glGenBuffers(1, &vertices);
+    GLuint indices;
+    glGenBuffers(1, &result.instanceBufferhandle);
     renderCheckError();
     
-    glBindBuffer(GL_ARRAY_BUFFER, vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, result.instanceBufferhandle);
     renderCheckError();
 
     size_t sizeOfVertex = sizeof(Vertex);
@@ -743,6 +742,21 @@ void updateInstanceData(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     //NOTE(ollie): I saw on Dungeoneer code using glsubbufferdata is faster because it doesn't have to delete it.
     // glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes, data);
     glBufferData(GL_ARRAY_BUFFER, sizeInBytes, data, GL_STREAM_DRAW); 
+    renderCheckError();
+
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    renderCheckError();
+}
+
+void updateInstanceDataSub(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
+    glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
+    renderCheckError();
+    
+    //send the data to GPU. glBufferData deletes the old one
+    //NOTE(ollie): We were using glBufferData which deletes the old buffer and resends the create a new buffer, but 
+    //NOTE(ollie): I saw on Dungeoneer code using glsubbufferdata is faster because it doesn't have to delete it.
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes, data);
     renderCheckError();
 
     

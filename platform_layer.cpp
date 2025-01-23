@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
   GameState *gameState = (GameState *)malloc(sizeof(GameState));
   memset(gameState, 0, sizeof(GameState));
   gameState->screenWidth = 700;
-  gameState->aspectRatio_y_over_x = 1;
+  gameState->aspectRatio_x_over_y = 1;
   gameState->mouseLeftBtn = MOUSE_BUTTON_NONE;
 
   for(int i = 0; i < arrayCount(gameState->keys.keys); ++i) {
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
   initAudioSpec(&gameState->audioSpec, 44100);
   initAudio(&gameState->audioSpec);
 
-  SDL_Window *window = SDL_CreateWindow("Minecraft",  SDL_WINDOWPOS_CENTERED,  SDL_WINDOWPOS_CENTERED, gameState->screenWidth, gameState->screenWidth*gameState->aspectRatio_y_over_x, flags);
+  SDL_Window *window = SDL_CreateWindow("Minecraft",  SDL_WINDOWPOS_CENTERED,  SDL_WINDOWPOS_CENTERED, gameState->screenWidth, gameState->screenWidth*(1.0f / gameState->aspectRatio_x_over_y), flags);
 
   SDL_GLContext renderContext = SDL_GL_CreateContext(window);
 
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
     int h;
     SDL_GetWindowSize(window, &w, &h);
     gameState->screenWidth = (float)w;
-    gameState->aspectRatio_y_over_x = (float)h / (float)w;
+    gameState->aspectRatio_x_over_y = (float)w / (float)h;
     // printf("w: %d\n", w);
     // printf("ap: %d\n", h);
 

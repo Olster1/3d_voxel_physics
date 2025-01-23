@@ -152,6 +152,18 @@ void updateAndDrawDebugCode(GameState *gameState) {
     }
 }
 
+void updateBufferDataWithCameraRays(Renderer *renderer, float3 *cameraRays) {
+    size_t vertexSize = sizeof(global_quadRaytraceData[0]);
+
+    global_quadRaytraceData[0].normal = cameraRays[0];
+    global_quadRaytraceData[1].normal = cameraRays[1];
+    global_quadRaytraceData[2].normal = cameraRays[2];
+    global_quadRaytraceData[3].normal = cameraRays[3];
+
+    assert(vertexSize == sizeof(Vertex));
+    updateInstanceDataSub(renderer->rayTraceModel.instanceBufferhandle, global_quadRaytraceData, arrayCount(global_quadRaytraceData)*vertexSize);
+}
+
 void updateGame(GameState *gameState) {
     Uint32 start = SDL_GetTicks();
 
@@ -170,10 +182,10 @@ void updateGame(GameState *gameState) {
     updateCamera(gameState);
     
   
-    float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
-    float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
+    float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
+    float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
 
-    float16 screenT = make_perspective_matrix_origin_center(gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, 1.0f / gameState->aspectRatio_y_over_x);
+    float16 screenT = make_perspective_matrix_origin_center(gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, 1.0f / gameState->aspectRatio_x_over_y);
     float16 cameraT = transform_getInverseX(gameState->camera.T);
     float16 cameraTWithoutTranslation = getCameraX_withoutTranslation(gameState->camera.T);
 
@@ -186,7 +198,7 @@ void updateGame(GameState *gameState) {
     // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 
     {
-        float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_y_over_x));
+        float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_x_over_y));
         float x = lerp(-p.x, p.x, make_lerpTValue(gameState->mouseP_01.x));
         float y = lerp(-p.y, p.y, make_lerpTValue(1.0f + gameState->mouseP_01.y));
 
@@ -209,7 +221,17 @@ void updateGame(GameState *gameState) {
         }
     }
 
-    
+    float3 cameraCornerRays[4];
+    {
+
+        float2 halfPlaneSize = scale_float2(0.5f, getPlaneSize(gameState->camera.fov, gameState->aspectRatio_x_over_y));
+        cameraCornerRays[0] = normalize_float3(make_float3(-halfPlaneSize.x, halfPlaneSize.y, 1));
+        cameraCornerRays[1] = normalize_float3(make_float3(-halfPlaneSize.x, -halfPlaneSize.y, 1));
+        cameraCornerRays[2] = normalize_float3(make_float3(halfPlaneSize.x, -halfPlaneSize.y, 1));
+        cameraCornerRays[3] = normalize_float3(make_float3(-halfPlaneSize.x, halfPlaneSize.y, 1));
+    }
+
+    updateBufferDataWithCameraRays(gameState->renderer, cameraCornerRays);
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);

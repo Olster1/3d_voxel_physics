@@ -820,7 +820,7 @@ void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, floa
                 Chunk *chunk = getChunk(gameState, chunkX + x, chunkY + y, chunkZ + z);
                 if(chunk) {
                     Rect3f rect = make_rect3f_min_dim((chunkX + x)*CHUNK_SIZE_IN_METERS, (chunkY + y)*CHUNK_SIZE_IN_METERS, (chunkZ + z)*CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS);
-                    if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_y_over_x)) 
+                    if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_x_over_y)) 
                     {
                         if(chunk->modelBuffer.indexCount > 0) {
                             prepareChunkRender(&chunk->modelBuffer, &gameState->renderer->blockGreedyShader, gameState->renderer->terrainTextureHandle, screenT, cameraT, lookingAxis, gameState->renderer->underWater);

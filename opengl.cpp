@@ -831,7 +831,7 @@ void prepareChunkRender(ChunkModelBuffer *model, Shader *shader, uint32_t textur
    
 }
 
-void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1) {
+void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 cameraToWorldT, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1) {
     glUseProgram(shader->handle);
     renderCheckError();
     
@@ -842,6 +842,12 @@ void drawModels(ModelBuffer *model, Shader *shader, uint32_t textureId, int inst
     renderCheckError();
 
     glUniformMatrix4fv(glGetUniformLocation(shader->handle, "projection"), 1, GL_FALSE, projectionTransform.E);
+    renderCheckError();
+
+    glUniformMatrix4fv(glGetUniformLocation(shader->handle, "cameraToWorldT"), 1, GL_FALSE, cameraToWorldT.E);
+    renderCheckError();
+
+    glUniform3f(glGetUniformLocation(shader->handle, "cameraP"), renderer->cameraP.x, renderer->cameraP.y, renderer->cameraP.z);
     renderCheckError();
 
     glUniform4f(glGetUniformLocation(shader->handle, "skyColorA"), timeOfDayValues.skyColorA.x, timeOfDayValues.skyColorA.y, timeOfDayValues.skyColorA.z, 1);
@@ -929,36 +935,36 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
     return result;
 }
 
-void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle, VoxelEntity *voxelEntity) {
+void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle, VoxelEntity *voxelEntity, float16 cameraToWorldT) {
     {
         //NOTE: Raytrace the world
-        drawModels(&renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, voxelEntity->textureData.handle);
+        drawModels(renderer, &renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, voxelEntity->textureData.handle);
     }
 
     if(renderer->cubeCount > 0) {
         //NOTE: Draw Cubes
         updateInstanceData(renderer->blockModel.instanceBufferhandle, renderer->cubeData, renderer->cubeCount*sizeof(InstanceData));
-        drawModels(&renderer->blockModel, &renderer->blockShader, renderer->terrainTextureHandle, renderer->cubeCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->blockModel, &renderer->blockShader, renderer->terrainTextureHandle, renderer->cubeCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->cubeCount = 0;
     }
 
     if(renderer->blockItemsCount > 0) {
         updateInstanceData(renderer->blockModelWithInstancedT.instanceBufferhandle, renderer->blockItemsData, renderer->blockItemsCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->blockModelWithInstancedT, &renderer->plainBlockColorShader, renderer->terrainTextureHandle, renderer->blockItemsCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->blockModelWithInstancedT, &renderer->plainBlockColorShader, renderer->terrainTextureHandle, renderer->blockItemsCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->blockItemsCount = 0;
     }
     
     //NOTE: Draw the skybox here
     glDepthMask(GL_FALSE); //NOTE: Disable WRITING to the depth buffer
-    drawModels(&renderer->blockModel, &renderer->skyboxShader, renderer->terrainTextureHandle, 1, projectionTransform, cameraTransformWithoutTranslation, lookingAxis, renderer->underWater, timeOfDay, SHADER_CUBE_MAP);
+    drawModels(renderer, &renderer->blockModel, &renderer->skyboxShader, renderer->terrainTextureHandle, 1, cameraToWorldT, projectionTransform, cameraTransformWithoutTranslation, lookingAxis, renderer->underWater, timeOfDay, SHADER_CUBE_MAP);
     glDepthMask(GL_TRUE);
 
     if(renderer->alphaBlockCount > 0) {
         //NOTE: Draw Cubes
         updateInstanceData(renderer->blockModel.instanceBufferhandle, renderer->alphaBlockData, renderer->alphaBlockCount*sizeof(InstanceData));
-        drawModels(&renderer->blockModel, &renderer->blockColorShader, renderer->terrainTextureHandle, renderer->alphaBlockCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->blockModel, &renderer->blockColorShader, renderer->terrainTextureHandle, renderer->alphaBlockCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->alphaBlockCount = 0;
     }
@@ -966,7 +972,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     if(renderer->alphaItemCount > 0) {
         //NOTE: Draw Cubes
         updateInstanceData(renderer->blockModelSameTexture.instanceBufferhandle, renderer->alphaItemData, renderer->alphaItemCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->blockModelSameTexture, &renderer->blockSameTextureShader, renderer->breakBlockTexture, renderer->alphaItemCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->blockModelSameTexture, &renderer->blockSameTextureShader, renderer->breakBlockTexture, renderer->alphaItemCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->alphaItemCount = 0;
     }
@@ -974,7 +980,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     if(renderer->atlasQuadCount > 0) {
         //NOTE: Draw circle oultines
         updateInstanceData(renderer->quadModel.instanceBufferhandle, renderer->atlasQuads, renderer->atlasQuadCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->quadModel, &renderer->quadTextureShader, renderer->atlasTexture, renderer->atlasQuadCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->quadModel, &renderer->quadTextureShader, renderer->atlasTexture, renderer->atlasQuadCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->atlasQuadCount = 0;
     }
@@ -982,7 +988,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     if(renderer->atlasQuadHUDCount > 0) {
         //NOTE: Draw circle oultines
         updateInstanceData(renderer->quadModel.instanceBufferhandle, renderer->atlasHUDQuads, renderer->atlasQuadHUDCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->quadModel, &renderer->quadTextureShader, renderer->atlasTexture, renderer->atlasQuadHUDCount, projectionScreenTransform, float16_identity(), lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->quadModel, &renderer->quadTextureShader, renderer->atlasTexture, renderer->atlasQuadHUDCount, cameraToWorldT, projectionScreenTransform, float16_identity(), lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->atlasQuadHUDCount = 0;
     }
@@ -990,7 +996,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     if(renderer->glyphCount > 0) {
         //NOTE: Draw circle oultines
         updateInstanceData(renderer->quadModel.instanceBufferhandle, renderer->glyphData, renderer->glyphCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->quadModel, &renderer->fontTextureShader, renderer->fontAtlasTexture, renderer->glyphCount, textScreenTransform, float16_identity(), lookingAxis, renderer->underWater, timeOfDay);
+        drawModels(renderer, &renderer->quadModel, &renderer->fontTextureShader, renderer->fontAtlasTexture, renderer->glyphCount, cameraToWorldT, textScreenTransform, float16_identity(), lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->glyphCount = 0;
     }
@@ -998,7 +1004,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     if(renderer->lineCount > 0) {
         //NOTE: Draw circle oultines
         updateInstanceData(renderer->lineModel.instanceBufferhandle, renderer->lineData, renderer->lineCount*sizeof(InstanceDataWithRotation));
-        drawModels(&renderer->lineModel, &renderer->lineShader, renderer->fontAtlasTexture, renderer->lineCount, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_LINES);
+        drawModels(renderer, &renderer->lineModel, &renderer->lineShader, renderer->fontAtlasTexture, renderer->lineCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_LINES);
 
         renderer->lineCount = 0;
     }

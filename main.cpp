@@ -187,7 +187,10 @@ void updateGame(GameState *gameState) {
 
     float16 screenT = make_perspective_matrix_origin_center(gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, 1.0f / gameState->aspectRatio_x_over_y);
     float16 cameraT = transform_getInverseX(gameState->camera.T);
+    float16 cameraToWorldT = getModelToViewSpace(gameState->camera.T);
     float16 cameraTWithoutTranslation = getCameraX_withoutTranslation(gameState->camera.T);
+
+    gameState->renderer->cameraP = gameState->camera.T.pos;
 
     float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
     float3 lookingAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
@@ -233,9 +236,11 @@ void updateGame(GameState *gameState) {
 
     updateBufferDataWithCameraRays(gameState->renderer, cameraCornerRays);
 
+    
+
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);
-    rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0]);
+    rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
 
     Uint32 end = SDL_GetTicks();
     global_totalLoopTime = (end - start);

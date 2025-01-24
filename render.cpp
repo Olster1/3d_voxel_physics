@@ -203,6 +203,8 @@ struct Renderer {
     uint32_t atlasTexture;
     uint32_t fontAtlasTexture;
 
+    float3 cameraP;
+
     int cubeCount;
     InstanceData cubeData[MAX_CUBES_PER_RENDER];
 

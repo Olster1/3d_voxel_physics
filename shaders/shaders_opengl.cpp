@@ -18,20 +18,27 @@ static char *rayTraceFragShader =
 "#version 330\n"
 
 //uniform variables
-"uniform mat4 V;"
-"uniform mat4 projection;"
+"uniform mat4 V;" //NOTE: World to Camera 
+"uniform mat4 cameraToWorldT;" //NOTE: Camera to World 
+"uniform vec3 cameraP;" //NOTE: Camera to World 
 
 "uniform sampler3D voxelShape;"
-"uniform vec3 cameraP;"
 
 "in vec3 ray_dir;" 
 
+"void findNearest(vec3 rayOrigin, vec3 rayDir) {"
+
+"}"
+
 "out vec4 color;"
 "void main() {"
-    "vec3 ray = ray_dir;"
-    
+    "vec4 ray = vec4(ray_dir, 1);"
+    "vec4 rayWorldSpace = cameraToWorldT*ray;"
+
+    "findNearest(cameraP, rayWorldSpace.xyz);"
+
     //TODO: Do the Amanatides and Woo algorithm https://m4xc.dev/articles/amanatides-and-woo/
-    "vec4 diffSample = texture(voxelShape, ray);"
+    "vec4 diffSample = texture(voxelShape, ray.xyz);"
 
     "color = vec4(ray.x, ray.y, 0, 1);"
 "}";

@@ -607,7 +607,7 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
 
 bool drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
     bool drewMesh = true;
-    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING)) 
+    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING) || gameState->drawBlocks) 
     {
         drewMesh = false;
         //NOTE: Default to drawing blocks seperately i.e. if user breaks a block, we don't want to wait for the mesh to rebuild for the chunk
@@ -620,12 +620,12 @@ bool drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
             Block *b = &c->blocks[i];
             
             if(b->exists) {
-                float3 worldP = make_float3(c->x*CHUNK_SIZE_IN_METERS + b->x*VOXEL_SIZE_IN_METERS, c->y*CHUNK_SIZE_IN_METERS + b->y*VOXEL_SIZE_IN_METERS, c->z*CHUNK_SIZE_IN_METERS + b->z*VOXEL_SIZE_IN_METERS);
+                float3 worldP = make_float3(c->x*CHUNK_DIM + b->x, c->y*CHUNK_DIM + b->y, c->z*CHUNK_DIM + b->z);
                 BlockType t = (BlockType)b->type;
 
                 if(t == BLOCK_WATER) {
                     //NOTE: Only draw the water quad if there isn't any block above it - notice the +1 on the y coord
-                    if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + VOXEL_SIZE_IN_METERS, worldP.z, (BlockFlags)0xFFFFFFFF)) {
+                    if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + 1, worldP.z, (BlockFlags)0xFFFFFFFF)) {
                         //NOTE: Draw the water
                         pushWaterQuad(gameState->renderer, worldP, make_float4(1, 1, 1, 0.3f));
                     }
@@ -653,8 +653,8 @@ bool drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
             }
         }
     } else if(c->modelBuffer.indexCount > 0) {
-        // glDrawElements(GL_TRIANGLES, c->modelBuffer.indexCount, GL_UNSIGNED_INT, 0); 
-        // renderCheckError();
+        glDrawElements(GL_TRIANGLES, c->modelBuffer.indexCount, GL_UNSIGNED_INT, 0); 
+        renderCheckError();
         
     }
     return drewMesh;

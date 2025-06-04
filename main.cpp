@@ -152,17 +152,6 @@ void updateAndDrawDebugCode(GameState *gameState) {
     }
 }
 
-void updateBufferDataWithCameraRays(Renderer *renderer, float3 *cameraRays) {
-    size_t vertexSize = sizeof(global_quadRaytraceData[0]);
-
-    global_quadRaytraceData[0].normal = cameraRays[0];
-    global_quadRaytraceData[1].normal = cameraRays[1];
-    global_quadRaytraceData[2].normal = cameraRays[2];
-    global_quadRaytraceData[3].normal = cameraRays[3];
-
-    assert(vertexSize == sizeof(Vertex));
-    updateInstanceDataSub(renderer->rayTraceModel.instanceBufferhandle, global_quadRaytraceData, arrayCount(global_quadRaytraceData)*vertexSize);
-}
 
 void updateGame(GameState *gameState) {
     Uint32 start = SDL_GetTicks();
@@ -196,9 +185,9 @@ void updateGame(GameState *gameState) {
     float3 lookingAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
 
     // updatePhysicsSim(gameState);
-    renderVoxelEntities(gameState);
+    // renderVoxelEntities(gameState);
 
-    // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
+    drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 
     {
         float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_x_over_y));
@@ -224,23 +213,33 @@ void updateGame(GameState *gameState) {
         }
     }
 
-    float3 cameraCornerRays[4];
-    {
-
-        float2 halfPlaneSize = scale_float2(0.5f, getPlaneSize(gameState->camera.fov, gameState->aspectRatio_x_over_y));
-        cameraCornerRays[0] = normalize_float3(make_float3(-halfPlaneSize.x, halfPlaneSize.y, 1));
-        cameraCornerRays[1] = normalize_float3(make_float3(-halfPlaneSize.x, -halfPlaneSize.y, 1));
-        cameraCornerRays[2] = normalize_float3(make_float3(halfPlaneSize.x, -halfPlaneSize.y, 1));
-        cameraCornerRays[3] = normalize_float3(make_float3(-halfPlaneSize.x, halfPlaneSize.y, 1));
-    }
-
-    updateBufferDataWithCameraRays(gameState->renderer, cameraCornerRays);
-
-    
-
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
-    updateAndDrawDebugCode(gameState);
+    // updateAndDrawDebugCode(gameState);
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
+
+
+    {
+        int count = 0;
+        ChunkVertexToCreate **infoPtr = &gameState->meshesToCreate;
+        int maxLoopCount = 10;
+        
+        while(*infoPtr && count < maxLoopCount) {
+            ChunkVertexToCreate *info = *infoPtr;
+            if(info->ready) {
+                processMeshData(info);
+                //NOTE: Take off list
+                *infoPtr = info->next;
+
+                //NOTE: Add to free list
+                info->next = gameState->meshesToCreateFreeList;
+                gameState->meshesToCreateFreeList = info;
+                
+                count++;
+            } else {
+                infoPtr = &info->next;
+            }
+        }
+    }
 
     Uint32 end = SDL_GetTicks();
     global_totalLoopTime = (end - start);

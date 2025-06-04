@@ -938,7 +938,7 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
 void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 modelViewTransform, float16 projectionScreenTransform, float16 textScreenTransform, float3 lookingAxis, float16 cameraTransformWithoutTranslation, TimeOfDayValues timeOfDay, uint32_t perlinNoiseHandle, VoxelEntity *voxelEntity, float16 cameraToWorldT) {
     {
         //NOTE: Raytrace the world
-        drawModels(renderer, &renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, voxelEntity->textureData.handle);
+        // drawModels(renderer, &renderer->rayTraceModel, &renderer->rayTraceShader, renderer->atlasTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, voxelEntity->textureData.handle);
     }
 
     if(renderer->cubeCount > 0) {

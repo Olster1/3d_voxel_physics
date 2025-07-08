@@ -374,7 +374,7 @@ void generateChunkMesh_multiThread(void *data_) {
 
     GameState *gameState = data->gameState;
     ChunkVertexToCreate *info = data->info;
-    Chunk *c = info->chunk;
+    Chunk *c = (Chunk *)info->chunk;
 
     // assert(c->generateState & CHUNK_MESH_BUILDING);
     if(c->generateState & CHUNK_MESH_BUILDING) {
@@ -519,7 +519,7 @@ void generateChunkMesh_multiThread(void *data_) {
 }
 
 void processMeshData(ChunkVertexToCreate *info) {
-    Chunk *c = info->chunk;
+    Chunk *c = (Chunk *)info->chunk;
     if(c->generateState & CHUNK_MESH_BUILDING) {
 
         {
@@ -576,11 +576,11 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
 
     ChunkVertexToCreate *info = 0;
 
-    if(gameState->meshesToCreateFreeList) {
-        info = gameState->meshesToCreateFreeList;
+    if(gameState->meshGenerator.meshesToCreateFreeList) {
+        info = gameState->meshGenerator.meshesToCreateFreeList;
 
         //NOTE: Take off free list
-        gameState->meshesToCreateFreeList = info->next;
+        gameState->meshGenerator.meshesToCreateFreeList = info->next;
     } else {
         info = pushStruct(&globalLongTermArena, ChunkVertexToCreate);
         //TODO: Change this to a fixed sized array with each threads own memory arena
@@ -593,10 +593,11 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
     info->alphaIndicesData = initResizeArray(u32);
 
     //NOTE: Add to the list
-    info->next = gameState->meshesToCreate;
-    gameState->meshesToCreate = info;
+    info->next = gameState->meshGenerator.meshesToCreate;
+    gameState->meshGenerator.meshesToCreate = info;
     info->ready = false;
     info->chunk = chunk;
+    info->voxelEntity = 0;
 
     data->info = info;
 

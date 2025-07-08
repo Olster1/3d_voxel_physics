@@ -26,6 +26,7 @@ static float global_totalLoopTime = 0;
 #define GJK_IMPLEMENTATION 1
 #include "./easy_gjk.h"
 #include <OpenGL/gl3.h>
+#include "./opengl.h"
 #include "./entity.cpp"
 #include "./render.cpp"
 #include "./opengl.cpp"
@@ -70,6 +71,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->blockModelWithInstancedT = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelSameTexture = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
 
+    renderer->voxelEntityMeshes = 0;
+
     return renderer;
 }
 
@@ -81,6 +84,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
 #include "./gameState.cpp"
 #include "./entity_multithread.cpp"
 #include "./chunk.cpp"
+#include "./multithreaded_mesh_builder.cpp"
 #include "./player.cpp"
 #include "./camera.cpp"
 #include "./perlin_noise_test.cpp"
@@ -166,10 +170,10 @@ void updateGame(GameState *gameState) {
     } else { 
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
+        gameState->renderer->voxelEntityMeshes = 0;
     }
     
     updateCamera(gameState);
-    
   
     float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
     float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
@@ -184,10 +188,10 @@ void updateGame(GameState *gameState) {
     float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
     float3 lookingAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
 
-    // updatePhysicsSim(gameState);
-    // renderVoxelEntities(gameState);
+    updatePhysicsSim(gameState);
+    renderVoxelEntities(gameState);
 
-    drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
+    // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 
     {
         float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_x_over_y));
@@ -195,10 +199,10 @@ void updateGame(GameState *gameState) {
         float y = lerp(-p.y, p.y, make_lerpTValue(1.0f + gameState->mouseP_01.y));
 
         if(gameState->keys.keys[KEY_T] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
+            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
         }
         if(gameState->keys.keys[KEY_Y] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
+            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
         }
         if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
             gameState->gamePaused = !gameState->gamePaused;
@@ -220,19 +224,24 @@ void updateGame(GameState *gameState) {
 
     {
         int count = 0;
-        ChunkVertexToCreate **infoPtr = &gameState->meshesToCreate;
+        ChunkVertexToCreate **infoPtr = &gameState->meshGenerator.meshesToCreate;
         int maxLoopCount = 10;
         
         while(*infoPtr && count < maxLoopCount) {
             ChunkVertexToCreate *info = *infoPtr;
             if(info->ready) {
-                processMeshData(info);
+                if(info->voxelEntity) {
+                    processVoxelEntityMeshData(info);
+                } else {
+                    processMeshData(info);
+                }
+                
                 //NOTE: Take off list
                 *infoPtr = info->next;
 
                 //NOTE: Add to free list
-                info->next = gameState->meshesToCreateFreeList;
-                gameState->meshesToCreateFreeList = info;
+                info->next = gameState->meshGenerator.meshesToCreateFreeList;
+                gameState->meshGenerator.meshesToCreateFreeList = info;
                 
                 count++;
             } else {

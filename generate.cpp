@@ -9,6 +9,12 @@ struct GenerateMeshData {
     ChunkVertexToCreate *info;
 };
 
+struct GenerateMeshDataWithList {
+    MultiThreadedMeshList *meshList;
+    ChunkVertexToCreate *info;
+};
+
+
 
 void getAOMask_multiThreaded(void *data_);
 

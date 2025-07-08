@@ -877,11 +877,6 @@ void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t
     bindTexture("diffuse", 1, textureId, shader, flags);
     renderCheckError();
     
-    if(voxelTextureHandle >= 0) {
-        bindTexture("voxelShape", 1, voxelTextureHandle, shader, SHADER_3D_TEXTURE);
-        renderCheckError();
-    }
-
     if(skinningTextureId >= 0) {
         bindTexture("boneMatrixBuffer", 2, skinningTextureId, shader, SHADER_TEXTURE_BUFFER);
         renderCheckError(); 
@@ -954,6 +949,18 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         drawModels(renderer, &renderer->blockModelWithInstancedT, &renderer->plainBlockColorShader, renderer->terrainTextureHandle, renderer->blockItemsCount, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
         renderer->blockItemsCount = 0;
+    }
+
+    {
+        ChunkModelBufferList *l = renderer->voxelEntityMeshes;
+        while(l) {
+            ModelBuffer b = {};
+            b.indexCount = l->indexCount;
+            b.handle = l->handle;
+            drawModels(renderer, &b, &renderer->blockShader, renderer->terrainTextureHandle, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+
+            l = l->next;
+        }
     }
     
     //NOTE: Draw the skybox here

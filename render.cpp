@@ -194,6 +194,12 @@ struct InstanceDataWithRotation {
     float4 voxelP;
 };
 
+struct ChunkModelBufferList { 
+    uint32_t handle;
+    int indexCount;
+    ChunkModelBufferList *next;
+};
+
 struct Renderer {
     uint32_t terrainTextureHandle;
     // uint32_t circleHandle;
@@ -258,6 +264,8 @@ struct Renderer {
     ModelBuffer avocadoModel;
     ModelBuffer blockModelSameTexture;
     ModelBuffer lineModel;
+
+    ChunkModelBufferList *voxelEntityMeshes;
 
     bool underWater;
 };

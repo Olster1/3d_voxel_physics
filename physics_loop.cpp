@@ -1,68 +1,56 @@
 
 void renderVoxelEntities(GameState *gameState) {
+    
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         PROFILE_FUNC(RENDER_CUBES);
         VoxelEntity *e = &gameState->voxelEntities[i];
 
-        // TransformX TTemp = e->T;
-        // //TODO: ROTATION
-        // TTemp.rotation.z = radiansToDegrees(TTemp.rotation.z);
-        // //NOTE: Draw with colliding margin
-        // TTemp.scale = plus_float3(make_float3(BOUNDING_BOX_MARGIN, BOUNDING_BOX_MARGIN, BOUNDING_BOX_MARGIN), e->worldBounds);
-        // float16 A = getModelToViewSpace(TTemp);
-        // float16 I = float16_identity();
+        if(e->mesh.modelBuffer.handle > 0) {
+            //NOTE: Has a mesh to be rendered
+            ChunkModelBufferList *l = pushStruct(&globalPerFrameArena, ChunkModelBufferList);
+            l->handle = e->mesh.modelBuffer.handle;
+            l->indexCount = e->mesh.modelBuffer.indexCount;
+            l->next = gameState->renderer->voxelEntityMeshes;
+            gameState->renderer->voxelEntityMeshes = l;
+        } 
+        
+        if(false){
+            float3 center = make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z);
+            
+            const float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
+            float halfVoxel = 0.5f*VOXEL_SIZE_IN_METERS;
+            float4 color = make_float4(1, 0.5f, 0, 1);
+            if(e->inverseMass == 0) {
+                color.x = 0;
+            }
+            
+            for(int z = 0; z < e->depth; ++z) {
+                for(int y = 0; y < e->pitch; ++y) {
+                    for(int x = 0; x < e->stride; ++x) {
+                        u8 state = e->data[getVoxelIndex(e, x, y, z)];
 
-        // float16 T0 =  float16_multiply(A, float16_set_pos(I, make_float3(0, -0.5f, 0)));
-        // float16 T1 =  float16_multiply(A, float16_set_pos(I, make_float3(0, 0.5f, 0)));
-        // float16 T2 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(-0.5f, 0, 0)));
-        // float16 T3 =  float16_multiply(A, float16_set_pos(eulerAnglesToTransform(0, 0, 90), make_float3(0.5f, 0, 0)));
-        
-
-        // //NOTE: Debug lines
-        // float4 lineColor = make_float4(0, 0, 0, 1);
-        // if(e->inBounds) {
-        //     lineColor.y = 1;
-        // }
-        // pushLine(gameState->renderer, T0, lineColor);
-        // pushLine(gameState->renderer, T1, lineColor);
-        // pushLine(gameState->renderer, T2, lineColor);
-        // pushLine(gameState->renderer, T3, lineColor);
-        
-        float3 center = make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z);
-        
-        const float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
-        float halfVoxel = 0.5f*VOXEL_SIZE_IN_METERS;
-        float4 color = make_float4(1, 0.5f, 0, 1);
-        if(e->inverseMass == 0) {
-            color.x = 0;
-        }
-        
-        for(int z = 0; z < e->depth; ++z) {
-            for(int y = 0; y < e->pitch; ++y) {
-                for(int x = 0; x < e->stride; ++x) {
-                    u8 state = e->data[getVoxelIndex(e, x, y, z)];
-
-                    if(state & VOXEL_OCCUPIED) 
-                    {
-                        if(state & VOXEL_INSIDE) {
-                            
-                        } else 
+                        if(state & VOXEL_OCCUPIED) 
                         {
-                            float4 color = make_float4(1, 0.5f, 0, 1);
-                            // if(state & VOXEL_COLLIDING) {
-                            //     // color = make_float4(0, 0.5f, 0, 1);
-                            // } else 
-                            if(state & VOXEL_CORNER) {
-                                color = make_float4(1, 0, 1, 1);
-                            } else if(state & VOXEL_EDGE) {
-                                color = make_float4(0, 1, 1, 1);
+                            if(state & VOXEL_INSIDE) {
+                                
+                            } else 
+                            {
+                                float4 color = make_float4(1, 0.5f, 0, 1);
+                                // if(state & VOXEL_COLLIDING) {
+                                //     // color = make_float4(0, 0.5f, 0, 1);
+                                // } else 
+                                if(state & VOXEL_CORNER) {
+                                    color = make_float4(1, 0, 1, 1);
+                                } else if(state & VOXEL_EDGE) {
+                                    color = make_float4(0, 1, 1, 1);
+                                }
+
+                                float x1 = x*VOXEL_SIZE_IN_METERS + halfVoxel - center.x;
+                                float y1 = y*VOXEL_SIZE_IN_METERS + halfVoxel - center.y;
+                                float z1 = z*VOXEL_SIZE_IN_METERS + halfVoxel - center.z;
+
+                                pushBlockItem(gameState->renderer, T, make_float4(x1, y1, z1, VOXEL_SIZE_IN_METERS), color);
                             }
-
-                            float x1 = x*VOXEL_SIZE_IN_METERS + halfVoxel - center.x;
-                            float y1 = y*VOXEL_SIZE_IN_METERS + halfVoxel - center.y;
-                            float z1 = z*VOXEL_SIZE_IN_METERS + halfVoxel - center.z;
-
-                            pushBlockItem(gameState->renderer, T, make_float4(x1, y1, z1, VOXEL_SIZE_IN_METERS), color);
                         }
                     }
                 }

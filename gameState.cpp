@@ -12,18 +12,7 @@ struct AOOffset {
     float3 offsets[3];
 };
 
-struct ChunkVertexToCreate {
-    VertexForChunk *triangleData;
-    u32 *indicesData;
 
-    VertexForChunk *alphaTriangleData;
-    u32 *alphaIndicesData;
-
-    Chunk *chunk;
-
-    ChunkVertexToCreate *next;
-    bool ready;
-};
 
 
 struct ChunkListItem {
@@ -89,9 +78,7 @@ struct GameState {
     InventoryItem playerInventory[64];
 
     float3 cameraOffset;
-
-    ChunkVertexToCreate *meshesToCreate;
-    ChunkVertexToCreate *meshesToCreateFreeList;
+    MultiThreadedMeshList meshGenerator;
 
     WavFile blockBreakSound;
     WavFile blockFinishSound;
@@ -135,8 +122,8 @@ struct GameState {
 
     KeyStates keys;
 
-    AOOffset aoOffsets[24];
     float3 cardinalOffsets[6];
+    AOOffset aoOffsets[24];
 
     int DEBUG_BlocksDrawnForFrame;
 
@@ -206,7 +193,15 @@ void createCardinalDirections(GameState *gameState) {
     gameState->cardinalOffsets[3] = make_float3(0, 0, -1*VOXEL_SIZE_IN_METERS);
     gameState->cardinalOffsets[4] = make_float3(-1*VOXEL_SIZE_IN_METERS, 0, 0);
     gameState->cardinalOffsets[5] = make_float3(1*VOXEL_SIZE_IN_METERS, 0, 0);
+}
 
+void createCardinalDirectionsForMeshGenerator(MultiThreadedMeshList *meshGenerator) {
+    meshGenerator->cardinalOffsets[0] = make_float3(0, 1, 0);
+    meshGenerator->cardinalOffsets[1] = make_float3(0, -1, 0);
+    meshGenerator->cardinalOffsets[2] = make_float3(0, 0, 1);
+    meshGenerator->cardinalOffsets[3] = make_float3(0, 0, -1);
+    meshGenerator->cardinalOffsets[4] = make_float3(-1, 0, 0);
+    meshGenerator->cardinalOffsets[5] = make_float3(1, 0, 0);
 }
 
 void createAOOffsets(GameState *gameState) {
@@ -267,21 +262,28 @@ void initGameState(GameState *gameState) {
     gameState->voxelCollideData = 0;
     gameState->gamePaused = false;
 
+    initThreadQueue(&gameState->threadsInfo);
+
+    gameState->meshGenerator.meshesToCreate = 0;
+    gameState->meshGenerator.meshesToCreateFreeList = 0;
+    gameState->meshGenerator.threadsInfo = &gameState->threadsInfo;
+    createAOOffsets(gameState);
+    createCardinalDirectionsForMeshGenerator(&gameState->meshGenerator);
+    createCardinalDirections(gameState);
+
     gameState->randomStartUpID = rand();
     float inverseMass = 1.0f / 50000.0f;
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
-    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
-
-
-    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelPlaneEntity(70.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
+    // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
+    gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelPlaneEntity(&gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
     // gameState->grabbed = &gameState->voxelEntities[2]; 
     
     assert(BLOCK_TYPE_COUNT < 255);
@@ -308,12 +310,12 @@ void initGameState(GameState *gameState) {
     gameState->physicsWorld.warmStarting = true;
     gameState->physicsWorld.accumulateImpulses = true;
 
-    loadWavFile(&gameState->cardFlipSound[0], "./sounds/cardFlip.wav", &gameState->audioSpec);
-    loadWavFile(&gameState->cardFlipSound[1], "./sounds/cardFlip1.wav", &gameState->audioSpec);
-    loadWavFile(&gameState->blockBreakSound, "./sounds/blockBreak.wav", &gameState->audioSpec);
-    loadWavFile(&gameState->blockFinishSound, "./sounds/blockFinish.wav", &gameState->audioSpec);
-    loadWavFile(&gameState->fallBigSound, "./sounds/fallbig.wav", &gameState->audioSpec);
-    loadWavFile(&gameState->pickupSound, "./sounds/pop.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->cardFlipSound[0], "./sounds/cardFlip.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->cardFlipSound[1], "./sounds/cardFlip1.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->blockBreakSound, "./sounds/blockBreak.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->blockFinishSound, "./sounds/blockFinish.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->fallBigSound, "./sounds/fallbig.wav", &gameState->audioSpec);
+    // loadWavFile(&gameState->pickupSound, "./sounds/pop.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->bgMusic, "./sounds/sweeden.wav", &gameState->audioSpec);
 
     gameState->lastMouseP = gameState->mouseP_screenSpace;
@@ -324,8 +326,7 @@ void initGameState(GameState *gameState) {
 
     gameState->currentMiningBlock = 0;
 
-    gameState->meshesToCreate = 0;
-    gameState->meshesToCreateFreeList = 0;
+    
 
     gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture);
 
@@ -342,16 +343,10 @@ void initGameState(GameState *gameState) {
 
     playSound(&gameState->bgMusic);
 
-    
-
     gameState->drawBlocks = false;
 
-    createAOOffsets(gameState);
-    createCardinalDirections(gameState);
 
     gameState->particlerCount = 0;
-
-    initThreadQueue(&gameState->threadsInfo);
 
     gameState->spriteTextureAtlas = readTextureAtlas("./texture_atlas.json", "./texture_atlas.png");
     

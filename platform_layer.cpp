@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <SDL2/SDL.h>
-#include <SDL2_image/SDL_image.h>
 #include <cstdio>
 #include <map>
 #define arrayCount(array1) (sizeof(array1) / sizeof(array1[0]))

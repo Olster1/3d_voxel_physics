@@ -28,6 +28,15 @@ void freeResizeArray(void *array_) {
     easyPlatform_freeMemory(header);
 }
 
+void clearResizeArray(void *array) {
+     if(!array) {
+        return;
+    }
+    ResizeArrayHeader *header = getResizeArrayHeader((u8 *)array);
+    header->elementsCount = 0;
+    
+}
+
 u8 *getResizeArrayContents(ResizeArrayHeader *header) {
     u8 *array = ((u8 *)header) + sizeof(ResizeArrayHeader);
     return array;

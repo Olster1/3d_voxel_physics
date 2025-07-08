@@ -27,6 +27,14 @@ enum BlockType {
     BLOCK_TYPE_COUNT
 };
 
+enum ChunkGenerationState {
+    CHUNK_NOT_GENERATED = 1 << 0, 
+    CHUNK_GENERATING = 1 << 1, 
+    CHUNK_GENERATED = 1 << 2, 
+    CHUNK_MESH_DIRTY = 1 << 3, 
+    CHUNK_MESH_BUILDING = 1 << 4, 
+};
+
 struct TimeOfDayValues {
     float4 skyColorA;
     float4 skyColorB;
@@ -95,9 +103,18 @@ bool areEntityIdsEqual(EntityID a, EntityID b) {
     return result;
 }
 
+struct VoxelEntityMesh {
+    volatile int64_t generateState; //NOTE: Entity Mesh might not be generated, so check first when you get one
+    ChunkModelBuffer modelBuffer;
+    int generation; //NOTE: Actual generation 
+    int generationAt; //NOTE: Generation that is displayed
+};
+
 struct VoxelEntity {
     EntityID id;
     TransformX T;
+
+    VoxelEntityMesh mesh;
 
     bool inBounds;
 
@@ -128,7 +145,29 @@ struct VoxelEntity {
     int stride; //x
     int pitch;//y
     int depth;//z
-    Texture3d textureData;
+};
+
+struct ChunkVertexToCreate {
+    int generation;
+
+    VertexForChunk *triangleData;
+    u32 *indicesData;
+
+    VertexForChunk *alphaTriangleData;
+    u32 *alphaIndicesData;
+
+    void *chunk;
+    VoxelEntity *voxelEntity;
+
+    ChunkVertexToCreate *next;
+    volatile bool ready;
+};
+
+struct MultiThreadedMeshList {
+    ThreadsInfo *threadsInfo;
+    ChunkVertexToCreate *meshesToCreate;
+    ChunkVertexToCreate *meshesToCreateFreeList;
+    float3 cardinalOffsets[6];
 };
 
 #include "./physics.cpp"
@@ -206,8 +245,9 @@ float getRelativeSpeed(VoxelEntity *a, VoxelEntity *b) {
     return result;
 }
 
+void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, VoxelEntity *e);
 
-void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = false) {
+void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, VoxelEntity *e, bool isInfiniteShape = false) {
     float inertia = 0;
     float massPerVoxel = (1.0f / e->inverseMass) / (float)e->occupiedCount;
     if(e->corners) {
@@ -384,11 +424,13 @@ void classifyPhysicsShapeAndIntertia(VoxelEntity *e, bool isInfiniteShape = fals
         e->invI = 0;
     }
 
-    //NOTE: Upload the 3d texture data to the GPU
-    if(e->textureData.handle > 0) {
-        delete3dTexture(&e->textureData);
+    //NOTE: Create a mesh from the voxel data
+    if(e->mesh.modelBuffer.handle > 0) {
+        deleteVao(e->mesh.modelBuffer.handle);
     }   
-    e->textureData = upload3dTexture(e->stride, e->pitch, e->depth, e->data);
+
+    e->mesh.generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+    pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
     
 }
 
@@ -399,7 +441,7 @@ void initBaseVoxelEntity(VoxelEntity *e, int randomStartUpID) {
     e->T.scale = make_float3(0, 0, 0);
 }
 
-VoxelEntity createVoxelCircleEntity(float radius, float3 pos, float inverseMass, int randomStartUpID) {
+VoxelEntity createVoxelCircleEntity(MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID) {
     VoxelEntity result = {};
 
     initBaseVoxelEntity(&result, randomStartUpID);
@@ -449,12 +491,12 @@ VoxelEntity createVoxelCircleEntity(float radius, float3 pos, float inverseMass,
         }
     }
 
-    classifyPhysicsShapeAndIntertia(&result);
+    classifyPhysicsShapeAndIntertia(meshGenerator, &result);
 
     return result;
 }
 
-VoxelEntity createVoxelPlaneEntity(float length, float3 pos, float inverseMass, int randomStartUpID) {
+VoxelEntity createVoxelPlaneEntity(MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID) {
     VoxelEntity result = {};
     initBaseVoxelEntity(&result, randomStartUpID);
 
@@ -489,12 +531,12 @@ VoxelEntity createVoxelPlaneEntity(float length, float3 pos, float inverseMass, 
         }
     }
 
-    classifyPhysicsShapeAndIntertia(&result, true);
+    classifyPhysicsShapeAndIntertia(meshGenerator, &result, true);
 
     return result;
 }
 
-VoxelEntity createVoxelSquareEntity(float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID) {
+VoxelEntity createVoxelSquareEntity(MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID) {
     VoxelEntity result = {};
 
     initBaseVoxelEntity(&result, randomStartUpID);
@@ -530,7 +572,7 @@ VoxelEntity createVoxelSquareEntity(float w, float h, float d, float3 pos, float
         }
     }
 
-    classifyPhysicsShapeAndIntertia(&result);
+    classifyPhysicsShapeAndIntertia(meshGenerator, &result);
 
     return result;
 }
@@ -581,14 +623,6 @@ struct Entity {
 
 #define CHUNK_DIM 16
 #define BLOCKS_PER_CHUNK CHUNK_DIM*CHUNK_DIM*CHUNK_DIM
-
-enum ChunkGenerationState {
-    CHUNK_NOT_GENERATED = 1 << 0, 
-    CHUNK_GENERATING = 1 << 1, 
-    CHUNK_GENERATED = 1 << 2, 
-    CHUNK_MESH_DIRTY = 1 << 3, 
-    CHUNK_MESH_BUILDING = 1 << 4, 
-};
 
 struct Chunk {
     int x;

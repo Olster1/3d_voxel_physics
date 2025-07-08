@@ -1,0 +1,1 @@
+void deleteVao(GLuint);

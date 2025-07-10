@@ -134,7 +134,7 @@ static char *blockPickupVertexShader =
     "sunAngle = mat3(transpose(inverse(MV))) * vec3(0.7071, 0, 0.7071);"
     "fragPosInViewSpace = vec3(MV * vec4(vertex, 1));"
 
-   " uv_frag = vec2(texUV.x, mix(uvAtlas.x, uvAtlas.y, texUV.y));"
+   " uv_frag = texUV;"
 "}";
 
 static char *lineVertexShader = 

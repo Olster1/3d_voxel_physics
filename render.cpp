@@ -194,10 +194,22 @@ struct InstanceDataWithRotation {
     float4 voxelP;
 };
 
-struct ChunkModelBufferList { 
-    uint32_t handle;
-    int indexCount;
-    ChunkModelBufferList *next;
+InstanceDataWithRotation getInstanceDataWithRotation(float16 M,
+    float4 color,
+    float4 uvs) {
+    InstanceDataWithRotation c = {};
+    
+    c.M = M;
+    c.color = color;
+    c.uv = uvs;
+
+    return c;
+}
+
+struct ModelBufferList { 
+    ModelBuffer modelBuffer;
+    InstanceDataWithRotation data;
+    ModelBufferList *next;
 };
 
 struct Renderer {
@@ -265,7 +277,7 @@ struct Renderer {
     ModelBuffer blockModelSameTexture;
     ModelBuffer lineModel;
 
-    ChunkModelBufferList *voxelEntityMeshes;
+    ModelBufferList *voxelEntityMeshes;
 
     bool underWater;
 };

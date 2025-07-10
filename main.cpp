@@ -199,10 +199,10 @@ void updateGame(GameState *gameState) {
         float y = lerp(-p.y, p.y, make_lerpTValue(1.0f + gameState->mouseP_01.y));
 
         if(gameState->keys.keys[KEY_T] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
+            createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
         }
         if(gameState->keys.keys[KEY_Y] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
+            createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
         }
         if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
             gameState->gamePaused = !gameState->gamePaused;

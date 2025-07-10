@@ -952,12 +952,10 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     }
 
     {
-        ChunkModelBufferList *l = renderer->voxelEntityMeshes;
+        ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
-            ModelBuffer b = {};
-            b.indexCount = l->indexCount;
-            b.handle = l->handle;
-            drawModels(renderer, &b, &renderer->blockShader, renderer->terrainTextureHandle, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+            updateInstanceData(l->modelBuffer.instanceBufferhandle, &l->data, sizeof(InstanceDataWithRotation));
+            drawModels(renderer, &l->modelBuffer, &renderer->blockPickupShader, renderer->atlasTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
             l = l->next;
         }

@@ -9,6 +9,9 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
     ChunkVertexToCreate *info = data->info;
     VoxelEntity *e = info->voxelEntity;
 
+    float halfVoxel = 0.5f*VOXEL_SIZE_IN_METERS;
+    float3 center = make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z);
+
     if(e->mesh.generateState & CHUNK_MESH_BUILDING) {
          for(int z = 0; z < e->depth; z++) {
             for(int y = 0; y < e->pitch; y++) {
@@ -16,27 +19,32 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
                     u8 eflags = e->data[getVoxelIndex(e, x, y, z)];
 
                     if(eflags & VOXEL_OCCUPIED) {
-                        float3 worldP = make_float3(x, y, z);
+                        float3 voxelP = make_float3(x, y, z);
 
                         //NOTE: Run Greedy mesh algorithm
                         for(int k = 0; k < arrayCount(meshGenerator->cardinalOffsets); k++) {
-                            float3 p = plus_float3(worldP, meshGenerator->cardinalOffsets[k]);
+                            float3 p = plus_float3(voxelP, meshGenerator->cardinalOffsets[k]);
                             
                             if(!isVoxelOccupied(e, p.x, p.y, p.z))
                             {
                                 //NOTE: Face is exposed so add it to the mesh
-                                int vertexCount = getArrayLength(info->triangleData);
+                                int vertexCount = getArrayLength(info->triangleDataV);
                                 //NOTE: 4 vertices for a cube face
                                 for(int i = 0; i < 4; ++i) {
                                     int indexIntoCubeData = i + k*4;
-                                    const VertexForChunk v = global_cubeDataForChunk[indexIntoCubeData];
+                                    const Vertex v = global_cubeData_sameTexture[indexIntoCubeData];
 
-                                    VertexForChunk vForChunk = v;
-                                    vForChunk.pos = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
-                                    float2 uvAtlas = make_float2(0.1f, 0.2f);
+                                    float3 modelP = {};
+                                    modelP.x = x*VOXEL_SIZE_IN_METERS + halfVoxel - center.x;
+                                    modelP.y = y*VOXEL_SIZE_IN_METERS + halfVoxel - center.y;
+                                    modelP.z = z*VOXEL_SIZE_IN_METERS + halfVoxel - center.z;
+
+                                    Vertex vForChunk = v;
+                                    vForChunk.pos = plus_float3(modelP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
+                                    float2 uvAtlas = make_float2(0, 1);
                                     vForChunk.texUV.y = lerp(uvAtlas.x, uvAtlas.y, make_lerpTValue(vForChunk.texUV.y));
 
-                                    pushArrayItem(&info->triangleData, vForChunk, VertexForChunk);
+                                    pushArrayItem(&info->triangleDataV, vForChunk, Vertex);
                                 }
                                 pushQuadIndicies(&info->indicesData, vertexCount);
                             }
@@ -65,7 +73,7 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
         {
             
             int indexCount = getArrayLength(info->indicesData);
-            int vertexCount = getArrayLength(info->triangleData);
+            int vertexCount = getArrayLength(info->triangleDataV);
             if(indexCount > 0 && vertexCount > 0) {
                 
                 if(e->mesh.modelBuffer.handle) {
@@ -73,7 +81,9 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
                     deleteVao(e->mesh.modelBuffer.handle);
                     e->mesh.modelBuffer.indexCount = 0;
                 }
-                e->mesh.modelBuffer = generateChunkVertexBuffer(info->triangleData, vertexCount, info->indicesData, indexCount);
+                // e->mesh.modelBuffer = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
+                e->mesh.modelBuffer = generateVertexBuffer(info->triangleDataV, vertexCount, info->indicesData, indexCount, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
+                assert(e->mesh.modelBuffer.handle > 0);
             } 
         }
 
@@ -83,7 +93,7 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
         assert(!(e->mesh.generateState & CHUNK_MESH_BUILDING));
     }
 
-    freeResizeArray(info->triangleData);
+    freeResizeArray(info->triangleDataV);
     freeResizeArray(info->indicesData);
 } 
 
@@ -115,7 +125,7 @@ void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, Vo
     }
     assert(info);
 
-    info->triangleData = initResizeArray(VertexForChunk);
+    info->triangleDataV = initResizeArray(Vertex);
     info->indicesData = initResizeArray(u32);
 
     //NOTE: Add to the list
@@ -128,6 +138,7 @@ void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, Vo
     data->info = info;
 
     //NOTE: Multi-threaded
-    pushWorkOntoQueue(meshGenerator->threadsInfo, generateVoxelEntityMesh_multiThread, data);
+    generateVoxelEntityMesh_multiThread(data);
+    // pushWorkOntoQueue(meshGenerator->threadsInfo, generateVoxelEntityMesh_multiThread, data);
 
 }

@@ -1307,8 +1307,8 @@ float16 sqt_to_float16(float4 q, float3 scale, float3 pos) {
     float16 result = quaternionToMatrix(q);
 	result = float16_scale(result, scale);
 	result = float16_multiply(float16_set_pos(float16_identity(), pos), result);
-    
     return result;
 }
+
 
 

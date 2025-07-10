@@ -105,7 +105,7 @@ bool areEntityIdsEqual(EntityID a, EntityID b) {
 
 struct VoxelEntityMesh {
     volatile int64_t generateState; //NOTE: Entity Mesh might not be generated, so check first when you get one
-    ChunkModelBuffer modelBuffer;
+    ModelBuffer modelBuffer;
     int generation; //NOTE: Actual generation 
     int generationAt; //NOTE: Generation that is displayed
 };
@@ -149,6 +149,8 @@ struct VoxelEntity {
 
 struct ChunkVertexToCreate {
     int generation;
+
+    Vertex *triangleDataV;
 
     VertexForChunk *triangleData;
     u32 *indicesData;
@@ -441,40 +443,38 @@ void initBaseVoxelEntity(VoxelEntity *e, int randomStartUpID) {
     e->T.scale = make_float3(0, 0, 0);
 }
 
-VoxelEntity createVoxelCircleEntity(MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID) {
-    VoxelEntity result = {};
-
-    initBaseVoxelEntity(&result, randomStartUpID);
-    result.sleepTimer = 0;
-    result.asleep = false;
+void createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID) {
+    initBaseVoxelEntity(e, randomStartUpID);
+    e->sleepTimer = 0;
+    e->asleep = false;
     
-    result.friction = 0.2f;
-    result.T.pos = pos;
+    e->friction = 0.2f;
+    e->T.pos = pos;
     
-    result.inverseMass = inverseMass;
-    result.coefficientOfRestitution = 0.2f;
+    e->inverseMass = inverseMass;
+    e->coefficientOfRestitution = 0.2f;
 
     float diameter = 2*radius;
-    result.worldBounds = make_float3(diameter, diameter, diameter);
+    e->worldBounds = make_float3(diameter, diameter, diameter);
 
-    result.T.scale = make_float3(diameter, diameter, diameter);
+    e->T.scale = make_float3(diameter, diameter, diameter);
     // result.T.rotation.z = 0.25f*PI32;
     
     int diameterInVoxels = round(diameter*VOXELS_PER_METER);
     int t = (int)(diameterInVoxels*diameterInVoxels*diameterInVoxels);
-    result.data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
-    result.colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
+    e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
+    e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
 
-    result.stride = diameterInVoxels;
-    result.pitch = diameterInVoxels;
-    result.depth = diameterInVoxels;
+    e->stride = diameterInVoxels;
+    e->pitch = diameterInVoxels;
+    e->depth = diameterInVoxels;
 
-    result.occupiedCount = 0;
+    e->occupiedCount = 0;
 
     float3 center = make_float3(radius, radius, radius);
-    for(int z = 0; z < result.depth; z++) {
-        for(int y = 0; y < result.pitch; y++) {
-            for(int x = 0; x < result.stride; x++) {
+    for(int z = 0; z < e->depth; z++) {
+        for(int y = 0; y < e->pitch; y++) {
+            for(int x = 0; x < e->stride; x++) {
                 float3 pos = getVoxelPositionInModelSpace(make_float3(x, y, z));
 
                 float3 diff = minus_float3(pos, center);
@@ -483,98 +483,90 @@ VoxelEntity createVoxelCircleEntity(MultiThreadedMeshList *meshGenerator, float 
 
                 if(float3_magnitude(diff) <= radius) {
                     flags |= VOXEL_OCCUPIED;
-                    result.occupiedCount++;
+                    e->occupiedCount++;
                 } 
 
-                result.data[getVoxelIndex(&result, x, y, z)] = flags;
+                e->data[getVoxelIndex(e, x, y, z)] = flags;
             }
         }
     }
 
-    classifyPhysicsShapeAndIntertia(meshGenerator, &result);
-
-    return result;
+    classifyPhysicsShapeAndIntertia(meshGenerator, e);
 }
 
-VoxelEntity createVoxelPlaneEntity(MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID) {
-    VoxelEntity result = {};
-    initBaseVoxelEntity(&result, randomStartUpID);
+void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID) {
+    initBaseVoxelEntity(e, randomStartUpID);
 
-    result.T.pos = pos;
-    result.inverseMass = inverseMass;
-    result.coefficientOfRestitution = 0;
-    result.friction = 0.2f;
+    e->T.pos = pos;
+    e->inverseMass = inverseMass;
+    e->coefficientOfRestitution = 0;
+    e->friction = 0.2f;
 
-    result.sleepTimer = 0;
-    result.asleep = false;
+    e->sleepTimer = 0;
+    e->asleep = false;
 
-    result.worldBounds = make_float3(length, VOXEL_SIZE_IN_METERS, length);
+    e->worldBounds = make_float3(length, VOXEL_SIZE_IN_METERS, length);
 
-    result.T.scale = make_float3(result.worldBounds.x, result.worldBounds.y, result.worldBounds.z);
+    e->T.scale = make_float3(e->worldBounds.x, e->worldBounds.y, e->worldBounds.z);
 
-    result.stride = result.worldBounds.x*VOXELS_PER_METER;
-    result.pitch = result.worldBounds.y*VOXELS_PER_METER;
-    result.depth = result.worldBounds.z*VOXELS_PER_METER;
+    e->stride = e->worldBounds.x*VOXELS_PER_METER;
+    e->pitch = e->worldBounds.y*VOXELS_PER_METER;
+    e->depth = e->worldBounds.z*VOXELS_PER_METER;
 
-    int areaInVoxels = result.stride*result.pitch*result.depth;
+    int areaInVoxels = e->stride*e->pitch*e->depth;
     
-    result.data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    result.colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    result.occupiedCount = 0;
+    e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->occupiedCount = 0;
 
-    for(int z = 0; z < result.depth; z++) {
-        for(int y = 0; y < result.pitch; y++) {
-            for(int x = 0; x < result.stride; x++) {
-                result.data[getVoxelIndex(&result, x, y, z)] = VOXEL_OCCUPIED;
-                result.occupiedCount++;
+    for(int z = 0; z < e->depth; z++) {
+        for(int y = 0; y < e->pitch; y++) {
+            for(int x = 0; x < e->stride; x++) {
+                e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+                e->occupiedCount++;
             }
         }
     }
 
-    classifyPhysicsShapeAndIntertia(meshGenerator, &result, true);
-
-    return result;
+    classifyPhysicsShapeAndIntertia(meshGenerator, e, true);
 }
 
-VoxelEntity createVoxelSquareEntity(MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID) {
-    VoxelEntity result = {};
+void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID) {
 
-    initBaseVoxelEntity(&result, randomStartUpID);
+    initBaseVoxelEntity(e, randomStartUpID);
      
-    result.T.pos = pos;
-    result.inverseMass = inverseMass;
-    result.coefficientOfRestitution = 0.2f;
-    result.friction = 0.2f;
+    e->T.pos = pos;
+    e->inverseMass = inverseMass;
+    e->coefficientOfRestitution = 0.2f;
+    e->friction = 0.2f;
 
-    result.sleepTimer = 0;
-    result.asleep = false;
+    e->sleepTimer = 0;
+    e->asleep = false;
     // result.T.rotation.z = 0.25f*PI32;
 
-    result.worldBounds = make_float3(w, h, d);
-    result.T.scale = make_float3(result.worldBounds.x, result.worldBounds.y, result.worldBounds.z);
+    e->worldBounds = make_float3(w, h, d);
+    e->T.scale = make_float3(e->worldBounds.x, e->worldBounds.y, e->worldBounds.z);
 
-    result.stride = result.worldBounds.x*VOXELS_PER_METER;
-    result.pitch = result.worldBounds.y*VOXELS_PER_METER;
-    result.depth = result.worldBounds.z*VOXELS_PER_METER;
+    e->stride = e->worldBounds.x*VOXELS_PER_METER;
+    e->pitch = e->worldBounds.y*VOXELS_PER_METER;
+    e->depth = e->worldBounds.z*VOXELS_PER_METER;
 
-    int areaInVoxels = result.stride*result.pitch*result.depth;
+    int areaInVoxels = e->stride*e->pitch*e->depth;
 
-    result.occupiedCount = 0;
-    result.data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    result.colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->occupiedCount = 0;
+    e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
 
-    for(int z = 0; z < result.depth; z++) {
-        for(int y = 0; y < result.pitch; y++) {
-            for(int x = 0; x < result.stride; x++) {
-                result.data[getVoxelIndex(&result, x, y, z)] = VOXEL_OCCUPIED;
-                result.occupiedCount++;
+    for(int z = 0; z < e->depth; z++) {
+        for(int y = 0; y < e->pitch; y++) {
+            for(int x = 0; x < e->stride; x++) {
+                e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+                e->occupiedCount++;
             }
         }
     }
 
-    classifyPhysicsShapeAndIntertia(meshGenerator, &result);
-
-    return result;
+    classifyPhysicsShapeAndIntertia(meshGenerator, e);
 }
 
 struct Block {

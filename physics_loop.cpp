@@ -11,14 +11,15 @@ void renderVoxelEntities(GameState *gameState) {
             //NOTE: Has a mesh to be rendered
             ModelBufferList *l = pushStruct(&globalPerFrameArena, ModelBufferList);
             l->modelBuffer = e->mesh.modelBuffer;
-            l->data = getInstanceDataWithRotation(T, make_float4(1, 1, 1, 1), make_float4(0.25f, 0.5f, 0, 0.25f));
+            l->data = getInstanceDataWithRotation(T, make_float4(1, 0.5f, 0, 1), make_float4(0.25f, 0.5f, 0, 0.25f));
             l->next = gameState->renderer->voxelEntityMeshes;
             gameState->renderer->voxelEntityMeshes = l;
         } else {
             int h = 0;
         }
         
-        if(false){
+        if(false)
+        {
             float3 center = make_float3(0.5f*e->worldBounds.x, 0.5f*e->worldBounds.y, 0.5f*e->worldBounds.z);
             
             
@@ -98,12 +99,10 @@ void updatePhysicsSim(GameState *gameState) {
     int interations = 0;
     
     //NOTE: Physics loop
-    while(gameState->physicsAccum >= minStep && interations < maxContinousIterations) {
+    while(gameState->physicsAccum >= minStep && interations < 4) {
         physicsLoopsCount++;
         interations++;
         float dt = minStep;
-     
-
         float maxRelSpeed = 0;
         {
             for(int i = 0; i < gameState->voxelEntityCount; ++i) {
@@ -119,7 +118,7 @@ void updatePhysicsSim(GameState *gameState) {
                             if(maxRelSpeed < relSpeed) {
                                 maxRelSpeed = relSpeed;
                             }
-                            collideEntitiesMultiThread(gameState, e, e1); 
+                            collideEntitiesMultiThread(gameState, e, e1, dt); 
                         }
                     } else {
                         assert(false);
@@ -132,6 +131,7 @@ void updatePhysicsSim(GameState *gameState) {
             PROFILE_FUNC(WaitForThreadsCollision);
             waitForWorkToFinish(&gameState->threadsInfo);
         }
+
         #if CONTINOUS_COLLISION_DETECTION
         if(maxRelSpeed > 0) {
             dt = MathMinf(VOXEL_SIZE_IN_METERS / maxRelSpeed, dt); // sec / m * voxel_size = sec

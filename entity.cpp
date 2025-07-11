@@ -178,9 +178,7 @@ struct MultiThreadedMeshList {
 struct VoxelCollideData {
     VoxelEntity *a;
     VoxelEntity *b;
-
-    Rect3f aRect;
-    Rect3f bRect;
+    float deltaStep;
 
     int pointCount;
     CollisionPoint points[MAX_CONTACT_POINTS_PER_PAIR];

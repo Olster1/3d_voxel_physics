@@ -109,7 +109,6 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
                 
                 result.normal = normalize_float3(diff);//TODO: I think this is causing an issue since the normal value shouldn't 
                 result.seperation = sqrt(distanceSqr) - VOXEL_SIZE_IN_METERS; //NOTE: Just resolves the individual voxel
-                // result.seperation = findSeperationForShape(e, testX, testY, result.point, result.normal); //NOTE: Just resolves the individual voxel
                 result.Pn = 0;
                 result.inverseMassNormal = 0;
                 result.velocityBias = 0;
@@ -229,7 +228,8 @@ bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, Rect3f *aRect,
     return result;
 }
 
-void checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, VoxelEntity *b, Rect3f rect, bool flip) {
+int checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, VoxelEntity *b, Rect3f rect, bool flip) {
+    int totalPointsFound = 0;
     //NOTE: Check corners with corners & edges first
     for(int i = 0; i < getArrayLength(a->corners); i++) {
         float3 corner = a->corners[i];
@@ -239,14 +239,15 @@ void checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Vox
         u8 byte = getByteFromVoxelEntity(a, x, y, z);
 
         float3 voxelP = voxelToWorldP(a, x, y, z);
-        VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED;
+        VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED; //(VoxelPhysicsFlag)(VOXEL_CORNER | VOXEL_EDGE | VOXEL_FACE); 
         
         if(in_rect3f_bounds(rect, voxelP)) 
         {
-            assert((byte & VOXEL_CORNER && !(byte & VOXEL_EDGE)) || (byte & VOXEL_EDGE && !(byte & VOXEL_CORNER)));
+            assert(((byte & VOXEL_CORNER) && !(byte & VOXEL_EDGE)) || ((byte & VOXEL_EDGE) && !(byte & VOXEL_CORNER)));
             if(byte & VOXEL_EDGE) {
+                //NOTE: This is an optimisation that means only corners test everthing and edges only ever have to test against other edges
                 #if TEST_EDGES_EDGES
-                    flagToTest = VOXEL_EDGE;
+                flagToTest = VOXEL_EDGE;
                 #endif
             }
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
@@ -262,9 +263,11 @@ void checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Vox
                         collideData->points[collideData->pointCount++] = pointsFound[j];
                     }
                 }
+                totalPointsFound += numPointsFound;
             }
         }
     }
+    return totalPointsFound;
 }
 
 void collideVoxelEntities(void *data_) {
@@ -275,19 +278,60 @@ void collideVoxelEntities(void *data_) {
     VoxelEntity *b = collideData->b;
     
     collideData->pointCount = 0;
-    {
-        a->inBounds = true;
-        b->inBounds = true;
+    
+    a->inBounds = true;
+    b->inBounds = true;
 
-        //NOTE: Keep the order consistent with the order in the arbiter
-        if(a > b) {
-            VoxelEntity *temp = b;
-            b = a;
-            a = temp;
+    //NOTE: Keep the order consistent with the order in the arbiter
+    if(a > b) {
+        VoxelEntity *temp = b;
+        b = a;
+        a = temp;
+    }
+
+    TransformX aT = a->T;
+    TransformX bT = b->T;
+
+    float3 aDA = a->dA;
+    aDA.x *= -1;
+    aDA.y *= -1;
+    aDA.z *= -1;
+
+    float3 bDA = b->dA;
+    bDA.x *= -1;
+    bDA.y *= -1;
+    bDA.z *= -1;
+
+    int speculativeCollisionIterations = 5;
+    float dtAccum = collideData->deltaStep / (float)speculativeCollisionIterations;
+    float dt = 0;
+    bool search = true;
+    for(int i = 0; i < speculativeCollisionIterations && search; i++) {
+        a->T.rotation = integrateAngularVelocity(aT.rotation, aDA, dt);
+        a->T.pos = plus_float3(aT.pos, scale_float3(dt, a->dP));
+        b->T.rotation = integrateAngularVelocity(bT.rotation, bDA, dt);
+        b->T.pos = plus_float3(bT.pos, scale_float3(dt, b->dP));
+
+        Rect3f aRect;
+        Rect3f bRect; 
+        bool collided = boundingBoxOverlapWithMargin(a, b, &aRect, &bRect, BOUNDING_BOX_MARGIN);
+        if(collided) {
+            //TODO: Do we need this??
+            aRect = rect3f_expand_uniform(aRect, VOXEL_SIZE_IN_METERS);
+            bRect = rect3f_expand_uniform(bRect, VOXEL_SIZE_IN_METERS);
+
+            int points1 = checkCornerAndEdgeVoxels(collideData, a, b, aRect, true);
+            int points2 = checkCornerAndEdgeVoxels(collideData, b, a, bRect, false);
+
+            if((points1 + points2) > 0) {
+                search = false;
+            }
         }
 
-        checkCornerAndEdgeVoxels(collideData, a, b, collideData->aRect, true);
-        checkCornerAndEdgeVoxels(collideData, b, a, collideData->bRect, false);
-    
-    } 
+        dt += dtAccum;
+    }
+
+    //NOTE: Reinstate the transform states
+    a->T = aT;
+    b->T = bT;
 }

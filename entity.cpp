@@ -141,6 +141,7 @@ struct VoxelEntity {
 
     int occupiedCount;
     u8 *data;
+    u8 *bitwiseData;
     u8 *colorData;
     int stride; //x
     int pitch;//y
@@ -464,6 +465,7 @@ void createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
     int t = (int)(diameterInVoxels*diameterInVoxels*diameterInVoxels);
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
+    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*t, EASY_PLATFORM_MEMORY_ZERO);
 
     e->stride = diameterInVoxels;
     e->pitch = diameterInVoxels;
@@ -484,6 +486,7 @@ void createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
                 if(float3_magnitude(diff) <= radius) {
                     flags |= VOXEL_OCCUPIED;
                     e->occupiedCount++;
+                    e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
                 } 
 
                 e->data[getVoxelIndex(e, x, y, z)] = flags;
@@ -505,7 +508,7 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     e->sleepTimer = 0;
     e->asleep = false;
 
-    e->worldBounds = make_float3(length, VOXEL_SIZE_IN_METERS, length);
+    e->worldBounds = make_float3(length, 10*VOXEL_SIZE_IN_METERS, length);
 
     e->T.scale = make_float3(e->worldBounds.x, e->worldBounds.y, e->worldBounds.z);
 
@@ -517,12 +520,14 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->occupiedCount = 0;
 
     for(int z = 0; z < e->depth; z++) {
         for(int y = 0; y < e->pitch; y++) {
             for(int x = 0; x < e->stride; x++) {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+                e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }
@@ -556,11 +561,13 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
     e->occupiedCount = 0;
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
 
     for(int z = 0; z < e->depth; z++) {
         for(int y = 0; y < e->pitch; y++) {
             for(int x = 0; x < e->stride; x++) {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+                e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }

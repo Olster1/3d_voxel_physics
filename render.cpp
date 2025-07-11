@@ -220,6 +220,7 @@ struct Renderer {
     uint32_t breakBlockTexture;
     uint32_t atlasTexture;
     uint32_t fontAtlasTexture;
+    uint32_t whiteTexture;
 
     float3 cameraP;
 

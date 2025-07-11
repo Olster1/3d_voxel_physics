@@ -279,8 +279,6 @@ void initGameState(GameState *gameState) {
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
         createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
-        // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelCircleEntity(&gameState->meshGenerator, 1.0f, make_float3(0, 8, 0), inverseMass, gameState->randomStartUpID);
-        // gameState->voxelEntities[gameState->voxelEntityCount++] = createVoxelSquareEntity(&gameState->meshGenerator, 1, 1, 1, make_float3(0, 10, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
@@ -325,12 +323,11 @@ void initGameState(GameState *gameState) {
     gameState->grassTexture = loadTextureToGPU("./images/grass_block.png");
     Texture breakBlockTexture = loadTextureToGPU("./images/break_block.png");
     Texture atlasTexture = loadTextureToGPU("./images/atlas.png");
+    Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
     gameState->currentMiningBlock = 0;
 
-    
-
-    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture);
+    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture);
 
     gameState->mainFont = initFontAtlas("./fonts/Roboto-Regular.ttf");
     

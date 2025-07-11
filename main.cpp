@@ -34,7 +34,7 @@ static float global_totalLoopTime = 0;
 #include "./particles.cpp"
 #include "./load_gltf.cpp"
 
-Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture) {
+Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture) {
     
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     
@@ -44,6 +44,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->terrainTextureHandle = grassTexture.handle;
     renderer->breakBlockTexture = breakBlockTexture.handle;
     renderer->atlasTexture = atlasTexture.handle;
+    renderer->whiteTexture = whiteTexture.handle;
 
     renderer->blockShader = loadShader(blockVertexShader, blockFragShader);
     renderer->blockGreedyShader = loadShader(blockGreedyVertexShader, blockFragShader);
@@ -136,24 +137,24 @@ void updateAndDrawDebugCode(GameState *gameState) {
         renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 10), 0.1f);
     }
 
-    float yAppend = 0;
-    if(global_profiler && global_profiler->data) {
-        for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
-                ProfileData *d = &global_profiler->data[i];
+    // float yAppend = 0;
+    // if(global_profiler && global_profiler->data) {
+    //     for(int i = 0; i < getArrayLength(global_profiler->data); i++) {
+    //             ProfileData *d = &global_profiler->data[i];
 
-                float dividend = global_timeInPhysicsUpdate_cycles;
+    //             float dividend = global_timeInPhysicsUpdate_cycles;
 
-                if(easyString_stringsMatch_nullTerminated(d->name, "RENDER_CUBES")) {
-                    dividend = global_totalLoopTime;
-                }
+    //             if(easyString_stringsMatch_nullTerminated(d->name, "RENDER_CUBES")) {
+    //                 dividend = global_totalLoopTime;
+    //             }
 
-                char s[255];
-                int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / dividend)*100.0f));
-                assert(charsRendered < arrayCount(s));
-                renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
-                yAppend += 5;
-        }
-    }
+    //             char s[255];
+    //             int charsRendered = sprintf (s, "%s: %d%%", d->name, (int)((d->totalTime / dividend)*100.0f));
+    //             assert(charsRendered < arrayCount(s));
+    //             renderText(gameState->renderer, &gameState->mainFont, s, make_float2(10, 10 + 25 + yAppend), 0.1f);
+    //             yAppend += 5;
+    //     }
+    // }
 }
 
 
@@ -218,7 +219,7 @@ void updateGame(GameState *gameState) {
     }
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
-    // updateAndDrawDebugCode(gameState);
+    updateAndDrawDebugCode(gameState);
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
 
 

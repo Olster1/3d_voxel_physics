@@ -955,7 +955,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
             updateInstanceData(l->modelBuffer.instanceBufferhandle, &l->data, sizeof(InstanceDataWithRotation));
-            drawModels(renderer, &l->modelBuffer, &renderer->blockPickupShader, renderer->atlasTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+            drawModels(renderer, &l->modelBuffer, &renderer->blockPickupShader, renderer->whiteTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
             l = l->next;
         }

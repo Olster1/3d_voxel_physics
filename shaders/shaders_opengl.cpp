@@ -131,10 +131,28 @@ static char *blockPickupVertexShader =
     "gl_Position = projection * MV * vec4((vertex), 1);"
     "color_frag = color;"
     "normal_frag_view_space = mat3(transpose(inverse(MV))) * normal;"
-    "sunAngle = mat3(transpose(inverse(MV))) * vec3(0.7071, 0, 0.7071);"
+    "sunAngle = mat3(V) * vec3(0.17364817766, 0.98480775301, 0);"
     "fragPosInViewSpace = vec3(MV * vec4(vertex, 1));"
 
    " uv_frag = texUV;"
+"}";
+
+static char *blockPickupFragShader = 
+"#version 330\n"
+"in vec4 color_frag;" 
+"in vec3 normal_frag_view_space;"//viewspace
+"in vec2 uv_frag; "
+"in vec3 sunAngle;"
+"in vec3 fragPosInViewSpace;" //view space
+"uniform sampler2D diffuse;"
+"uniform vec3 lookingAxis;"
+
+"out vec4 color;"
+"void main() {"
+    "float diffuseAngle = max(dot(normal_frag_view_space, sunAngle), 0.5);"
+    "vec4 diffSample = texture(diffuse, uv_frag);"
+    "vec4 c = color_frag;"
+    "color = vec4((diffuseAngle*diffSample*c).xyz, 1);"
 "}";
 
 static char *lineVertexShader = 
@@ -284,22 +302,6 @@ static char *blockSameTextureVertexShader =
    " uv_frag = vec2(mix(uvAtlas.x, uvAtlas.y, texUV.x), texUV.y);"
 "}";
 
-static char *blockPickupFragShader = 
-"#version 330\n"
-"in vec4 color_frag;" 
-"in vec3 normal_frag_view_space;"//viewspace
-"in vec2 uv_frag; "
-"in vec3 sunAngle;"
-"in vec3 fragPosInViewSpace;" //view space
-"uniform sampler2D diffuse;"
-"uniform vec3 lookingAxis;"
-
-"out vec4 color;"
-"void main() {"
-    "vec4 diffSample = texture(diffuse, uv_frag);"
-    "vec4 c = color_frag;"
-    "color = diffSample*c;"
-"}";
 
 static char *blockVertexShader = 
 "#version 330\n"

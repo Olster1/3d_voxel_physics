@@ -192,7 +192,7 @@ void updateGame(GameState *gameState) {
     updatePhysicsSim(gameState);
     renderVoxelEntities(gameState);
 
-    // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
+    drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 
     {
         float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_x_over_y));

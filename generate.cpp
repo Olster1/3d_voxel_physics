@@ -102,7 +102,7 @@ BlockType worldGeneration_shouldBlockExist(int worldX, int worldY, int worldZ) {
     BlockType type = BLOCK_NONE;
 
     if(worldY < terrainHeight) {
-        BlockType type = BLOCK_GRASS;
+        type = BLOCK_GRASS;
         bool isTop = false;
 
         if(underWater) {
@@ -133,15 +133,15 @@ void fillChunk_multiThread(void *data_) {
 
     for(int z = 0; z < CHUNK_DIM; ++z) {
         for(int x = 0; x < CHUNK_DIM; ++x) {
-            int worldX = x + chunk->x*CHUNK_DIM;
-            int worldZ = z + chunk->z*CHUNK_DIM;
+            int worldX = (x + chunk->x*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
+            int worldZ = (z + chunk->z*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
 
             float waterElevation = WATER_ELEVATION;
 
             float terrainHeight = getTerrainHeight(worldX, worldZ);
 
             for(int y = 0; y < CHUNK_DIM; ++y) {
-                int worldY = y + chunk->y*CHUNK_DIM;
+                int worldY = (y + chunk->y*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
 
                 bool underWater = worldY < waterElevation;
 
@@ -181,48 +181,18 @@ void fillChunk_multiThread(void *data_) {
                     assert(blockIndex < BLOCKS_PER_CHUNK);
                     if(blockIndex < BLOCKS_PER_CHUNK) {
                         chunk->blocks[blockIndex] = spawnBlock(x, y, z, type);
-                        // assert(chunk->blocks[blockIndex].flags != 0);
-                    }
-
-                    if(worldY > waterElevation && isTop && isTreeLocation(worldX, worldZ)) {
-                        generateTree_multiThread(gameState, chunk, make_float3(worldX, worldY + 1, worldZ));
-                    } else if(worldY > waterElevation) {
-                        if(isTop && isBushLocation(worldX, worldZ)) {
-                            EntityType grassType = ENTITY_GRASS_LONG;
-                            BlockType grassType1 = BLOCK_GRASS_SHORT_ENTITY;
-                            bool bigBush = isBigBush(worldX, worldZ);
-                            if(!bigBush) {
-                                grassType = ENTITY_GRASS_SHORT;
-                                grassType1 = BLOCK_GRASS_TALL_ENTITY;
-                            }
-
-                            int chunkX = roundChunkCoord((float)worldX / (float)CHUNK_DIM);
-                            int chunkY = roundChunkCoord((float)(worldY + 1) / (float)CHUNK_DIM);
-                            int chunkZ = roundChunkCoord((float)worldZ / (float)CHUNK_DIM);
-
-
-                            int localX = x;
-                            int localY = (worldY + 1) - (CHUNK_DIM*chunkY); 
-                            int localZ = z;
-
-                            int blockIndex = getBlockIndex(localX, localY, localZ);
-                            assert(blockIndex < BLOCKS_PER_CHUNK);
-                            if(blockIndex < BLOCKS_PER_CHUNK) {
-                                chunk->blocks[blockIndex] = spawnBlock(localX, localY, localZ, grassType1);
-                            }
-                        }
                     }
                     
                 } else if(worldY < waterElevation) {
-                    if(!chunk->blocks) {
-                        chunk->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
-                    }
-                    //NOTE: Is water so add water
-                    int blockIndex = getBlockIndex(x, y, z);
-                    assert(blockIndex < BLOCKS_PER_CHUNK);
-                    if(blockIndex < BLOCKS_PER_CHUNK) {
-                        chunk->blocks[blockIndex] = spawnBlock(x, y, z, BLOCK_WATER);
-                    }
+                    // if(!chunk->blocks) {
+                    //     chunk->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
+                    // }
+                    // //NOTE: Is water so add water
+                    // int blockIndex = getBlockIndex(x, y, z);
+                    // assert(blockIndex < BLOCKS_PER_CHUNK);
+                    // if(blockIndex < BLOCKS_PER_CHUNK) {
+                    //     chunk->blocks[blockIndex] = spawnBlock(x, y, z, BLOCK_WATER);
+                    // }
                 }
             }
         }

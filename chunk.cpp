@@ -46,15 +46,15 @@ float3 convertRealWorldToBlockCoords(float3 p) {
     //NOTE: So 0.5 & 1.4 should both map to 1 - I think the +0.5
     //NOTE: So -0.5 & -1.4 should both map to -1 - I think the -0.5
     //NOTE: So -0.4 & 0.4 should both map to 0 - I think the -0.5
-    p.x = round(p.x);
-    p.y = round(p.y);
-    p.z = round(p.z);
+    p.x = round(p.x*10)*0.1;
+    p.y = round(p.y*10)*0.1;
+    p.z = round(p.z*10)*0.1;
 
     return p;
 }
 
 int roundChunkCoord(float value) {
-    return floor(value);
+    return floor(round(value*10)*0.1f);
 }
 
 uint32_t getHashForChunk(int x, int y, int z) {
@@ -215,9 +215,9 @@ Block *blockExistsReadOnly_withBlock(GameState *gameState, float worldx, float w
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = (worldx - (CHUNK_DIM*chunkX)) * VOXELS_PER_METER; 
-    int localy = (worldy - (CHUNK_DIM*chunkY)) * VOXELS_PER_METER; 
-    int localz = (worldz - (CHUNK_DIM*chunkZ)) * VOXELS_PER_METER; 
+    int localx = round(worldx - (CHUNK_DIM*chunkX) * VOXELS_PER_METER); 
+    int localy = round(worldy - (CHUNK_DIM*chunkY) * VOXELS_PER_METER); 
+    int localz = round(worldz - (CHUNK_DIM*chunkZ) * VOXELS_PER_METER); 
 
     assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
@@ -244,9 +244,9 @@ bool blockExistsReadOnly(GameState *gameState, float worldx, float worldy, float
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = (worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
-    int localy = (worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
-    int localz = (worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
+    int localx = round((worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
+    int localy = round((worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
+    int localz = round((worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
     
     assert(localx < CHUNK_DIM);     
     assert(localy < CHUNK_DIM);
@@ -389,8 +389,6 @@ void generateChunkMesh_multiThread(void *data_) {
                 b->aoMask = 0;
 
                  if(t == BLOCK_WATER) {
-                // if(false) {
-                    //NOTE: Only draw the water quad if there isn't any block above it - notice the +VOXEL_SIZE_IN_METERS on the y coord
                     if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + VOXEL_SIZE_IN_METERS, worldP.z, (BlockFlags)0xFFFFFFFF)) 
                     {
                         //NOTE: Draw the water
@@ -454,14 +452,14 @@ void generateChunkMesh_multiThread(void *data_) {
                                 int indexIntoCubeData = i + k*4;
                                 const VertexForChunk v = global_cubeDataForChunk[indexIntoCubeData];
 
-                                bool blockValues[3] = {false, false, false};
+                                // bool blockValues[3] = {false, false, false};
                                 
-                                for(int j = 0; j < arrayCount(blockValues); j++) {
-                                    float3 p = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, gameState->aoOffsets[indexIntoCubeData].offsets[j]));
-                                    if(blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
-                                        blockValues[j] = true; 
-                                    }
-                                }
+                                // for(int j = 0; j < arrayCount(blockValues); j++) {
+                                //     float3 p = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, gameState->aoOffsets[indexIntoCubeData].offsets[j]));
+                                //     if(blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
+                                //         blockValues[j] = true; 
+                                //     }
+                                // }
 
                                 VertexForChunk vForChunk = v;
                                 vForChunk.pos = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
@@ -471,27 +469,27 @@ void generateChunkMesh_multiThread(void *data_) {
                                 //NOTE: Get the ambient occulusion level
                                 uint64_t value = 0;
                                 //SPEED: Somehow make this not into if statments
-                                if(blockValues[0] && blockValues[2])  {
-                                    value = 3;
-                                } else if((blockValues[0] && blockValues[1])) {
-                                    assert(!blockValues[2]);
-                                    value = 2;
-                                } else if((blockValues[1] && blockValues[2])) {
-                                    assert(!blockValues[0]);
-                                    value = 2;
-                                } else if(blockValues[0]) {
-                                    assert(!blockValues[1]);
-                                    assert(!blockValues[2]);
-                                    value = 1;
-                                } else if(blockValues[1]) {
-                                    assert(!blockValues[0]);
-                                    assert(!blockValues[2]);
-                                    value = 1;
-                                } else if(blockValues[2]) {
-                                    assert(!blockValues[0]);
-                                    assert(!blockValues[1]);
-                                    value = 1;
-                                } 
+                                // if(blockValues[0] && blockValues[2])  {
+                                //     value = 3;
+                                // } else if((blockValues[0] && blockValues[1])) {
+                                //     assert(!blockValues[2]);
+                                //     value = 2;
+                                // } else if((blockValues[1] && blockValues[2])) {
+                                //     assert(!blockValues[0]);
+                                //     value = 2;
+                                // } else if(blockValues[0]) {
+                                //     assert(!blockValues[1]);
+                                //     assert(!blockValues[2]);
+                                //     value = 1;
+                                // } else if(blockValues[1]) {
+                                //     assert(!blockValues[0]);
+                                //     assert(!blockValues[2]);
+                                //     value = 1;
+                                // } else if(blockValues[2]) {
+                                //     assert(!blockValues[0]);
+                                //     assert(!blockValues[1]);
+                                //     value = 1;
+                                // } 
                                 
                                 vForChunk.aoMask = value;
 
@@ -606,59 +604,17 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
 
 }
 
-bool drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
-    bool drewMesh = true;
-    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING) || gameState->drawBlocks) 
+void drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
+    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING)) 
     {
-        drewMesh = false;
-        //NOTE: Default to drawing blocks seperately i.e. if user breaks a block, we don't want to wait for the mesh to rebuild for the chunk
         if(c->generateState & CHUNK_MESH_DIRTY) {
             pushCreateMeshToThreads(gameState, c);
-        }
-        
-        int blockCount = (c->blocks) ? BLOCKS_PER_CHUNK : 0;
-        for(int i = 0; i < blockCount; ++i) {
-            Block *b = &c->blocks[i];
-            
-            if(b->exists) {
-                float3 worldP = make_float3(c->x*CHUNK_DIM + b->x, c->y*CHUNK_DIM + b->y, c->z*CHUNK_DIM + b->z);
-                BlockType t = (BlockType)b->type;
-
-                if(t == BLOCK_WATER) {
-                    //NOTE: Only draw the water quad if there isn't any block above it - notice the +1 on the y coord
-                    if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + 1, worldP.z, (BlockFlags)0xFFFFFFFF)) {
-                        //NOTE: Draw the water
-                        pushWaterQuad(gameState->renderer, worldP, make_float4(1, 1, 1, 0.3f));
-                    }
-                    
-                } else if(t == BLOCK_GRASS_SHORT_ENTITY || t == BLOCK_GRASS_TALL_ENTITY) {
-                    float height = 1;
-                    if(t == BLOCK_GRASS_TALL_ENTITY) {
-                        height = 2;
-                    }
-                    pushGrassQuad(gameState->renderer, worldP, height, make_float4(1, 1, 1, 1));
-                } else {
-                    //NOTE: Calculate the aoMask if haven't yet - top bit is set 
-                    if(b->aoMask & getInvalidAoMaskValue()) 
-                    { 
-                        getAOMaskForBlock(gameState, worldP, getBlockFlags(gameState, (BlockType)b->type), b);
-                    }
-                    
-                    if(!(b->aoMask & getBitWiseFlag(AO_BIT_NOT_VISIBLE))) 
-                    {
-                        uint64_t AOMask = b->aoMask;
-                        pushCube(gameState->renderer, worldP, t, make_float4(0, 0, 0, 1), AOMask);
-                        gameState->DEBUG_BlocksDrawnForFrame++;
-                    }
-                }
-            }
         }
     } else if(c->modelBuffer.indexCount > 0) {
         glDrawElements(GL_TRIANGLES, c->modelBuffer.indexCount, GL_UNSIGNED_INT, 0); 
         renderCheckError();
         
     }
-    return drewMesh;
 }
 
 void removeEntityFromChunk(Chunk *chunk, EntityID id) {
@@ -734,9 +690,9 @@ BlockChunkPartner blockExists(GameState *gameState, float worldx, float worldy, 
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = (worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
-    int localy = (worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
-    int localz = (worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER; 
+    int localx = round(worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS) * VOXELS_PER_METER); 
+    int localy = round(worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER); 
+    int localz = round(worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER); 
 
     assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
@@ -804,37 +760,30 @@ void updateRecoverMovement(GameState *gameState, Entity *e) {
 }
 
 void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, float3 lookingAxis, float16 rot) {
-    float3 worldP = convertRealWorldToBlockCoords(gameState->camera.T.pos);
+    // float3 worldP = convertRealWorldToBlockCoords(gameState->camera.T.pos);
+    float3 worldP = make_float3(1, 1, 1);
     
     int chunkX = roundChunkCoord(worldP.x * INVERSE_CHUNK_DIM_METRES);
     int chunkY = roundChunkCoord(worldP.y * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord(worldP.z * INVERSE_CHUNK_DIM_METRES);
     
     int chunkRadiusY = 3;
-    int chunkRadiusXZ = 10; //TODO: This should be able to get to 64 at 60FPS
-
-    ChunkListItem *chunkList = 0;
+    int chunkRadiusXZ = 3;
 
     for(int z = -chunkRadiusXZ; z <= chunkRadiusXZ; ++z) {
         for(int x = -chunkRadiusXZ; x <= chunkRadiusXZ; ++x) {
             for(int y = -chunkRadiusY; y <= chunkRadiusY; ++y) {
+    
                 Chunk *chunk = getChunk(gameState, chunkX + x, chunkY + y, chunkZ + z);
                 if(chunk) {
-                    Rect3f rect = make_rect3f_min_dim((chunkX + x)*CHUNK_SIZE_IN_METERS, (chunkY + y)*CHUNK_SIZE_IN_METERS, (chunkZ + z)*CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS);
-                    if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_x_over_y)) 
+                    // Rect3f rect = make_rec   t3f_min_dim((chunkX + x)*CHUNK_SIZE_IN_METERS, (chunkY + y)*CHUNK_SIZE_IN_METERS, (chunkZ + z)*CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS);
+                    // if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_x_over_y)) 
                     {
                         if(chunk->modelBuffer.indexCount > 0) {
                             prepareChunkRender(&chunk->modelBuffer, &gameState->renderer->blockGreedyShader, gameState->renderer->terrainTextureHandle, screenT, cameraT, lookingAxis, gameState->renderer->underWater);
                         }
 
-                        bool drewMesh = drawChunk(gameState, gameState->renderer, chunk);
-
-                        if(chunk->alphaModelBuffer.indexCount > 0 && drewMesh) {
-                            ChunkListItem *c = pushStruct(&globalPerFrameArena, ChunkListItem);
-                            c->next = chunkList;
-                            c->chunk = chunk;
-                            chunkList = c;
-                        }
+                        drawChunk(gameState, gameState->renderer, chunk);
 
                         if(chunk->modelBuffer.indexCount > 0) {
                             endChunkRender();

@@ -238,8 +238,6 @@ Block *blockExistsReadOnly_withBlock(GameState *gameState, float worldx, float w
 
 
 bool blockExistsReadOnly(GameState *gameState, float worldx, float worldy, float worldz, BlockFlags flags) {
-    float inX = (float)worldx * INVERSE_CHUNK_DIM_METRES;
-
     int chunkX = roundChunkCoord((float)worldx * INVERSE_CHUNK_DIM_METRES);
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
@@ -767,8 +765,8 @@ void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, floa
     int chunkY = roundChunkCoord(worldP.y * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord(worldP.z * INVERSE_CHUNK_DIM_METRES);
     
-    int chunkRadiusY = 3;
-    int chunkRadiusXZ = 3;
+    int chunkRadiusY = 4;
+    int chunkRadiusXZ = 10;
 
     for(int z = -chunkRadiusXZ; z <= chunkRadiusXZ; ++z) {
         for(int x = -chunkRadiusXZ; x <= chunkRadiusXZ; ++x) {

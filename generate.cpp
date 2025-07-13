@@ -95,7 +95,7 @@ void generateTree_multiThread(GameState *gameState, Chunk *chunk, float3 worldP)
 
 }
 
-BlockType worldGeneration_shouldBlockExist(int worldX, int worldY, int worldZ) {
+BlockType worldGeneration_shouldBlockExist(float worldX, float worldY, float worldZ) {
     float terrainHeight = getTerrainHeight(worldX, worldZ);
 
     bool underWater = worldY < WATER_ELEVATION;
@@ -133,17 +133,17 @@ void fillChunk_multiThread(void *data_) {
 
     for(int z = 0; z < CHUNK_DIM; ++z) {
         for(int x = 0; x < CHUNK_DIM; ++x) {
-            int worldX = (x + chunk->x*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
-            int worldZ = (z + chunk->z*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
+            float worldX = (x + chunk->x*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
+            float worldZ = (z + chunk->z*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
 
             float waterElevation = WATER_ELEVATION;
 
             float terrainHeight = getTerrainHeight(worldX, worldZ);
 
             for(int y = 0; y < CHUNK_DIM; ++y) {
-                int worldY = (y + chunk->y*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
+                float worldY = (y + chunk->y*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
 
-                bool underWater = worldY < waterElevation;
+                bool underWater = false;//worldY < waterElevation;
 
                 if(worldY < terrainHeight) {
                     if(!chunk->blocks) {

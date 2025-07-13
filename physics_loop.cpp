@@ -132,13 +132,6 @@ void updatePhysicsSim(GameState *gameState) {
             waitForWorkToFinish(&gameState->threadsInfo);
         }
 
-        #if CONTINOUS_COLLISION_DETECTION
-        if(maxRelSpeed > 0) {
-            dt = MathMinf(VOXEL_SIZE_IN_METERS / maxRelSpeed, dt); // sec / m * voxel_size = sec
-            dt = MathMaxf(dt, 1.0f / 480.0f);
-        }
-        #endif
-
         float prevDt = dt;
         dt = (gameState->gamePaused) ? 0 : dt;
 

@@ -8,7 +8,13 @@ float mapSimplexNoiseTo01(float value) {
     return value;
 }
 
-float getTerrainHeight(int worldX, int worldZ) {
+float getTerrainHeight(float worldX, float worldZ) {
+    #if SIMPLE_TERRAIN_HEIGHT
+    float a = SimplexNoise_fractal_2d(16, worldX, worldZ, 0.01);
+    a = mapSimplexNoiseTo01(a);
+    float maxHeight = 2;
+    float terrainHeight = maxHeight*a;
+    #else
     float a = SimplexNoise_fractal_2d(16, worldX, worldZ, 0.00522);
     a = mapSimplexNoiseTo01(a);
 
@@ -22,6 +28,8 @@ float getTerrainHeight(int worldX, int worldZ) {
 
     float terrainAmplitude = lerp(10, maxTerrainValue, make_lerpTValue(b));
     float terrainHeight = a*terrainAmplitude; 
+
+    #endif
 
     return terrainHeight;
 }

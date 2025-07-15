@@ -22,7 +22,6 @@ enum BlockType {
     BLOCK_IRON,
     BLOCK_OUTLINE,
 
-
     //NOTHING PAST HERE
     BLOCK_TYPE_COUNT
 };
@@ -153,10 +152,10 @@ struct ChunkVertexToCreate {
 
     Vertex *triangleDataV;
 
-    VertexForChunk *triangleData;
+    VoxelVertex *triangleData;
     u32 *indicesData;
 
-    VertexForChunk *alphaTriangleData;
+    VoxelVertex *alphaTriangleData;
     u32 *alphaIndicesData;
 
     void *chunk;
@@ -576,6 +575,7 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
 
 struct Block {
     u8 type;
+    u8 colorId;
 
     //NOTE: Local to the Chunk they're in
     int x;
@@ -634,8 +634,11 @@ struct Chunk {
 
     Entity *entities;
 
-    ChunkModelBuffer modelBuffer;
-    ChunkModelBuffer alphaModelBuffer;
+    int meshGeneration; //NOTE: Actual generation 
+    int meshGenerationAt; //NOTE: Generation of mesh has been generated
+
+    ModelBuffer modelBuffer;
+    ModelBuffer alphaModelBuffer;
 
     Chunk *next;
 };

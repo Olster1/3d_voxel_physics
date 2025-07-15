@@ -221,6 +221,7 @@ struct Renderer {
     uint32_t atlasTexture;
     uint32_t fontAtlasTexture;
     uint32_t whiteTexture;
+    uint32_t voxelColorPallete;
 
     float3 cameraP;
 
@@ -264,10 +265,10 @@ struct Renderer {
     Shader lineShader;
     Shader skyboxShader;
     Shader blockColorShader;
-    Shader rayTraceShader;
     Shader plainBlockColorShader;
     Shader blockSameTextureShader;
     Shader rayCastShader;
+    Shader voxelChunkShader;
     
     ModelBuffer blockModel;
     ModelBuffer blockModelWithInstancedT;

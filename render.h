@@ -11,6 +11,25 @@ struct VertexForChunk {
     int aoMask;
 };
 
+struct VoxelVertex {
+    float3 pos;
+    float3 normal;
+    int colorId;
+    int palleteId;
+};
+
+VoxelVertex initVoxelVertex(float3 pos, float3 normal, int colorId, int palleteId) {
+    VoxelVertex result = {};
+
+    result.pos = pos;
+    result.normal = normal;
+    result.colorId = colorId;
+    result.palleteId = palleteId;
+    
+    return result;
+
+}
+
 struct VertexWithJoints {
     float3 pos;
     float2 texUV;
@@ -51,9 +70,3 @@ VertexForChunk makeVertexForChunk(float3 pos, float2 texUV, float3 normal) {
 
     return v;
 }
-
-
-struct ChunkModelBuffer {
-    uint32_t handle;
-    int indexCount;
-};

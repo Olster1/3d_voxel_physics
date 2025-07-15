@@ -1,50 +1,3 @@
-
-static char *rayTraceVertexShader = 
-"#version 330\n"
-
-//per vertex variables
-"in vec3 vertex;"
-"in vec3 normal;"
-"in vec2 uv;"
-
-"out vec3 ray_dir;"
-
-"void main() {"
-    "ray_dir = normal;"
-    "gl_Position = vec4(vertex.x, vertex.y, -1, 1);"
-"}";
-
-static char *rayTraceFragShader = 
-"#version 330\n"
-
-//uniform variables
-"uniform mat4 V;" //NOTE: World to Camera 
-"uniform mat4 cameraToWorldT;" //NOTE: Camera to World 
-"uniform vec3 cameraP;" //NOTE: Camera to World 
-
-"uniform sampler3D voxelShape;"
-
-"in vec3 ray_dir;" 
-
-"void findNearest(vec3 rayOrigin, vec3 rayDir) {"
-
-"}"
-
-"out vec4 color;"
-"void main() {"
-    "vec4 ray = vec4(ray_dir, 1);"
-    "vec4 rayWorldSpace = cameraToWorldT*ray;"
-
-    "findNearest(cameraP, rayWorldSpace.xyz);"
-
-    //TODO: Do the Amanatides and Woo algorithm https://m4xc.dev/articles/amanatides-and-woo/
-    "vec4 diffSample = texture(voxelShape, ray.xyz);"
-
-    "color = vec4(ray.x, ray.y, 0, 1);"
-"}";
-
-
-
 static char *blockSameColorVertexShader = 
 "#version 330\n"
 //per vertex variables
@@ -392,6 +345,65 @@ static char *blockGreedyVertexShader =
     "AOValue = aoFactors[AOMask];"
     "color_frag = vec4(0, 0, 0, 1);"
     "uv_frag = texUV;"
+"}";
+
+static char *voxelChunkVertexShader = 
+"#version 330\n"
+//per vertex variables
+"in vec3 pos;"
+"in vec3 normal;"
+"in int colorId;"
+"in int palleteId;"
+
+//uniform variables
+"uniform mat4 V;"
+"uniform mat4 projection;"
+
+//outgoing variables
+"out vec4 color_frag;"
+"out vec3 normal_frag_view_space;"
+"out vec3 fragPosInViewSpace;"
+"out vec3 sunAngle;"
+"out vec3 normalInModelSpace;"
+"out float distanceFromEye;"
+"flat out int colorIndex;"
+"flat out int palleteIndex;"
+
+"void main() {"
+    "mat4 MV = V;"
+    "vec4 cameraSpace = MV * vec4(pos, 1);"
+    "distanceFromEye = cameraSpace.z;"
+    "gl_Position = projection * cameraSpace;"
+    "normal_frag_view_space = mat3(MV) * normal;"
+    "sunAngle = mat3(MV) * vec3(0.7071, 0, 0.7071);"
+    "fragPosInViewSpace = vec3(MV * vec4(pos, 1));"
+    "normalInModelSpace = normal;"
+    "colorIndex = colorId;"
+    "palleteIndex = palleteId;"
+"}";
+
+static char *voxelChunkFragShader = 
+"#version 330\n"
+"in vec3 normal_frag_view_space;"//viewspace
+"in vec3 sunAngle;"
+"in vec3 fragPosInViewSpace;" //view space
+"flat in int colorIndex;"
+"flat in int palleteIndex;"
+"uniform sampler2D diffuse;"
+"uniform vec3 lookingAxis;"
+"int numPalettes = 1;"
+"out vec4 color;"
+
+"vec4 getColor(int index) {"
+    "float x = (float(index) + 0.5) / 256.0;"
+    "float y = (float(palleteIndex) + 0.5) / float(numPalettes);"
+    "return texture(diffuse, vec2(x, y));"
+"}"
+
+"void main() {"
+    "float diffuseAngle = max(dot(normal_frag_view_space, sunAngle), 0.5);"
+    "vec4 diffSample = getColor(colorIndex);"
+    "color = vec4((diffuseAngle*diffSample).xyz, 1);"
 "}";
 
 static char *blockFragShader = 

@@ -101,7 +101,7 @@ static float lerp(float a, float b, LerpTValue t) {
 	return (b - a)*t.value + a;
 }
 
-float randomBetween(float min, float max) {
+float randomBetween(float min, float max) { //inclusive for both min & max
 	return lerp(min, max, make_lerpTValue((float)rand() / RAND_MAX));
 }
 

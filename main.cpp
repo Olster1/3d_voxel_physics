@@ -34,7 +34,7 @@ static float global_totalLoopTime = 0;
 #include "./particles.cpp"
 #include "./load_gltf.cpp"
 
-Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture) {
+Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete) {
     
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     
@@ -45,6 +45,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->breakBlockTexture = breakBlockTexture.handle;
     renderer->atlasTexture = atlasTexture.handle;
     renderer->whiteTexture = whiteTexture.handle;
+    renderer->voxelColorPallete = voxelColorPallete.handle;
 
     renderer->blockShader = loadShader(blockVertexShader, blockFragShader);
     renderer->blockGreedyShader = loadShader(blockGreedyVertexShader, blockFragShader);
@@ -59,8 +60,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->skeletalModelShader = loadShader(skeletalVertexShader, skeletalFragShader);
     renderer->blockSameTextureShader = loadShader(blockSameTextureVertexShader, blockPickupFragShader);
     renderer->blockColorShader = loadShader(blockVertexShader, blockFragShader);
+    renderer->voxelChunkShader = loadShader(voxelChunkVertexShader, voxelChunkFragShader, ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK);
 
-    renderer->rayTraceShader = loadShader(rayTraceVertexShader, rayTraceFragShader);
 
     renderer->plainBlockColorShader = loadShader(blockSameColorVertexShader, blockSameColorFragShader);
     
@@ -71,6 +72,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->lineModel = generateVertexBuffer(global_lineModelData, 2, global_lineIndicies, 2, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelWithInstancedT = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelSameTexture = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
+    
 
     renderer->voxelEntityMeshes = 0;
 
@@ -82,6 +84,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
 #include "./SimplexNoise.cpp"
 #include "./interaction.cpp"
 #include "./texture_atlas.cpp"
+#include "./load_vox_file.cpp"
 #include "./gameState.cpp"
 #include "./entity_multithread.cpp"
 #include "./chunk.cpp"

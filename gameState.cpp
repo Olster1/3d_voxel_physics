@@ -61,6 +61,9 @@ struct GameState {
     Texture circleOutlineTexture;
 
     ChunkInfo *chunksList;
+
+    VoxelModel buildingModel;
+    
     
     MouseKeyState mouseLeftBtn;
 
@@ -325,9 +328,12 @@ void initGameState(GameState *gameState) {
     Texture atlasTexture = loadTextureToGPU("./images/atlas.png");
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
+    gameState->buildingModel = loadVoxFile("./models/TallBuilding01.vox");
+    Texture voxelColorPallete = createGPUTexture(256, 1, voxelGrassBitmap);
+
     gameState->currentMiningBlock = 0;
 
-    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture);
+    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete);
 
     gameState->mainFont = initFontAtlas("./fonts/Roboto-Regular.ttf");
     

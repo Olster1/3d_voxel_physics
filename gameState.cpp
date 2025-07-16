@@ -100,6 +100,8 @@ struct GameState {
     //NOTE: linked hash maps
     Chunk *chunks[CHUNK_LIST_SIZE];
 
+    ChunkPostFill_ThreadSafe chunkPostFillInfo; //NOTE: Linked list
+
     Renderer *renderer;
 
     SDL_AudioSpec audioSpec;
@@ -372,6 +374,7 @@ void initGameState(GameState *gameState) {
     assert((maxUniformBlockSize / sizeof(float16)) > MAX_BONES_PER_MODEL);
     
     createSearchOffsets(gameState);
+    initChunkPostFill_ThreadSafe(&gameState->chunkPostFillInfo);
 
     gameState->perlinTestTexture = createGPUTexture(PERLIN_SIZE, PERLIN_SIZE, 0);
 

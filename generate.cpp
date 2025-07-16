@@ -142,7 +142,7 @@ void checkInitBlocksForChunk(Chunk *chunk) {
     }
 }
 
-void addBuilding(VoxelModel *model, float3 originLocalP, Chunk *chunk) {
+void addBuilding(GameState *gameState, VoxelModel *model, float3 originLocalP, Chunk *chunk) {
 
     for(int i = 0; i < model->totalVoxelCount; ++i) {
         u32 voxelData = model->voxelData[i];
@@ -165,9 +165,10 @@ void addBuilding(VoxelModel *model, float3 originLocalP, Chunk *chunk) {
                 checkInitBlocksForChunk(chunk);
                 chunk->blocks[blockIndex] = spawnBlock(localVoxelP.x, localVoxelP.y, localVoxelP.z, BLOCK_BUILDING, colorPalleteId, 1);
             }
-        }
-        
+        } 
     }
+
+    // addChunkPostToList(&gameState->chunkPostFillInfo, initChunkPostFill(model, 0, float3 localVoxelStart, int chunkX, int chunkY, int chunkZ));
 }
 
 void fillChunk_multiThread(void *data_) {

@@ -30,6 +30,8 @@
         "queue": "cpp",
         "stack": "cpp",
         "deque": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "mutex": "cpp",
+        "memory": "cpp"
     }
 }

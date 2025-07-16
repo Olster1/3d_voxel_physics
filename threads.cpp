@@ -21,6 +21,43 @@ struct ThreadsInfo {
     SDL_atomic_t IndexToAddTo;
 };
 
+typedef struct {
+    SDL_atomic_t mutex;
+} MutexSpinLock;
+
+void beginSpinMutex(MutexSpinLock *lock) {
+    // Spin until we acquire the lock
+    while (!SDL_AtomicCAS(&lock->mutex, 0, 1)) {
+        // yield to prevent tight spinning
+        SDL_Delay(1);
+    }
+}
+
+void endSpinMutex(MutexSpinLock *lock) {
+    // Just release the lock
+    assert(SDL_AtomicGet(&lock->mutex) == 1);
+    SDL_AtomicSet(&lock->mutex, 0);
+}
+
+
+typedef struct {
+    SDL_mutex *mutex;
+} MutexLock;
+
+MutexLock createMutex() {
+    MutexLock result = {};
+    result.mutex = SDL_CreateMutex();
+    return result;
+}
+
+void beginMutex(MutexLock *lock) {
+   SDL_LockMutex(lock->mutex);
+}
+
+void endMutex(MutexLock *lock) {
+   SDL_UnlockMutex(lock->mutex);
+}
+
 //TODO(ollie): Make safe for threads other than the main thread to add stuff
 void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void *Data) { //NOT THREAD SAFE. OTHER THREADS CAN'T ADD TO QUEUE
     for(;;)

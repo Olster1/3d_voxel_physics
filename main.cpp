@@ -85,6 +85,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
 #include "./interaction.cpp"
 #include "./texture_atlas.cpp"
 #include "./load_vox_file.cpp"
+#include "./post_chunk_fill.cpp"
 #include "./gameState.cpp"
 #include "./entity_multithread.cpp"
 #include "./chunk.cpp"
@@ -96,7 +97,6 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
 #include "./minecraft_animations.cpp"
 #include "./animation.cpp"
 #include "./physics_loop.cpp"
-
 
 TimeOfDayValues getTimeOfDayValues(GameState *gameState) {
     float4 a;
@@ -225,6 +225,56 @@ void updateGame(GameState *gameState) {
     updateAndDrawDebugCode(gameState);
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
 
+
+     {
+       #define MAX_CHUNKS_PER_BUCKET 8
+       beginMutex(&gameState->chunkPostFillInfo.mutex);
+       
+       BuildingInfoForChunk chunksToFill[MAX_CHUNKS_PER_BUCKET] = {};
+        for(int i = 0; i < gameState->holeCount; ++i) {
+            int holeIndex = gameState->holes[i];
+
+            ChunkPostFill **info = &gameState->chunkPostFillInfo.chunkPostFillInfoHash[holeIndex];
+            assert(*info);
+            
+            while(*info) {
+                
+
+                BuildingInfoForChunk *cToFillFound = 0;
+                for(int j = 0; j < chunksToFillCount && !cToFillFound; ++j) {
+                    BuildingInfoForChunk *cToFill = &chunksToFill[j];
+
+                    if(cToFill && cToFill->x == (*info)->x && cToFill->y == (*info)->y && cToFill->z == (*info)->z) {
+                        cToFillFound = cToFill;
+                    }
+                }
+
+                if(!cToFillFound && chunksToFillCount < arrayCount(chunksToFill)) {
+                    cToFillFound = chunksToFill + chunksToFillCount++;
+                    cToFillFound->x = (*info)->x;
+                    cToFillFound->y = (*info)->y;
+                    cToFillFound->z = (*info)->z;
+                    cToFillFound->list = 0;
+                }
+
+                if(cToFillFound) {
+                    ChunkPostFill *entry = *info;
+                    //NOTE: Remove from the parent list
+                    *info = (*info)->next;
+
+                    //NOTE: Add to this list
+                    entry->next = cToFillFound->list;
+                    cToFillFound->list = entry;
+                } else {
+                    info = &(*info)->next;
+                }
+            }
+
+            chunksToFillCount = 0;
+       }
+       endMutex(&gameState->chunkPostFillInfo.mutex);
+       #undef MAX_CHUNKS_PER_BUCKET
+    }
 
     {
         int count = 0;

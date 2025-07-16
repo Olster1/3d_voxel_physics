@@ -90,7 +90,7 @@ void generateChunkMesh_multiThread(void *data_) {
                                 // }
 
                                 float3 finalP = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
-                                VoxelVertex vForChunk = initVoxelVertex(finalP, v.normal, (int)b->colorId, (int)b->type);
+                                VoxelVertex vForChunk = initVoxelVertex(finalP, v.normal, (int)b->colorId, (int)b->palleteId);
 
                                 //NOTE: Get the ambient occulusion level
                                 uint64_t value = 0;

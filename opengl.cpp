@@ -792,7 +792,7 @@ void bindTexture(char *uniformName, int slotId, GLint textureId, Shader *shader,
     }
 }
 
-void prepareChunkRender(ModelBuffer *model, Shader *shader, uint32_t textureId, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater) {
+void prepareChunkRender(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater) {
      glUseProgram(shader->handle);
     renderCheckError();
     
@@ -806,6 +806,9 @@ void prepareChunkRender(ModelBuffer *model, Shader *shader, uint32_t textureId, 
     renderCheckError();
 
     glUniform3f(glGetUniformLocation(shader->handle, "lookingAxis"), lookingAxis.x, lookingAxis.y, lookingAxis.z);
+    renderCheckError();
+
+    glUniform1i(glGetUniformLocation(shader->handle, "numPalettes"), renderer->numColorPalettes);
     renderCheckError();
 
     float4 fogColor = make_float4(0.9, 0.9, 0.9, 1);

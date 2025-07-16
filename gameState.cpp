@@ -329,11 +329,23 @@ void initGameState(GameState *gameState) {
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
     gameState->buildingModel = loadVoxFile("./models/TallBuilding01.vox");
-    Texture voxelColorPallete = createGPUTexture(256, 1, voxelGrassBitmap);
+    gameState->buildingModel.colorPalletteId = 1;
+    
+    int rowCount = 4;
+    u32 *colors = pushArray(&globalPerFrameArena, 256*rowCount, u32);
+
+    easyPlatform_copyMemory(colors, voxelGrassBitmap, sizeof(u32)*256);
+    if(gameState->buildingModel.colors) {
+        u8 *at = (u8 *)(colors + (256*gameState->buildingModel.colorPalletteId)); //NOTE: Move to the next row
+        easyPlatform_copyMemory(at, gameState->buildingModel.colors, sizeof(u32)*256);
+    }
+
+    Texture voxelColorPallete = createGPUTexture(256, rowCount, colors);
 
     gameState->currentMiningBlock = 0;
 
     gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete);
+    gameState->renderer->numColorPalettes = rowCount;
 
     gameState->mainFont = initFontAtlas("./fonts/Roboto-Regular.ttf");
     

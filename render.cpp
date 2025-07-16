@@ -225,6 +225,8 @@ struct Renderer {
 
     float3 cameraP;
 
+    int numColorPalettes;
+
     int cubeCount;
     InstanceData cubeData[MAX_CUBES_PER_RENDER];
 

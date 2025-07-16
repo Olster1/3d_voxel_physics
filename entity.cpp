@@ -21,6 +21,7 @@ enum BlockType {
     BLOCK_COAL,
     BLOCK_IRON,
     BLOCK_OUTLINE,
+    BLOCK_BUILDING,
 
     //NOTHING PAST HERE
     BLOCK_TYPE_COUNT
@@ -576,6 +577,7 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
 struct Block {
     u8 type;
     u8 colorId;
+    u8 palleteId;
 
     //NOTE: Local to the Chunk they're in
     int x;

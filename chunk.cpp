@@ -99,7 +99,21 @@ uint64_t getInvalidAoMaskValue() {
     return (((uint64_t)(1)) << AO_BIT_INVALID);
 }
 
-Block spawnBlock(int x, int y, int z, BlockType type) {
+float2 getBlockColorIdRange(BlockType type) {
+    float2 result = make_float2(0, 255);
+
+    if(type == BLOCK_GRASS) {
+        result = make_float2(0, 2);
+    } else if(type == BLOCK_SOIL) {
+        result = make_float2(3, 5);
+    } else if(type == BLOCK_STONE) {
+        result = make_float2(6, 8);
+    }
+
+    return result;
+}
+
+Block spawnBlock(int x, int y, int z, BlockType type, int colorPalleteId = -1, int palletteId = 0) {
     //NOTE: Input positions are local to chunk
     Block b = {};
 
@@ -108,7 +122,14 @@ Block spawnBlock(int x, int y, int z, BlockType type) {
     b.z = z;
 
     b.type = type;
-    b.colorId = round(randomBetween(0, 255)); //NOTE: Random color between 0 - 255 inclusive. 
+    if(colorPalleteId < 0) {
+        float2 range = getBlockColorIdRange(type);
+        b.colorId = round(randomBetween(range.x, range.y)); //NOTE: Random color between 0 - 255 inclusive. 
+    } else {
+        b.colorId = colorPalleteId;
+    }
+    
+    b.palleteId = palletteId;
 
     b.timeLeft = getBlockTime((BlockType)type);
 
@@ -222,9 +243,9 @@ Block *blockExistsReadOnly_withBlock(GameState *gameState, float worldx, float w
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = round(worldx - (CHUNK_DIM*chunkX) * VOXELS_PER_METER); 
-    int localy = round(worldy - (CHUNK_DIM*chunkY) * VOXELS_PER_METER); 
-    int localz = round(worldz - (CHUNK_DIM*chunkZ) * VOXELS_PER_METER); 
+    int localx = worldPToVoxelLocalP(chunkX, worldx);
+    int localy = worldPToVoxelLocalP(chunkY, worldy);
+    int localz = worldPToVoxelLocalP(chunkZ, worldz);
 
     assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
@@ -249,9 +270,9 @@ bool blockExistsReadOnly(GameState *gameState, float worldx, float worldy, float
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = round((worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
-    int localy = round((worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
-    int localz = round((worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)) * VOXELS_PER_METER); 
+    int localx = worldPToVoxelLocalP(chunkX, worldx);
+    int localy = worldPToVoxelLocalP(chunkY, worldy);
+    int localz = worldPToVoxelLocalP(chunkZ, worldz);
     
     assert(localx < CHUNK_DIM);     
     assert(localy < CHUNK_DIM);
@@ -552,7 +573,7 @@ void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, floa
                     // if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_x_over_y)) 
                     {
                         if(chunk->modelBuffer.indexCount > 0) {
-                            prepareChunkRender(&chunk->modelBuffer, &gameState->renderer->voxelChunkShader, gameState->renderer->voxelColorPallete, screenT, cameraT, lookingAxis, gameState->renderer->underWater);
+                            prepareChunkRender(gameState->renderer, &chunk->modelBuffer, &gameState->renderer->voxelChunkShader, gameState->renderer->voxelColorPallete, screenT, cameraT, lookingAxis, gameState->renderer->underWater);
                         }
 
                         drawChunk(gameState, gameState->renderer, chunk);

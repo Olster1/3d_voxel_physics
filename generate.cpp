@@ -14,7 +14,20 @@ struct GenerateMeshDataWithList {
     ChunkVertexToCreate *info;
 };
 
+enum WorldBuildingType {
+    TALL_BUILDING,
+};
 
+struct BuildingInfo {
+    WorldBuildingType type;
+    float3 originLocalP;
+};
+
+int worldPToVoxelLocalP(int chunkX, float worldx) {
+    int value = round((worldx - (CHUNK_SIZE_IN_METERS*chunkX)) * VOXELS_PER_METER); 
+    assert(value >= 0 && value < CHUNK_DIM);
+    return value;
+}
 
 void getAOMask_multiThreaded(void *data_);
 
@@ -24,8 +37,6 @@ void addBlock(GameState *gameState, float3 worldP, BlockType type) {
     int chunkZ = roundChunkCoord(worldP.z / (float)CHUNK_DIM);
 
     Chunk *c = getChunkNoGenerate(gameState, chunkX, chunkY, chunkZ);
-    // assert(c);
-    //NOTE: the chunk might not exist yet so trees might be cut off if the chunk hasn't been generated yet. If they were based on perlin noise this wouldn't be the case.
    
     if(c) {
         if(!c->blocks) {
@@ -125,11 +136,49 @@ BlockType worldGeneration_shouldBlockExist(float worldX, float worldY, float wor
     return type;
 }
 
+void checkInitBlocksForChunk(Chunk *chunk) {
+    if(!chunk->blocks) {
+        chunk->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
+    }
+}
+
+void addBuilding(VoxelModel *model, float3 originLocalP, Chunk *chunk) {
+
+    for(int i = 0; i < model->totalVoxelCount; ++i) {
+        u32 voxelData = model->voxelData[i];
+        int x1 = (int)(voxelData & 0xFF);
+        int y1 = (int)((voxelData >> 8) & 0xFF);
+        int z1 = (int)((voxelData >> 16) & 0xFF);
+        int colorPalleteId = (int)((voxelData >> 24) & 0xFF);
+
+        float3 localVoxelP = originLocalP;
+
+        localVoxelP.x += x1;
+        localVoxelP.y += y1;
+        localVoxelP.z += z1;
+
+        if(localVoxelP.x < CHUNK_DIM && localVoxelP.y < CHUNK_DIM && localVoxelP.z < CHUNK_DIM) {
+
+            int blockIndex = getBlockIndex(localVoxelP.x, localVoxelP.y, localVoxelP.z);
+            assert(blockIndex < BLOCKS_PER_CHUNK);
+            if(blockIndex < BLOCKS_PER_CHUNK) {
+                checkInitBlocksForChunk(chunk);
+                chunk->blocks[blockIndex] = spawnBlock(localVoxelP.x, localVoxelP.y, localVoxelP.z, BLOCK_BUILDING, colorPalleteId, 1);
+            }
+        }
+        
+    }
+}
+
 void fillChunk_multiThread(void *data_) {
     FillChunkData *data = (FillChunkData *)data_;
 
     GameState *gameState = data->gameState;
     Chunk *chunk = data->chunk;
+
+    int buildingCount = 0;
+    BuildingInfo buildings[MAX_BUILDING_COUNT_PER_CHUNK];
+    
 
     for(int z = 0; z < CHUNK_DIM; ++z) {
         for(int x = 0; x < CHUNK_DIM; ++x) {
@@ -144,14 +193,13 @@ void fillChunk_multiThread(void *data_) {
                 float worldY = (y + chunk->y*CHUNK_DIM)*VOXEL_SIZE_IN_METERS;
 
                 bool underWater = false;//worldY < waterElevation;
+                bool isTop = false;
 
                 if(worldY < terrainHeight) {
-                    if(!chunk->blocks) {
-                        chunk->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
-                    }
+                    checkInitBlocksForChunk(chunk);
                     
                     BlockType type = BLOCK_GRASS;
-                    bool isTop = false;
+                    
 
                     if(underWater) {
                         //NOTE: Vary underwater terrain (grass can't grow underwater)
@@ -194,7 +242,25 @@ void fillChunk_multiThread(void *data_) {
                     //     chunk->blocks[blockIndex] = spawnBlock(x, y, z, BLOCK_WATER);
                     // }
                 }
+
+                 //NOTE: Now add any buildings that should be here
+                if(isTallBuildingLocation(worldX, worldZ, &gameState->buildingModel) && isTop) {
+                    // assert(buildingCount < arrayCount(buildings));
+                    if(buildingCount < arrayCount(buildings)) {
+                        BuildingInfo *b = buildings + buildingCount++;
+                        b->type = TALL_BUILDING;
+                        b->originLocalP = make_float3(x, y, z);
+                    }
+                }
             }
+        }
+    }
+
+    //NOTE: Now add all buildings
+    for(int i = 0; i < buildingCount; ++i) {
+        BuildingInfo b = buildings[i];
+        if(b.type == TALL_BUILDING) {
+            addBuilding(&gameState->buildingModel, b.originLocalP, chunk);
         }
     }
 

@@ -29,6 +29,7 @@
         "algorithm": "cpp",
         "queue": "cpp",
         "stack": "cpp",
-        "deque": "cpp"
+        "deque": "cpp",
+        "forward_list": "cpp"
     }
 }

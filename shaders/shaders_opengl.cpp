@@ -391,7 +391,7 @@ static char *voxelChunkFragShader =
 "flat in int palleteIndex;"
 "uniform sampler2D diffuse;"
 "uniform vec3 lookingAxis;"
-"int numPalettes = 1;"
+"uniform int numPalettes;"
 "out vec4 color;"
 
 "vec4 getColor(int index) {"

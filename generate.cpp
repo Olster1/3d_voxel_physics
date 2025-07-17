@@ -261,7 +261,7 @@ void fillChunk_multiThread(void *data_) {
     for(int i = 0; i < buildingCount; ++i) {
         BuildingInfo b = buildings[i];
         if(b.type == TALL_BUILDING) {
-            addBuilding(&gameState->buildingModel, b.originLocalP, chunk);
+            addBuilding(gameState, &gameState->buildingModel, b.originLocalP, chunk);
         }
     }
 

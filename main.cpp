@@ -231,15 +231,15 @@ void updateGame(GameState *gameState) {
        beginMutex(&gameState->chunkPostFillInfo.mutex);
        
        BuildingInfoForChunk chunksToFill[MAX_CHUNKS_PER_BUCKET] = {};
-        for(int i = 0; i < gameState->holeCount; ++i) {
-            int holeIndex = gameState->holes[i];
+        for(int i = 0; i < gameState->chunkPostFillInfo.holeCount; ++i) {
+            int holeIndex = gameState->chunkPostFillInfo.holes[i];
+            int chunksToFillCount = 0;
 
             ChunkPostFill **info = &gameState->chunkPostFillInfo.chunkPostFillInfoHash[holeIndex];
             assert(*info);
             
             while(*info) {
                 
-
                 BuildingInfoForChunk *cToFillFound = 0;
                 for(int j = 0; j < chunksToFillCount && !cToFillFound; ++j) {
                     BuildingInfoForChunk *cToFill = &chunksToFill[j];
@@ -270,7 +270,7 @@ void updateGame(GameState *gameState) {
                 }
             }
 
-            chunksToFillCount = 0;
+            
        }
        endMutex(&gameState->chunkPostFillInfo.mutex);
        #undef MAX_CHUNKS_PER_BUCKET

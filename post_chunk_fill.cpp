@@ -3,9 +3,9 @@ struct ChunkPostFill {
     VoxelModel *model; //NOTE: If there is no model, there must be voxelData.
     u32 *voxelData; //NOTE: Only if there is no model. This is for terrain voxels that aren't coming from a model.
     float3 localVoxelStart;
-    int chunkX;
-    int chunkY;
-    int chunkZ;
+    int x;
+    int y;
+    int z;
 
     ChunkPostFill *next;
 };
@@ -16,9 +16,9 @@ ChunkPostFill initChunkPostFill(VoxelModel *model, u32 *voxelData, float3 localV
     result.model = model;
     result.voxelData = voxelData;
     result.localVoxelStart = localVoxelStart;
-    result.chunkX = chunkX;
-    result.chunkY = chunkY;
-    result.chunkZ = chunkZ;
+    result.x = chunkX;
+    result.y = chunkY;
+    result.z = chunkZ;
 
     return result;
 }
@@ -52,9 +52,6 @@ uint32_t getHashForChunkPostFill(int x, int y, int z) {
 
 void initChunkPostFill_ThreadSafe(ChunkPostFill_ThreadSafe *t) {
     t->mutex = createMutex();
-    t->chunkPostFillInfo = 0;
-    t->holeCount = 0;
-    t->chunkPostFillInfoFreeList = 0;
 }
 
 void addChunkPostToList(ChunkPostFill_ThreadSafe *parent, ChunkPostFill fillInfo) {

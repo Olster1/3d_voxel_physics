@@ -1,5 +1,6 @@
 
 struct ChunkPostFill {
+    int generationPoolId;
     VoxelModel *model; //NOTE: If there is no model, there must be voxelData.
     u32 *voxelData; //NOTE: Only if there is no model. This is for terrain voxels that aren't coming from a model.
     float3 localVoxelStart;
@@ -31,6 +32,13 @@ struct BuildingInfoForChunk {
     ChunkPostFill *list;
 };
 
+struct PoolChunkGeneration {
+    AtomicInt value; //NOTE: Updated by chunks multi-threaded
+    int targetValue;
+    bool finished;
+    int generationId;
+};
+
 #define CHUNK_POST_FILL_HASH_SIZE 1024
 struct ChunkPostFill_ThreadSafe {
     MutexLock mutex;
@@ -39,6 +47,16 @@ struct ChunkPostFill_ThreadSafe {
     int holes[1024];
     ChunkPostFill *chunkPostFillInfoHash[CHUNK_POST_FILL_HASH_SIZE]; //NOTE: Hash map linked
     ChunkPostFill *chunkPostFillInfoFreeList; //NOTE: Linked list
+
+    //NOTE: All the chunks generated on the same frame are put into the same pool. 
+    //      The chunks are not considered finsihed generating until all the chunks it their pool
+    //      have finished generating their terrain, aswell as written any post building fills into 
+    //      their chunk. Then it is considered finished generating.  
+    int generationPoolCount;
+    PoolChunkGeneration generationPools[64];
+
+    //NOTE: Each generation pool is given an id to track what building information is gathered for post generation
+    int generationIdAt; 
 };
 
 uint32_t getHashForChunkPostFill(int x, int y, int z) {

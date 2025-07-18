@@ -106,8 +106,8 @@ bool areEntityIdsEqual(EntityID a, EntityID b) {
 struct VoxelEntityMesh {
     volatile int64_t generateState; //NOTE: Entity Mesh might not be generated, so check first when you get one
     ModelBuffer modelBuffer;
-    int generation; //NOTE: Actual generation 
-    int generationAt; //NOTE: Generation that is displayed
+    volatile int generation; //NOTE: Actual generation 
+    volatile int generationAt; //NOTE: Generation that is displayed
 };
 
 struct VoxelEntity {
@@ -636,8 +636,8 @@ struct Chunk {
 
     Entity *entities;
 
-    int meshGeneration; //NOTE: Actual generation 
-    int meshGenerationAt; //NOTE: Generation of mesh has been generated
+    volatile int meshGeneration; //NOTE: Actual generation 
+    volatile int meshGenerationAt; //NOTE: Generation of mesh has been generated
 
     ModelBuffer modelBuffer;
     ModelBuffer alphaModelBuffer;

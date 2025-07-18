@@ -58,6 +58,23 @@ void endMutex(MutexLock *lock) {
    SDL_UnlockMutex(lock->mutex);
 }
 
+struct AtomicInt {
+    SDL_atomic_t value;
+};
+
+int setAtomicInt(AtomicInt *atomic, int newValue) {
+    return SDL_AtomicSet(&atomic->value, newValue);
+}
+
+int getAtomicInt(AtomicInt *atomic) {
+    return SDL_AtomicGet(&atomic->value);
+}
+
+int addAtomicInt(AtomicInt *atomic, int addend) {
+    return SDL_AtomicAdd(&atomic->value, addend);
+}
+
+
 //TODO(ollie): Make safe for threads other than the main thread to add stuff
 void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void *Data) { //NOT THREAD SAFE. OTHER THREADS CAN'T ADD TO QUEUE
     for(;;)
@@ -111,10 +128,8 @@ ThreadWork *GetWorkOffQueue(ThreadsInfo *Info, ThreadWork **WorkRetrieved)
 void doThreadWork(ThreadsInfo *Info)
 {
     ThreadWork *Work;
-    // SDL_threadID id = SDL_ThreadID();
     while(GetWorkOffQueue(Info, &Work))
     {
-        // printf("%lu\n", id);
         Work->FunctionPtr(Work->Data);
         assert(!Work->Finished);
         

@@ -2,6 +2,7 @@
 struct FillChunkData {
     GameState *gameState;
     Chunk *chunk;
+    PoolChunkGeneration *generationPool;
 };
 
 struct GenerateMeshData {
@@ -176,6 +177,7 @@ void fillChunk_multiThread(void *data_) {
 
     GameState *gameState = data->gameState;
     Chunk *chunk = data->chunk;
+    PoolChunkGeneration *generationPool = data->generationPool;
 
     int buildingCount = 0;
     BuildingInfo buildings[MAX_BUILDING_COUNT_PER_CHUNK];
@@ -268,7 +270,11 @@ void fillChunk_multiThread(void *data_) {
     MemoryBarrier();
     ReadWriteBarrier();
 
-    chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+
+    assert(chunk->generateState & CHUNK_GENERATED);
+    //NOTE: Not generated yet, we can now notify this chunk is finished terrain generation, and can
+    //      move to post fill with building data.
+    addAtomicInt(&generationPool->value, 1);
 
     free(data_);
     data_ = 0;
@@ -287,6 +293,49 @@ void fillChunk(GameState *gameState, Chunk *chunk) {
     data->gameState = gameState;
     data->chunk = chunk;
 
+    PoolChunkGeneration *generationPool = 0;
+    data->generationPool = generationPool;
+    
+
     //NOTE: Multi-threaded version
     pushWorkOntoQueue(&gameState->threadsInfo, fillChunk_multiThread, data);
 }
+
+void fillChunkWithPostBuildingData_multiThread(void *data_) {
+    FillChunkData *data = (FillChunkData *)data_;
+
+    GameState *gameState = data->gameState;
+    Chunk *chunk = data->chunk;
+    PoolChunkGeneration *generationPool = data->generationPool;
+
+
+
+    MemoryBarrier();
+    ReadWriteBarrier();
+
+    //NOTE: Actually considered finished generating so can now notify other systems to this is the case
+    chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+
+    free(data_);
+    data_ = 0;
+}
+
+void fillChunkWithPostBuildingData(GameState *gameState, Chunk *chunk) {
+    assert(chunk->generateState & CHUNK_GENERATING);
+
+    MemoryBarrier();
+    ReadWriteBarrier();
+
+    FillChunkData *data = (FillChunkData *)malloc(sizeof(FillChunkData));
+
+    data->gameState = gameState;
+    data->chunk = chunk;
+
+    PoolChunkGeneration *generationPool = 0;
+    data->generationPool = generationPool;
+    
+
+    //NOTE: Multi-threaded version
+    pushWorkOntoQueue(&gameState->threadsInfo, fillChunk_multiThread, data);
+}
+

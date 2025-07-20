@@ -32,6 +32,9 @@
         "deque": "cpp",
         "forward_list": "cpp",
         "mutex": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "__split_buffer": "cpp",
+        "initializer_list": "cpp",
+        "unordered_set": "cpp"
     }
 }

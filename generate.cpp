@@ -1,8 +1,13 @@
 //NOTE: These functions are used Multi threaded
+
 struct FillChunkData {
     GameState *gameState;
     Chunk *chunk;
     PoolChunkGeneration *generationPool;
+
+    int postFillInfoCount;
+    ChunkPostFill postFillInfo[32];
+    
 };
 
 struct GenerateMeshData {
@@ -143,7 +148,7 @@ void checkInitBlocksForChunk(Chunk *chunk) {
     }
 }
 
-void addBuilding(GameState *gameState, VoxelModel *model, float3 originLocalP, Chunk *chunk) {
+void addBuilding(FillChunkData *data, GameState *gameState, VoxelModel *model, float3 originLocalP, Chunk *chunk) {
 
     for(int i = 0; i < model->totalVoxelCount; ++i) {
         u32 voxelData = model->voxelData[i];
@@ -168,8 +173,11 @@ void addBuilding(GameState *gameState, VoxelModel *model, float3 originLocalP, C
             }
         } 
     }
-
-    // addChunkPostToList(&gameState->chunkPostFillInfo, initChunkPostFill(model, 0, float3 localVoxelStart, int chunkX, int chunkY, int chunkZ));
+    
+    assert(data->postFillInfoCount < arrayCount(data->postFillInfo));
+    if(data->postFillInfoCount < arrayCount(data->postFillInfo)) {
+        // data->postFillInfo[data->postFillInfoCount++] = initChunkPostFill(model, 0, float3 localVoxelStart, int chunkX, int chunkY, int chunkZ);
+    }
 }
 
 void fillChunk_multiThread(void *data_) {
@@ -259,22 +267,24 @@ void fillChunk_multiThread(void *data_) {
         }
     }
 
-    //NOTE: Now add all buildings
-    for(int i = 0; i < buildingCount; ++i) {
-        BuildingInfo b = buildings[i];
-        if(b.type == TALL_BUILDING) {
-            addBuilding(gameState, &gameState->buildingModel, b.originLocalP, chunk);
-        }
-    }
+    // //NOTE: Now add all buildings
+    // for(int i = 0; i < buildingCount; ++i) {
+    //     BuildingInfo b = buildings[i];
+    //     if(b.type == TALL_BUILDING) {
+    //         addBuilding(data, gameState, &gameState->buildingModel, b.originLocalP, chunk);
+    //     }
+    // }
 
     MemoryBarrier();
     ReadWriteBarrier();
 
 
-    assert(chunk->generateState & CHUNK_GENERATED);
+    assert(chunk->generateState & CHUNK_GENERATING);
     //NOTE: Not generated yet, we can now notify this chunk is finished terrain generation, and can
     //      move to post fill with building data.
-    addAtomicInt(&generationPool->value, 1);
+    // addAtomicInt(&generationPool->value, 1);
+
+    chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
 
     free(data_);
     data_ = 0;
@@ -282,23 +292,46 @@ void fillChunk_multiThread(void *data_) {
 
 
 void fillChunk(GameState *gameState, Chunk *chunk) {
-    assert(chunk->generateState & CHUNK_NOT_GENERATED);
-    chunk->generateState = CHUNK_GENERATING;
+    if(!gameState->chunkPostFillInfo.currentPool ||
+        gameState->chunkPostFillInfo.currentPool->chunksInPoolCount < arrayCount(gameState->chunkPostFillInfo.currentPool->chunksInPool)) {
+        
+        assert(chunk->generateState & CHUNK_NOT_GENERATED);
+        chunk->generateState = CHUNK_GENERATING;
 
-    MemoryBarrier();
-    ReadWriteBarrier();
+        MemoryBarrier();
+        ReadWriteBarrier();
 
-    FillChunkData *data = (FillChunkData *)malloc(sizeof(FillChunkData));
+        FillChunkData *data = (FillChunkData *)malloc(sizeof(FillChunkData));
 
-    data->gameState = gameState;
-    data->chunk = chunk;
+        data->gameState = gameState;
+        data->chunk = chunk;
 
-    PoolChunkGeneration *generationPool = 0;
-    data->generationPool = generationPool;
-    
+        PoolChunkGeneration *generationPool = gameState->chunkPostFillInfo.currentPool;
 
-    //NOTE: Multi-threaded version
-    pushWorkOntoQueue(&gameState->threadsInfo, fillChunk_multiThread, data);
+        if(!generationPool) {
+            if(gameState->chunkPostFillInfo.generationPoolFreeList) {
+                generationPool = gameState->chunkPostFillInfo.generationPoolFreeList;
+                gameState->chunkPostFillInfo.generationPoolFreeList = generationPool->next;
+            } else {
+                generationPool = pushStructAligned(&globalPerFrameArena, PoolChunkGeneration, 8);
+            }
+            easyMemory_zeroSize(generationPool, sizeof(PoolChunkGeneration));
+            setAtomicInt(&generationPool->value, 0);
+            gameState->chunkPostFillInfo.currentPool = generationPool;
+            generationPool->next = gameState->chunkPostFillInfo.generationPools;
+            gameState->chunkPostFillInfo.generationPools = generationPool;
+        }
+        assert(gameState->chunkPostFillInfo.currentPool == generationPool);
+        assert(generationPool);
+        generationPool->targetValue++;
+        data->generationPool = generationPool;
+
+        assert(gameState->chunkPostFillInfo.currentPool->chunksInPoolCount < arrayCount(gameState->chunkPostFillInfo.currentPool->chunksInPool));
+        gameState->chunkPostFillInfo.currentPool->chunksInPool[gameState->chunkPostFillInfo.currentPool->chunksInPoolCount++] = data;
+
+        //NOTE: Multi-threaded version
+        pushWorkOntoQueue(&gameState->threadsInfo, fillChunk_multiThread, data);
+    }
 }
 
 void fillChunkWithPostBuildingData_multiThread(void *data_) {
@@ -332,6 +365,7 @@ void fillChunkWithPostBuildingData(GameState *gameState, Chunk *chunk) {
     data->chunk = chunk;
 
     PoolChunkGeneration *generationPool = 0;
+    data->generationPool = generationPool;
     data->generationPool = generationPool;
     
 

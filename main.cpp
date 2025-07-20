@@ -226,63 +226,84 @@ void updateGame(GameState *gameState) {
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
 
      {
-       #define MAX_CHUNKS_PER_BUCKET 8
+        
+        //NOTE: Consider it's the end of the frame for chunk generation. So clear the current push node
+            gameState->chunkPostFillInfo.currentPool = 0;
 
-       for(int j = 0; j < gameState->chunkPostFillInfo.generationPoolCount; j++) {
-        PoolChunkGeneration *pool = gameState->chunkPostFillInfo.generationPools + j;
-            if(!pool->finished && getAtomicInt(&pool->value) == pool->targetValue) {
-                pool->finished = true;
+            // PoolChunkGeneration **p = &gameState->chunkPostFillInfo.generationPools;
 
-                int generationId = pool->generationId; 
-
-                beginMutex(&gameState->chunkPostFillInfo.mutex);
-                
-                BuildingInfoForChunk chunksToFill[MAX_CHUNKS_PER_BUCKET] = {};
-                for(int i = 0; i < gameState->chunkPostFillInfo.holeCount; ++i) {
-                    int holeIndex = gameState->chunkPostFillInfo.holes[i];
-                    int chunksToFillCount = 0;
-
-                    ChunkPostFill **info = &gameState->chunkPostFillInfo.chunkPostFillInfoHash[holeIndex];
-                    assert(*info);
+            // //NOTE: Check all inflight chunk pools to see if they have finished 
+            // //      so we can label them as generated.
+            // while(*p) {
+            //     if(getAtomicInt(&((*p)->value)) == ((*p)->targetValue)) {
+            //         PoolChunkGeneration *entry = *p;
+            //         for(int i = 0; i < entry->chunksInPoolCount; ++i) {
+            //             FillChunkData *d = entry->chunksInPool[i];
+            //             assert(d);
+            //             assert(d->chunk);
+            //             if(d && d->chunk) {
+            //                 assert(d->chunk->generateState & CHUNK_GENERATING);
+            //                 d->chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+            //             }
+            //             free(d);
+            //         }
                     
-                    while(*info) {
-                        if((*info)->generationPoolId == generationId) {
-                            BuildingInfoForChunk *cToFillFound = 0;
-                            for(int j = 0; j < chunksToFillCount && !cToFillFound; ++j) {
-                                BuildingInfoForChunk *cToFill = &chunksToFill[j];
+            //         //NOTE: Remove from the parent list
+            //         *p = (*p)->next;
 
-                                if(cToFill && cToFill->x == (*info)->x && cToFill->y == (*info)->y && cToFill->z == (*info)->z) {
-                                    cToFillFound = cToFill;
-                                }
-                            }
+            //         //NOTE: Add to this list
+            //         entry->next = gameState->chunkPostFillInfo.generationPoolFreeList;
+            //         gameState->chunkPostFillInfo.generationPoolFreeList = entry;
+                   
+            //     } else {
+            //         p = &((*p)->next);
+            //     }
+            // }
+            // #define MAX_CHUNKS_PER_BUCKET 8
+            // BuildingInfoForChunk chunksToFill[MAX_CHUNKS_PER_BUCKET] = {};
+            // for(int i = 0; i < gameState->chunkPostFillInfo.holeCount; ++i) {
+            //     int holeIndex = gameState->chunkPostFillInfo.holes[i];
+            //     int chunksToFillCount = 0;
 
-                            if(!cToFillFound && chunksToFillCount < arrayCount(chunksToFill)) {
-                                cToFillFound = chunksToFill + chunksToFillCount++;
-                                cToFillFound->x = (*info)->x;
-                                cToFillFound->y = (*info)->y;
-                                cToFillFound->z = (*info)->z;
-                                cToFillFound->list = 0;
-                            }
+            //     ChunkPostFill **info = &gameState->chunkPostFillInfo.chunkPostFillInfoHash[holeIndex];
+            //     assert(*info);
+                
+            //     while(*info) {
+            //         BuildingInfoForChunk *cToFillFound = 0;
+            //         for(int j = 0; j < chunksToFillCount && !cToFillFound; ++j) {
+            //             BuildingInfoForChunk *cToFill = &chunksToFill[j];
 
-                            if(cToFillFound) {
-                                ChunkPostFill *entry = *info;
-                                //NOTE: Remove from the parent list
-                                *info = (*info)->next;
+            //             if(cToFill && cToFill->x == (*info)->x && cToFill->y == (*info)->y && cToFill->z == (*info)->z) {
+            //                 cToFillFound = cToFill;
+            //             }
+            //         }
 
-                                //NOTE: Add to this list
-                                entry->next = cToFillFound->list;
-                                cToFillFound->list = entry;
-                            } else {
-                                info = &(*info)->next;
-                            }
-                        }
-                    }
-                }
-                endMutex(&gameState->chunkPostFillInfo.mutex);
-                #undef MAX_CHUNKS_PER_BUCKET
-            }
+            //         Chunk *c = getChunkReadOnly(gameState, (*info)->x, (*info)->y, (*info)->z);
+            //         assert(c);
+
+            //         if((c->generateState & CHUNK_GENERATED) && !cToFillFound && (chunksToFillCount < arrayCount(chunksToFill))) {
+            //             cToFillFound = chunksToFill + chunksToFillCount++;
+            //             cToFillFound->x = (*info)->x;
+            //             cToFillFound->y = (*info)->y;
+            //             cToFillFound->z = (*info)->z;
+            //             cToFillFound->list = 0;
+            //         }
+
+            //         if(cToFillFound) {
+            //             ChunkPostFill *entry = *info;
+            //             //NOTE: Remove from the parent list
+            //             *info = (*info)->next;
+
+            //             //NOTE: Add to this list
+            //             entry->next = cToFillFound->list;
+            //             cToFillFound->list = entry;
+            //         } else {
+            //             info = &(*info)->next;
+            //         }
+            //     }
+            // }
+            // #undef MAX_CHUNKS_PER_BUCKET
         }
-    }
 
     {
         int count = 0;

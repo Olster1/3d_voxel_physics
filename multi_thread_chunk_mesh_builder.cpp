@@ -206,6 +206,8 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
 
         //NOTE: Take off free list
         gameState->meshGenerator.meshesToCreateFreeList = info->next;
+
+        easyMemory_zeroSize(info, sizeof(ChunkVertexToCreate));
     } else {
         info = pushStruct(&globalLongTermArena, ChunkVertexToCreate);
         //TODO: Change this to a fixed sized array with each threads own memory arena

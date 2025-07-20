@@ -573,12 +573,14 @@ void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, floa
                     // if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_x_over_y)) 
                     {
                         if(chunk->modelBuffer.indexCount > 0) {
+                            assert(chunk->generateState == CHUNK_GENERATED);
                             prepareChunkRender(gameState->renderer, &chunk->modelBuffer, &gameState->renderer->voxelChunkShader, gameState->renderer->voxelColorPallete, screenT, cameraT, lookingAxis, gameState->renderer->underWater);
                         }
 
                         drawChunk(gameState, gameState->renderer, chunk);
 
                         if(chunk->modelBuffer.indexCount > 0) {
+                            assert(chunk->generateState == CHUNK_GENERATED);
                             endChunkRender();
                         }
                     } 

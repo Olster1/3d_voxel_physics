@@ -31,11 +31,22 @@ typedef struct {
 } Arena;
 
 #define pushStruct(arena, type) (type *)pushSize(arena, sizeof(type))
+#define pushStructAligned(arena, type, alignment) (type *)pushSize(arena, sizeof(type), alignment)
 
 #define pushArray(arena, size, type) (type *)pushSize(arena, sizeof(type)*size)
 
-void *pushSize(Arena *arena, size_t size) {
-    if(!arena->pieces || ((arena->pieces->currentSize + size) > arena->pieces->totalSize)){ //doesn't fit in arena
+void *pushSize(Arena *arena, size_t size, int alignment = 0) {
+    uintptr_t safePadding = 0;
+    if(alignment > 0 && arena->pieces) {
+        MemoryPiece *piece = arena->pieces;
+        u8 *ptr = (u8 *)piece->memory + piece->currentSize;
+        uintptr_t misalignment = (uintptr_t)ptr % alignment;
+        safePadding = (misalignment == 0) ? 0 : (alignment - misalignment);
+    }
+
+    size_t safeSize = size + safePadding;
+
+    if(!arena->pieces || ((arena->pieces->currentSize + safeSize) > arena->pieces->totalSize)){ //doesn't fit in arena
         MemoryPiece *piece = arena->piecesFreeList; //get one of the free list
 
         size_t minSizeOfPiece = Kilobytes(1028);
@@ -76,13 +87,20 @@ void *pushSize(Arena *arena, size_t size) {
 
     MemoryPiece *piece = arena->pieces;
 
+    uintptr_t padding = 0;
+    if(alignment > 0) {
+        u8 *ptr = (u8 *)piece->memory + piece->currentSize;
+        uintptr_t misalignment = (uintptr_t)ptr % alignment;
+        padding = (misalignment == 0) ? 0 : (alignment - misalignment);
+    }
+
     assert(piece);
     assert((piece->currentSize + size) <= piece->totalSize); 
     
-    void *result = ((u8 *)piece->memory) + piece->currentSize;
-    piece->currentSize += size;
+    void *result = ((u8 *)piece->memory) + piece->currentSize + padding;
+    piece->currentSize += (size + padding);
     
-    easyMemory_zeroSize(result, size);
+    easyMemory_zeroSize(result, (size + padding));
     return result;
 }
 

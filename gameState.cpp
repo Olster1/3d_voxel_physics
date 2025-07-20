@@ -374,7 +374,6 @@ void initGameState(GameState *gameState) {
     assert((maxUniformBlockSize / sizeof(float16)) > MAX_BONES_PER_MODEL);
     
     createSearchOffsets(gameState);
-    initChunkPostFill_ThreadSafe(&gameState->chunkPostFillInfo);
 
     gameState->perlinTestTexture = createGPUTexture(PERLIN_SIZE, PERLIN_SIZE, 0);
 

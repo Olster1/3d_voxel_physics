@@ -19,13 +19,6 @@ struct VoxelColorPallete {
 #pragma pack(pop)
 
 #define MAX_VOX_FILE_DIMENSION 256
-struct VoxelModel {
-    float3 maxBounds;
-    int totalVoxelCount;
-    u32 *voxelData;
-    u32 *colors;
-    int colorPalletteId; //NOTE: This is the id given to the voxel model to identify where it's color data is placed in the global color pallette texture. It's not dervied from the .vox file.
-};
 
 VoxelModel loadVoxFile(char *absoluteFilePath) {
     VoxelModel voxelModel = {};
@@ -59,8 +52,50 @@ VoxelModel loadVoxFile(char *absoluteFilePath) {
                 d += sizeof(int);
 
                 voxelModel.voxelData = pushArray(&globalLongTermArena, voxelModel.totalVoxelCount, u32);
+                
 
                 easyPlatform_copyMemory(voxelModel.voxelData, d, sizeof(u32)*voxelModel.totalVoxelCount);
+
+                float3 maxBounds = make_float3(0, 0, 0);
+                float3 minBounds = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
+
+                for(int i = 0; i < voxelModel.totalVoxelCount; i++) {
+                    u32 coords = voxelModel.voxelData[i];
+
+                    int x = coords & 0xFF;
+                    int y = (coords >> 8) & 0xFF;
+                    int z = (coords >> 24) & 0xFF;
+
+                    if(x < minBounds.x) {
+                        minBounds.x = x;
+                    }
+                    if(y < minBounds.y) {
+                        minBounds.y = y;
+                    }
+                    if(z < minBounds.z) {
+                        minBounds.z = z;
+                    }
+
+                    if(x > maxBounds.x) {
+                        maxBounds.x = x;
+                    }
+                    if(y > maxBounds.y) {
+                        maxBounds.y = y;
+                    }
+                    if(z > maxBounds.z) {
+                        maxBounds.z = z;
+                    }
+                }
+                maxBounds.x++;
+                maxBounds.y++;
+                maxBounds.z++;
+                voxelModel.maxBounds = maxBounds;
+                voxelModel.minBounds = minBounds;
+                voxelModel.voxelDim = minus_float3(maxBounds, minBounds);
+
+                if(voxelModel.voxelDim.x < 0) voxelModel.voxelDim.x = 0;
+                if(voxelModel.voxelDim.y < 0) voxelModel.voxelDim.y = 0;
+                if(voxelModel.voxelDim.z < 0) voxelModel.voxelDim.z = 0;
                 
              } else if(checkMagicNumber(chunk->id, "RGBA")) {
                 u32 bufferSizeInBytes = sizeof(u32)*256;

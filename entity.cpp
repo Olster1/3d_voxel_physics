@@ -70,6 +70,16 @@ void delete3dTexture(Texture3d *t) {
     glDeleteTextures(1, &t->handle);
 }
 
+struct VoxelModel {
+    float3 maxBounds;
+    float3 minBounds;
+    float3 voxelDim;
+    int totalVoxelCount;
+    u32 *voxelData;
+    u32 *colors;
+    int colorPalletteId; //NOTE: This is the id given to the voxel model to identify where it's color data is placed in the global color pallette texture. It's not dervied from the .vox file.
+};
+
 static int global_entityIdCreated = 0;
 
 EntityID makeEntityId(int randomStartUpID) {
@@ -569,6 +579,56 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
                 e->occupiedCount++;
             }
         }
+    }
+
+    classifyPhysicsShapeAndIntertia(meshGenerator, e);
+}
+
+
+void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model) {
+
+    initBaseVoxelEntity(e, randomStartUpID);
+     
+    e->T.pos = pos;
+    e->inverseMass = inverseMass;
+    e->coefficientOfRestitution = 0.2f;
+    e->friction = 0.2f;
+
+    e->sleepTimer = 0;
+    e->asleep = false;
+    // result.T.rotation.z = 0.25f*PI32;
+
+    e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
+    e->T.scale = e->worldBounds;
+
+    e->stride = model->voxelDim.x;
+    e->pitch = model->voxelDim.y;
+    e->depth = model->voxelDim.z;
+
+    int areaInVoxels = e->stride*e->pitch*e->depth;
+
+    e->occupiedCount = 0;
+    e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8)*areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+
+    for(int i = 0; i < model->totalVoxelCount; i++) {
+        u32 coords = model->voxelData[i];
+
+        int x = coords & 0xFF;
+        int y = (coords >> 8) & 0xFF;
+        int z = (coords >> 24) & 0xFF;
+        x -= model->minBounds.x;
+        y -= model->minBounds.y;
+        z -= model->minBounds.z;
+
+        assert(x < e->stride);
+        assert(y < e->pitch);
+        assert(z < e->depth);
+
+        e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+        e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
+        e->occupiedCount++;
     }
 
     classifyPhysicsShapeAndIntertia(meshGenerator, e);

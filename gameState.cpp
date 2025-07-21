@@ -330,8 +330,10 @@ void initGameState(GameState *gameState) {
     Texture atlasTexture = loadTextureToGPU("./images/atlas.png");
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
-    gameState->buildingModel = loadVoxFile("./models/TallBuilding01.vox");
+    gameState->buildingModel = loadVoxFile("./models/Dragon Room.vox");
     gameState->buildingModel.colorPalletteId = 1;
+
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModel);
     
     int rowCount = 4;
     u32 *colors = pushArray(&globalPerFrameArena, 256*rowCount, u32);

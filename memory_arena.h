@@ -35,7 +35,7 @@ typedef struct {
 
 #define pushArray(arena, size, type) (type *)pushSize(arena, sizeof(type)*size)
 
-void *pushSize(Arena *arena, size_t size, int alignment = 0) {
+void *pushSize(Arena *arena, size_t size, int alignment = 8) {
     uintptr_t safePadding = 0;
     if(alignment > 0 && arena->pieces) {
         MemoryPiece *piece = arena->pieces;

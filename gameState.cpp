@@ -360,7 +360,7 @@ void initGameState(GameState *gameState) {
     gameState->inventoryCount = 0;
     gameState->entityToDeleteCount = 0;
 
-    playSound(&gameState->bgMusic);
+    // playSound(&gameState->bgMusic);
 
     gameState->drawBlocks = false;
 

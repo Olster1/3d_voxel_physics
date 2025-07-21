@@ -70,6 +70,7 @@ PlayingSound *getPlaySound(WavFile *wavFile) {
 }
 
 PlayingSound *playSound(WavFile *wavFile) {
+    assert(false);
     PlayingSound *result = globalSoundState->playingSoundsFreeList;
     if(result) {
         globalSoundState->playingSoundsFreeList = result->next;

@@ -292,6 +292,7 @@ void fillChunk_multiThread(void *data_) {
 
 
 void fillChunk(GameState *gameState, Chunk *chunk) {
+    assert(false);
     if(!gameState->chunkPostFillInfo.currentPool ||
         gameState->chunkPostFillInfo.currentPool->chunksInPoolCount < arrayCount(gameState->chunkPostFillInfo.currentPool->chunksInPool)) {
         
@@ -313,7 +314,7 @@ void fillChunk(GameState *gameState, Chunk *chunk) {
                 generationPool = gameState->chunkPostFillInfo.generationPoolFreeList;
                 gameState->chunkPostFillInfo.generationPoolFreeList = generationPool->next;
             } else {
-                generationPool = pushStructAligned(&globalPerFrameArena, PoolChunkGeneration, 8);
+                generationPool = pushStruct(&globalPerFrameArena, PoolChunkGeneration);
             }
             easyMemory_zeroSize(generationPool, sizeof(PoolChunkGeneration));
             setAtomicInt(&generationPool->value, 0);

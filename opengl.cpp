@@ -202,7 +202,7 @@ static inline void addInstanceAttribForMatrix(int index, GLuint attribLoc, int n
     glEnableVertexAttribArray(attribLoc + index);  
     renderCheckError();
     
-    glVertexAttribPointer(attribLoc + index, numOfFloats, GL_FLOAT, GL_FALSE, offsetForStruct, ((char *)0) + offsetInStruct + (4*sizeof(float)*index));
+    glVertexAttribPointer(attribLoc + index, numOfFloats, GL_FLOAT, GL_FALSE, offsetForStruct, (void *)(intptr_t)(offsetInStruct + index * 4 * sizeof(float)));
     renderCheckError();
     glVertexAttribDivisor(attribLoc + index, 1);
     renderCheckError();
@@ -360,9 +360,9 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
     renderCheckError();
 
     size_t sizeOfVertex = sizeof(Vertex);
-    if(attribInstancingType != ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL) {
+    if(attribInstancingType == ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL) {
         sizeOfVertex = sizeof(VertexWithJoints);
-    } else if(attribInstancingType != ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
+    } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
         sizeOfVertex = sizeof(VoxelVertex);
     }
     

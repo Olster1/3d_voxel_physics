@@ -139,8 +139,8 @@ int main(int argc, char **argv) {
 
   globalSoundState = (EasySound_SoundState *)malloc(sizeof(EasySound_SoundState));
 
-  initAudioSpec(&gameState->audioSpec, 44100);
-  initAudio(&gameState->audioSpec);
+  // initAudioSpec(&gameState->audioSpec, 44100);
+  // initAudio(&gameState->audioSpec);
 
   SDL_Window *window = SDL_CreateWindow("Minecraft",  SDL_WINDOWPOS_CENTERED,  SDL_WINDOWPOS_CENTERED, gameState->screenWidth, gameState->screenWidth*(1.0f / gameState->aspectRatio_x_over_y), flags);
 

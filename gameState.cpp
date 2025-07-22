@@ -62,7 +62,8 @@ struct GameState {
 
     ChunkInfo *chunksList;
 
-    VoxelModel buildingModel;
+    VoxelModel buildingModels[32];
+    int buildingModelCount;
     
     
     MouseKeyState mouseLeftBtn;
@@ -236,6 +237,31 @@ void createAOOffsets(GameState *gameState) {
     }
 }
 
+u32 *loadVoxelModels(GameState *gameState, int maxRowCount) {
+    gameState->buildingModels[0] = loadVoxFile("./models/TallBuilding01.vox");
+    gameState->buildingModels[0].colorPalletteId = ++gameState->buildingModelCount;
+    
+    gameState->buildingModels[1] = loadVoxFile("./models/LargeBuilding01.vox");
+    gameState->buildingModels[1].colorPalletteId = ++gameState->buildingModelCount;
+
+    assert(gameState->buildingModelCount < arrayCount(gameState->buildingModels));
+    
+    assert(gameState->buildingModelCount < maxRowCount);
+    u32 *colors = pushArray(&globalPerFrameArena, 256*maxRowCount, u32);
+
+    //NOTE: Add the generated terrain texture colors
+    easyPlatform_copyMemory(colors, voxelGrassBitmap, sizeof(u32)*256);
+
+    //NOTE: Add all the model texture pallettes
+    for(int i = 0; i < gameState->buildingModelCount; ++i) {
+        if(gameState->buildingModels[i].colors) {
+            u8 *at = (u8 *)(colors + (256*gameState->buildingModels[i].colorPalletteId)); //NOTE: Move to the next row
+            easyPlatform_copyMemory(at, gameState->buildingModels[i].colors, sizeof(u32)*256);
+        }
+    }
+    return colors;
+}
+
 void createSearchOffsets(GameState *gameState) {
     int index = 0;
     for(int z = -1; z <= 1; z++) {
@@ -287,7 +313,7 @@ void initGameState(GameState *gameState) {
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
+        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -5*VOXEL_SIZE_IN_METERS, 0), 0, gameState->randomStartUpID);
         // gameState->grabbed = &gameState->voxelEntities[2]; 
     }
     
@@ -330,26 +356,18 @@ void initGameState(GameState *gameState) {
     Texture atlasTexture = loadTextureToGPU("./images/atlas.png");
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
-    gameState->buildingModel = loadVoxFile("./models/Dragon Room.vox");
-    gameState->buildingModel.colorPalletteId = 1;
+    int maxRowCount = 4;
+    u32 *colors = loadVoxelModels(gameState, maxRowCount);
 
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModel);
-    
-    int rowCount = 4;
-    u32 *colors = pushArray(&globalPerFrameArena, 256*rowCount, u32);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModels[0], false);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 0, gameState->randomStartUpID, &gameState->buildingModels[1], false);
 
-    easyPlatform_copyMemory(colors, voxelGrassBitmap, sizeof(u32)*256);
-    if(gameState->buildingModel.colors) {
-        u8 *at = (u8 *)(colors + (256*gameState->buildingModel.colorPalletteId)); //NOTE: Move to the next row
-        easyPlatform_copyMemory(at, gameState->buildingModel.colors, sizeof(u32)*256);
-    }
-
-    Texture voxelColorPallete = createGPUTexture(256, rowCount, colors);
+    Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
 
     gameState->currentMiningBlock = 0;
 
     gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete);
-    gameState->renderer->numColorPalettes = rowCount;
+    gameState->renderer->numColorPalettes = maxRowCount;
 
     gameState->mainFont = initFontAtlas("./fonts/Roboto-Regular.ttf");
     

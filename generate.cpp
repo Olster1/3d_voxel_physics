@@ -255,7 +255,7 @@ void fillChunk_multiThread(void *data_) {
                 }
 
                  //NOTE: Now add any buildings that should be here
-                if(isTallBuildingLocation(worldX, worldZ, &gameState->buildingModel) && isTop) {
+                if(isTallBuildingLocation(worldX, worldZ, &gameState->buildingModels[0]) && isTop) {
                     // assert(buildingCount < arrayCount(buildings));
                     if(buildingCount < arrayCount(buildings)) {
                         BuildingInfo *b = buildings + buildingCount++;

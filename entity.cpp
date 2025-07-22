@@ -125,6 +125,7 @@ struct VoxelEntity {
     TransformX T;
 
     VoxelEntityMesh mesh;
+    int colorPalletteId;
 
     bool inBounds;
 
@@ -160,8 +161,6 @@ struct VoxelEntity {
 
 struct ChunkVertexToCreate {
     int generation;
-
-    Vertex *triangleDataV;
 
     VoxelVertex *triangleData;
     u32 *indicesData;
@@ -585,9 +584,18 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
 }
 
 
-void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model) {
+void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true) {
 
     initBaseVoxelEntity(e, randomStartUpID);
+
+    e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
+    e->T.scale = e->worldBounds;
+
+    if(!centerOnPosition) {
+        pos.x += 0.5f*e->worldBounds.x;
+        pos.y += 0.5f*e->worldBounds.y;
+        pos.z -= 0.5f*e->worldBounds.z;
+    }
      
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -597,13 +605,12 @@ void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     e->sleepTimer = 0;
     e->asleep = false;
     // result.T.rotation.z = 0.25f*PI32;
-
-    e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
-    e->T.scale = e->worldBounds;
-
+    
     e->stride = model->voxelDim.x;
     e->pitch = model->voxelDim.y;
     e->depth = model->voxelDim.z;
+
+    e->colorPalletteId = model->colorPalletteId;
 
     int areaInVoxels = e->stride*e->pitch*e->depth;
 
@@ -617,7 +624,8 @@ void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
 
         int x = coords & 0xFF;
         int y = (coords >> 8) & 0xFF;
-        int z = (coords >> 24) & 0xFF;
+        int z = (coords >> 16) & 0xFF;
+        int colorId = (coords >> 24) & 0xFF;
         x -= model->minBounds.x;
         y -= model->minBounds.y;
         z -= model->minBounds.z;
@@ -627,6 +635,7 @@ void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
         assert(z < e->depth);
 
         e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+        e->colorData[getVoxelIndex(e, x, y, z)] = colorId;
         e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
         e->occupiedCount++;
     }

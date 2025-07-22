@@ -52,6 +52,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->quadTextureShader = loadShader(quadVertexShader, quadTextureFragShader);
     renderer->fontTextureShader = loadShader(quadVertexShader, fontTextureFragShader);
     renderer->lineShader = loadShader(lineVertexShader, lineFragShader);
+    renderer->voxelEntityShader = loadShader(voxelEntityVertexShader, voxelEntityFragShader);
 
     renderer->rayCastShader = loadShader(fullScreenVertexShader, rayCastFragShader);
     renderer->skyboxShader = loadShader(skyboxVertexShader, skyboxFragShader);
@@ -60,8 +61,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->skeletalModelShader = loadShader(skeletalVertexShader, skeletalFragShader);
     renderer->blockSameTextureShader = loadShader(blockSameTextureVertexShader, blockPickupFragShader);
     renderer->blockColorShader = loadShader(blockVertexShader, blockFragShader);
-    renderer->voxelChunkShader = loadShader(voxelChunkVertexShader, voxelChunkFragShader, ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK);
-
+    renderer->voxelChunkShader = loadShader(voxelEntityVertexShader, voxelEntityFragShader);
 
     renderer->plainBlockColorShader = loadShader(blockSameColorVertexShader, blockSameColorFragShader);
     

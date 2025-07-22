@@ -63,8 +63,12 @@ VoxelModel loadVoxFile(char *absoluteFilePath) {
                     u32 coords = voxelModel.voxelData[i];
 
                     int x = coords & 0xFF;
-                    int y = (coords >> 8) & 0xFF;
-                    int z = (coords >> 24) & 0xFF;
+                    int y = (coords >> 16) & 0xFF;
+                    int z = (coords >> 8) & 0xFF;
+                    int c = (coords >> 24) & 0xFF;
+
+                    //NOTE: We flip the y & z value since .vox file z is gravity direction and in our engine y is gravity direction.
+                    voxelModel.voxelData[i] = (x) | (y << 8) | (z << 16) | (c << 24);
 
                     if(x < minBounds.x) {
                         minBounds.x = x;

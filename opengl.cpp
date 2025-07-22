@@ -22,6 +22,8 @@
 #define VOXEL_NORMAL_ATTRIB_LOCATION 1
 #define VOXEL_COLOR_INDEX_ATTRIB_LOCATION 2
 #define VOXEL_PALLETE_INDEX_ATTRIB_LOCATION 3
+#define VOXEL_COLOR_ATTRIB_LOCATION 4
+#define VOXEL_MODEL_TRANSFORM_ATTRIB_LOCATION 5
 
 #define renderCheckError() renderCheckError_(__LINE__, (char *)__FILE__)
 void renderCheckError_(int lineNumber, char *fileName) {
@@ -83,6 +85,7 @@ enum AttribInstancingType {
     ATTRIB_INSTANCE_TYPE_MODEL_MATRIX,
     ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL,
     ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK,
+    ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY,
 };
 
 Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType attributeType = ATTRIB_INSTANCE_TYPE_DEFAULT) {
@@ -145,7 +148,7 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
     int max_attribs;
     glGetIntegerv (GL_MAX_VERTEX_ATTRIBS, &max_attribs);
 
-    if(attributeType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
+    if(attributeType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK || attributeType == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
         glBindAttribLocation(result.handle, VOXEL_POS_ATTRIB_LOCATION, "pos");
         renderCheckError();
         glBindAttribLocation(result.handle, VOXEL_NORMAL_ATTRIB_LOCATION, "normal");
@@ -154,6 +157,11 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
         renderCheckError();
         glBindAttribLocation(result.handle, VOXEL_PALLETE_INDEX_ATTRIB_LOCATION, "palleteId");
         renderCheckError();
+        glBindAttribLocation(result.handle, VOXEL_COLOR_ATTRIB_LOCATION, "color");
+        renderCheckError();
+        glBindAttribLocation(result.handle, VOXEL_MODEL_TRANSFORM_ATTRIB_LOCATION, "M");
+        renderCheckError();
+        
     } else {
         glBindAttribLocation(result.handle, VERTEX_ATTRIB_LOCATION, "vertex");
         renderCheckError();
@@ -242,6 +250,16 @@ void addInstancingAttrib_int32(GLuint attribLoc, int numOfInt32s, size_t offsetF
 void addInstancingAttribsForShader(AttribInstancingType type) {
     if(type == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
         //NOTE: DO nothing, doens't have any instanced data
+    } else if(type == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
+        size_t offsetForStruct = sizeof(InstanceDataWithRotation); 
+
+        unsigned int colorOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->color));
+        addInstancingAttrib (COLOR_ATTRIB_LOCATION, 4, offsetForStruct, colorOffset);
+        renderCheckError();
+        unsigned int modelOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->M));
+        addInstancingAttrib (MODEL_TRANSFORM_ATTRIB_LOCATION, 16, offsetForStruct, modelOffset);
+        renderCheckError();
+
     } else if(type == ATTRIB_INSTANCE_TYPE_DEFAULT) {
         size_t offsetForStruct = sizeof(InstanceData); 
 
@@ -362,7 +380,7 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
     size_t sizeOfVertex = sizeof(Vertex);
     if(attribInstancingType == ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL) {
         sizeOfVertex = sizeof(VertexWithJoints);
-    } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
+    } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK || attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
         sizeOfVertex = sizeof(VoxelVertex);
     }
     
@@ -416,7 +434,7 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
         unsigned int jointIndexOffset = (intptr_t)(&(((VertexWithJoints *)0)->jointIndexes));
         glVertexAttribPointer(jointAttrib, 4, GL_INT, GL_FALSE, sizeof(VertexWithJoints), ((char *)0) + jointIndexOffset);
         renderCheckError();
-    } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
+    } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK || attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
          //NOTE: Assign the attribute locations with the data offsets & types
         GLint vertexAttrib = VOXEL_POS_ATTRIB_LOCATION;
         renderCheckError();
@@ -838,6 +856,9 @@ void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t
     glBindVertexArray(model->handle);
     renderCheckError();
 
+    glUniform1i(glGetUniformLocation(shader->handle, "numPalettes"), renderer->numColorPalettes);
+    renderCheckError();
+
     glUniformMatrix4fv(glGetUniformLocation(shader->handle, "V"), 1, GL_FALSE, modelViewTransform.E);
     renderCheckError();
 
@@ -950,7 +971,7 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
             updateInstanceData(l->modelBuffer.instanceBufferhandle, &l->data, sizeof(InstanceDataWithRotation));
-            drawModels(renderer, &l->modelBuffer, &renderer->blockPickupShader, renderer->whiteTexture, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+            drawModels(renderer, &l->modelBuffer, &renderer->voxelEntityShader, renderer->voxelColorPallete, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
 
             l = l->next;
         }

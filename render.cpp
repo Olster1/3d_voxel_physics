@@ -271,6 +271,7 @@ struct Renderer {
     Shader blockSameTextureShader;
     Shader rayCastShader;
     Shader voxelChunkShader;
+    Shader voxelEntityShader;
     
     ModelBuffer blockModel;
     ModelBuffer blockModelWithInstancedT;

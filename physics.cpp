@@ -16,6 +16,7 @@ struct CollisionPoint {
 
     int x1;
     int y1;
+    int z1;
 };
 
 float3 voxelToWorldP(VoxelEntity *e, int x, int y, int z);

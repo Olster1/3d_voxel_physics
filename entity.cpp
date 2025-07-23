@@ -120,9 +120,15 @@ struct VoxelEntityMesh {
     volatile int generationAt; //NOTE: Generation that is displayed
 };
 
+enum VoxelEntityFlags {
+    CAN_BE_DESTORYED = 1 << 0,
+    DELETES_STUFF = 1 << 1,
+};
+
 struct VoxelEntity {
     EntityID id;
     TransformX T;
+    u64 flags;
 
     VoxelEntityMesh mesh;
     int colorPalletteId;
@@ -434,25 +440,21 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
         e->invI = 0;
     }
 
-    //NOTE: Create a mesh from the voxel data
-    if(e->mesh.modelBuffer.handle > 0) {
-        deleteVao(e->mesh.modelBuffer.handle);
-    }   
-
     e->mesh.generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
     pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
     
 }
 
-void initBaseVoxelEntity(VoxelEntity *e, int randomStartUpID) {
+void initBaseVoxelEntity(VoxelEntity *e, int randomStartUpID, u64 flags) {
     e->id = makeEntityId(randomStartUpID);
     e->T.rotation = identityQuaternion();
     e->T.pos = make_float3(0, 0, 0);
     e->T.scale = make_float3(0, 0, 0);
+    e->flags = flags;
 }
 
-void createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID) {
-    initBaseVoxelEntity(e, randomStartUpID);
+VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED) {
+    initBaseVoxelEntity(e, randomStartUpID, flags);
     e->sleepTimer = 0;
     e->asleep = false;
     
@@ -502,10 +504,12 @@ void createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
     }
 
     classifyPhysicsShapeAndIntertia(meshGenerator, e);
+
+    return e;
 }
 
-void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID) {
-    initBaseVoxelEntity(e, randomStartUpID);
+void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED) {
+    initBaseVoxelEntity(e, randomStartUpID, flags);
 
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -543,9 +547,9 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     classifyPhysicsShapeAndIntertia(meshGenerator, e, true);
 }
 
-void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID) {
+VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED) {
 
-    initBaseVoxelEntity(e, randomStartUpID);
+    initBaseVoxelEntity(e, randomStartUpID, flags);
      
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -581,12 +585,12 @@ void createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerato
     }
 
     classifyPhysicsShapeAndIntertia(meshGenerator, e);
+
+    return e;
 }
 
-
-void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true) {
-
-    initBaseVoxelEntity(e, randomStartUpID);
+void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED) {
+    initBaseVoxelEntity(e, randomStartUpID, flags);
 
     e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
     e->T.scale = e->worldBounds;

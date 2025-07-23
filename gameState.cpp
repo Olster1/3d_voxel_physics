@@ -313,7 +313,7 @@ void initGameState(GameState *gameState) {
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -5*VOXEL_SIZE_IN_METERS, 0), 0, gameState->randomStartUpID);
+        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID);
         // gameState->grabbed = &gameState->voxelEntities[2]; 
     }
     
@@ -360,7 +360,7 @@ void initGameState(GameState *gameState) {
     u32 *colors = loadVoxelModels(gameState, maxRowCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModels[0], false);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 0, gameState->randomStartUpID, &gameState->buildingModels[1], false);
+    // createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 0, gameState->randomStartUpID, &gameState->buildingModels[1], false);
 
     Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
 

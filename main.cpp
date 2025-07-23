@@ -160,6 +160,90 @@ void updateAndDrawDebugCode(GameState *gameState) {
     // }
 }
 
+void processBuildingStructures(GameState *gameState) {
+      //NOTE: Consider it's the end of the frame for chunk generation. So clear the current push node
+    gameState->chunkPostFillInfo.currentPool = 0;
+
+    PoolChunkGeneration **p = &gameState->chunkPostFillInfo.generationPools;
+
+    //NOTE: Check all inflight chunk pools to see if they have finished 
+    //      so we can label them as generated.
+    while(*p) {
+        if(getAtomicInt(&((*p)->value)) == ((*p)->targetValue)) {
+            PoolChunkGeneration *entry = *p;
+            for(int i = 0; i < entry->chunksInPoolCount; ++i) {
+                FillChunkData *d = entry->chunksInPool[i];
+                assert(d);
+                assert(d->chunk);
+                if(d && d->chunk) {
+                    assert(d->chunk->generateState & CHUNK_GENERATING);
+                    d->chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+                }
+                free(d);
+            }
+            
+            //NOTE: Remove from the parent list
+            *p = (*p)->next;
+
+            //NOTE: Add to this list
+            entry->next = gameState->chunkPostFillInfo.generationPoolFreeList;
+            gameState->chunkPostFillInfo.generationPoolFreeList = entry;
+            
+        } else {
+            p = &((*p)->next);
+        }
+    }
+}
+
+void processVoxelMeshes(GameState *gameState) {
+    {
+        int count = 0;
+        ChunkVertexToCreate **infoPtr = &gameState->meshGenerator.meshesToCreate;
+        int maxLoopCount = 10;
+        
+        while(*infoPtr && count < maxLoopCount) {
+            ChunkVertexToCreate *info = *infoPtr;
+            if(info->ready) {
+                if(info->voxelEntity) {
+                    processVoxelEntityMeshData(info);
+                } else {
+                    processMeshData(info);
+                }
+                
+                //NOTE: Take off list
+                *infoPtr = info->next;
+
+                //NOTE: Add to free list
+                info->next = gameState->meshGenerator.meshesToCreateFreeList;
+                gameState->meshGenerator.meshesToCreateFreeList = info;
+                
+                count++;
+            } else {
+                infoPtr = &info->next;
+            }
+        }
+    }
+}
+
+void updateHotKeys(GameState *gameState) {
+    float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
+    float3 zAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
+    float3 startP = plus_float3(gameState->camera.T.pos, scale_float3(3, zAxis));
+
+    float speed = 30;
+
+    if(gameState->keys.keys[KEY_E] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
+        VoxelEntity *e = createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, startP, 1.0f / 1.0f, gameState->randomStartUpID, 0);
+        e->dP = scale_float3(speed, zAxis);
+    }
+    if(gameState->keys.keys[KEY_R] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
+        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, gameState->randomStartUpID, 0);    
+        e->dP = scale_float3(speed, zAxis);
+    }
+    if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
+        gameState->gamePaused = !gameState->gamePaused;
+    }
+}
 
 void updateGame(GameState *gameState) {
     Uint32 start = SDL_GetTicks();
@@ -192,146 +276,21 @@ void updateGame(GameState *gameState) {
     float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
     float3 lookingAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
 
+    updatePlayer(gameState);
+
+    processVoxelMeshes(gameState);
+
     updatePhysicsSim(gameState);
     renderVoxelEntities(gameState);
-
     // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 
-    {
-        float2 p = scale_float2(3.0f, getPlaneSize(gameState->camera.fov, 1.0f / gameState->aspectRatio_x_over_y));
-        float x = lerp(-p.x, p.x, make_lerpTValue(gameState->mouseP_01.x));
-        float y = lerp(-p.y, p.y, make_lerpTValue(1.0f + gameState->mouseP_01.y));
-
-        if(gameState->keys.keys[KEY_T] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);
-        }
-        if(gameState->keys.keys[KEY_Y] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-            createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(x, y, 0), 1.0f / 1.0f, gameState->randomStartUpID);    
-        }
-        if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
-            gameState->gamePaused = !gameState->gamePaused;
-        }
-        
-
-        if(gameState->grabbed) {
-            gameState->grabbed->T.pos.x = x;
-            gameState->grabbed->T.pos.y = y;
-            // gameState->grabbed->T.rotation.z = 0;
-            gameState->grabbed->T.rotation.z += gameState->dt;
-        }
-    }
+    updateHotKeys(gameState);
+    
+    // processBuildingStructures(gameState);
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);
     rendererFinish(gameState->renderer, screenT, cameraT, screenGuiT, textGuiT, lookingAxis, cameraTWithoutTranslation, timeOfDayValues, gameState->perlinTestTexture.handle, &gameState->voxelEntities[0], cameraToWorldT);
-
-     {
-        
-        //NOTE: Consider it's the end of the frame for chunk generation. So clear the current push node
-            // gameState->chunkPostFillInfo.currentPool = 0;
-
-            // PoolChunkGeneration **p = &gameState->chunkPostFillInfo.generationPools;
-
-            // //NOTE: Check all inflight chunk pools to see if they have finished 
-            // //      so we can label them as generated.
-            // while(*p) {
-            //     if(getAtomicInt(&((*p)->value)) == ((*p)->targetValue)) {
-            //         PoolChunkGeneration *entry = *p;
-            //         for(int i = 0; i < entry->chunksInPoolCount; ++i) {
-            //             FillChunkData *d = entry->chunksInPool[i];
-            //             assert(d);
-            //             assert(d->chunk);
-            //             if(d && d->chunk) {
-            //                 assert(d->chunk->generateState & CHUNK_GENERATING);
-            //                 d->chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
-            //             }
-            //             free(d);
-            //         }
-                    
-            //         //NOTE: Remove from the parent list
-            //         *p = (*p)->next;
-
-            //         //NOTE: Add to this list
-            //         entry->next = gameState->chunkPostFillInfo.generationPoolFreeList;
-            //         gameState->chunkPostFillInfo.generationPoolFreeList = entry;
-                   
-            //     } else {
-            //         p = &((*p)->next);
-            //     }
-            // }
-            // #define MAX_CHUNKS_PER_BUCKET 8
-            // BuildingInfoForChunk chunksToFill[MAX_CHUNKS_PER_BUCKET] = {};
-            // for(int i = 0; i < gameState->chunkPostFillInfo.holeCount; ++i) {
-            //     int holeIndex = gameState->chunkPostFillInfo.holes[i];
-            //     int chunksToFillCount = 0;
-
-            //     ChunkPostFill **info = &gameState->chunkPostFillInfo.chunkPostFillInfoHash[holeIndex];
-            //     assert(*info);
-                
-            //     while(*info) {
-            //         BuildingInfoForChunk *cToFillFound = 0;
-            //         for(int j = 0; j < chunksToFillCount && !cToFillFound; ++j) {
-            //             BuildingInfoForChunk *cToFill = &chunksToFill[j];
-
-            //             if(cToFill && cToFill->x == (*info)->x && cToFill->y == (*info)->y && cToFill->z == (*info)->z) {
-            //                 cToFillFound = cToFill;
-            //             }
-            //         }
-
-            //         Chunk *c = getChunkReadOnly(gameState, (*info)->x, (*info)->y, (*info)->z);
-            //         assert(c);
-
-            //         if((c->generateState & CHUNK_GENERATED) && !cToFillFound && (chunksToFillCount < arrayCount(chunksToFill))) {
-            //             cToFillFound = chunksToFill + chunksToFillCount++;
-            //             cToFillFound->x = (*info)->x;
-            //             cToFillFound->y = (*info)->y;
-            //             cToFillFound->z = (*info)->z;
-            //             cToFillFound->list = 0;
-            //         }
-
-            //         if(cToFillFound) {
-            //             ChunkPostFill *entry = *info;
-            //             //NOTE: Remove from the parent list
-            //             *info = (*info)->next;
-
-            //             //NOTE: Add to this list
-            //             entry->next = cToFillFound->list;
-            //             cToFillFound->list = entry;
-            //         } else {
-            //             info = &(*info)->next;
-            //         }
-            //     }
-            // }
-            // #undef MAX_CHUNKS_PER_BUCKET
-        }
-
-    {
-        int count = 0;
-        ChunkVertexToCreate **infoPtr = &gameState->meshGenerator.meshesToCreate;
-        int maxLoopCount = 10;
-        
-        while(*infoPtr && count < maxLoopCount) {
-            ChunkVertexToCreate *info = *infoPtr;
-            if(info->ready) {
-                if(info->voxelEntity) {
-                    processVoxelEntityMeshData(info);
-                } else {
-                    processMeshData(info);
-                }
-                
-                //NOTE: Take off list
-                *infoPtr = info->next;
-
-                //NOTE: Add to free list
-                info->next = gameState->meshGenerator.meshesToCreateFreeList;
-                gameState->meshGenerator.meshesToCreateFreeList = info;
-                
-                count++;
-            } else {
-                infoPtr = &info->next;
-            }
-        }
-    }
 
     Uint32 end = SDL_GetTicks();
     global_totalLoopTime = (end - start);

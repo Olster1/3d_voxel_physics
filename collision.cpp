@@ -48,7 +48,7 @@ float getFractionalPart(float number) {
     return number - integerPart;
 }
 
-int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelEntity *otherE, VoxelPhysicsFlag flags) {
+int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelPhysicsFlag flags) {
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
@@ -104,6 +104,7 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
                 result.z = idZ;
                 result.x1 = testX;
                 result.y1 = testY;
+                result.z1 = testZ;
                 e->data[testZ*e->stride*e->pitch + testY*e->stride + testX] |= VOXEL_COLLIDING;
                 result.point = lerp_float3(worldP, voxelWorldP, 0.5f);
                 
@@ -251,7 +252,7 @@ int checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Voxe
                 #endif
             }
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, a, flagToTest);
+            int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, flagToTest);
 
             if(numPointsFound > 0) {
                 //NOTE: Found a point
@@ -306,22 +307,26 @@ void collideVoxelEntities(void *data_) {
     float dtAccum = collideData->deltaStep / (float)speculativeCollisionIterations;
     float dt = 0;
     bool search = true;
+
+    VoxelEntity tempA = *a;
+    VoxelEntity tempB = *b;
+
     for(int i = 0; i < speculativeCollisionIterations && search; i++) {
-        a->T.rotation = integrateAngularVelocity(aT.rotation, aDA, dt);
-        a->T.pos = plus_float3(aT.pos, scale_float3(dt, a->dP));
-        b->T.rotation = integrateAngularVelocity(bT.rotation, bDA, dt);
-        b->T.pos = plus_float3(bT.pos, scale_float3(dt, b->dP));
+        tempA.T.rotation = integrateAngularVelocity(aT.rotation, aDA, dt);
+        tempA.T.pos = plus_float3(aT.pos, scale_float3(dt, a->dP));
+        tempB.T.rotation = integrateAngularVelocity(bT.rotation, bDA, dt);
+        tempB.T.pos = plus_float3(bT.pos, scale_float3(dt, b->dP));
 
         Rect3f aRect;
         Rect3f bRect; 
-        bool collided = boundingBoxOverlapWithMargin(a, b, &aRect, &bRect, BOUNDING_BOX_MARGIN);
+        bool collided = boundingBoxOverlapWithMargin(&tempA, &tempB, &aRect, &bRect, BOUNDING_BOX_MARGIN);
         if(collided) {
             //TODO: Do we need this??
             aRect = rect3f_expand_uniform(aRect, VOXEL_SIZE_IN_METERS);
             bRect = rect3f_expand_uniform(bRect, VOXEL_SIZE_IN_METERS);
 
-            int points1 = checkCornerAndEdgeVoxels(collideData, a, b, aRect, true);
-            int points2 = checkCornerAndEdgeVoxels(collideData, b, a, bRect, false);
+            int points1 = checkCornerAndEdgeVoxels(collideData, &tempA, &tempB, aRect, true);
+            int points2 = checkCornerAndEdgeVoxels(collideData, &tempB, &tempA, bRect, false);
 
             if((points1 + points2) > 0) {
                 search = false;
@@ -330,8 +335,4 @@ void collideVoxelEntities(void *data_) {
 
         dt += dtAccum;
     }
-
-    //NOTE: Reinstate the transform states
-    a->T = aT;
-    b->T = bT;
 }

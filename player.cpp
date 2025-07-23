@@ -380,7 +380,55 @@ void mineBlock(GameState *gameState, float3 lookingAxis, Entity *e) {
         gameState->currentMiningBlock = b.block;
 }
 
-void updatePlayer(GameState *gameState, Entity *e) {
+void updatePlayer(GameState *gameState) {
+    VoxelEntity cameraEntity = {};
+    cameraEntity.T = gameState->camera.T;
+    cameraEntity.worldBounds = make_float3(1, 1, 1);
+    cameraEntity.T.scale = make_float3(cameraEntity.worldBounds.x, cameraEntity.worldBounds.y, cameraEntity.worldBounds.z);
+
+    float16 rot = eulerAnglesToTransform(gameState->camera.T.rotation.y, gameState->camera.T.rotation.x, gameState->camera.T.rotation.z);
+    float3 zAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
+    cameraEntity.T.pos = plus_float3(cameraEntity.T.pos, scale_float3(3, zAxis));
+
+
+    for(int i = 0; i < gameState->voxelEntityCount; ++i) {
+        VoxelEntity *e = &gameState->voxelEntities[i];
+        bool modifiedData = false;
+        
+
+        // Rect3f aRect;
+        // Rect3f bRect; 
+        // bool collided = boundingBoxOverlapWithMargin(&cameraEntity, e, &aRect, &bRect, BOUNDING_BOX_MARGIN);
+        if(e->flags & CAN_BE_DESTORYED) 
+        {
+            for(int x = 0; x < 10; x++) {
+                for(int y = 0; y < 10; y++) {
+                    for(int z = 0; z < 10; z++) {
+                        float3 modelSpace = getVoxelPositionInModelSpaceFromCenter(&cameraEntity, make_float3(x, y, z));
+                        float3 voxelPWorldSpace = plus_float3(modelSpace, cameraEntity.T.pos);
+                        // if(in_rect3f_bounds(bRect, voxelP)) 
+                        {
+                            CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+                            int numPointsFound = doesVoxelCollide(voxelPWorldSpace, e, x, y, z, true, pointsFound, VOXEL_OCCUPIED);
+
+                            for(int i = 0; i < numPointsFound; i++) {
+                                CollisionPoint p = pointsFound[i];
+                                e->data[getVoxelIndex(e, p.x1, p.y1, p.z1)] = VOXEL_NONE;
+                                modifiedData = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if(modifiedData) {
+            classifyPhysicsShapeAndIntertia(&gameState->meshGenerator, e);
+        }
+    }
+}
+
+void updatePlayer_OLD(GameState *gameState, Entity *e) {
     if(gameState->camera.followingPlayer) {
         float rotSpeed = 13.0f;
 

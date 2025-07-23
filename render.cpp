@@ -512,7 +512,7 @@ void pushBlockItem(Renderer *renderer, float16 T, float4 voxelP, float4 color) {
         cube->voxelP = voxelP;
 
     } else {
-        assert(false);
+        // assert(false);
     }
 }
 

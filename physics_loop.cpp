@@ -103,7 +103,7 @@ void updatePhysicsSim(GameState *gameState) {
         physicsLoopsCount++;
         interations++;
         float dt = minStep;
-        float maxRelSpeed = 0;
+        
         {
             for(int i = 0; i < gameState->voxelEntityCount; ++i) {
                 VoxelEntity *e = &gameState->voxelEntities[i];
@@ -113,11 +113,7 @@ void updatePhysicsSim(GameState *gameState) {
 
                     if(e != e1) {
                         if (!(e->inverseMass == 0.0f && e1->inverseMass == 0.0f)) {
-                            float relSpeed = getRelativeSpeed(e, e1);
-
-                            if(maxRelSpeed < relSpeed) {
-                                maxRelSpeed = relSpeed;
-                            }
+                            
                             collideEntitiesMultiThread(gameState, e, e1, dt); 
                         }
                     } else {
@@ -129,7 +125,7 @@ void updatePhysicsSim(GameState *gameState) {
 
         {
             PROFILE_FUNC(WaitForThreadsCollision);
-            waitForWorkToFinish(&gameState->threadsInfo);
+            waitForPerFrameWorkToFinish(&gameState->threadsInfo);
         }
 
         float prevDt = dt;

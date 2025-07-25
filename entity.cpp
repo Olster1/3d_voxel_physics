@@ -188,6 +188,7 @@ struct MultiThreadedMeshList {
     float3 cardinalOffsets[6];
 };
 
+
 #include "./physics.cpp"
 
 struct VoxelCollideData {
@@ -249,16 +250,6 @@ CorneChecks makeCornerCheck(float3 a, float3 b, float3 c, float3 d, float3 e, fl
     p.a[6] = g;
     
     return p;
-}
-
-float getRelativeSpeed(VoxelEntity *a, VoxelEntity *b) {
-     //NOTE: Get the distance of the point from center of mass 
-    float3 dpPointA = plus_float3(a->dP, float3_cross(a->dA, a->furtherestVoxel));
-    float3 dpPointB = plus_float3(b->dP, float3_cross(b->dA, b->furtherestVoxel));
-
-    float result = float3_magnitude(minus_float3(dpPointB, dpPointA));
-
-    return result;
 }
 
 void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, VoxelEntity *e);

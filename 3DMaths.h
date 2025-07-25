@@ -36,13 +36,21 @@ int MathMin(int a, int b) {
 
 }
 
+int MathMax(int a, int b) {
+	if(a > b) {
+		return a;
+	} else {
+		return b;
+	}
+
+}
+
 float MathMaxf(float a, float b) {
 	if(b < a) {
 		return a;
 	} else {
 		return b;
 	}
-
 }
 
 float MathMinf(float a, float b) {

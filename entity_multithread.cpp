@@ -24,7 +24,7 @@ void collideEntitiesMultiThread(GameState *gameState, VoxelEntity *a, VoxelEntit
     ReadWriteBarrier();
 
     //NOTE: Multi-threaded version
-    pushWorkOntoQueue(&gameState->threadsInfo, collideVoxelEntities, data);
+    pushWorkOntoQueue(&gameState->threadsInfo, collideVoxelEntities, data, &gameState->threadsInfo.perFrameQueue_);
     // collideVoxelEntities(data);
     
 }

@@ -11,14 +11,16 @@ struct ThreadWork
     bool Finished;
 };
 
-struct ThreadsInfo {
-    SDL_sem *Semaphore;
-     //NOTE: This is 9.6megabytes - not sure if this is alright. It's so the main thread never waits to put work on the queue. 
-     //       It could be smaller if the ao mask calucations were batched into jobs as when there are alot it's most likely the whole chunk that's being calculated. 
-     //       So there could be two versions - one where just one offs are caluated when they go to draw & one when the chunk is created
-    ThreadWork WorkQueue[400000];
+struct ThreadWorkQueue {
+    ThreadWork WorkQueue[4096];
     SDL_atomic_t IndexToTakeFrom;
     SDL_atomic_t IndexToAddTo;
+};
+
+struct ThreadsInfo {
+    SDL_sem *Semaphore;
+    ThreadWorkQueue queue_;
+    ThreadWorkQueue perFrameQueue_;
 };
 
 typedef struct {
@@ -38,7 +40,6 @@ void endSpinMutex(MutexSpinLock *lock) {
     assert(SDL_AtomicGet(&lock->mutex) == 1);
     SDL_AtomicSet(&lock->mutex, 0);
 }
-
 
 typedef struct {
     SDL_mutex *mutex;
@@ -76,13 +77,18 @@ int addAtomicInt(AtomicInt *atomic, int addend) {
 
 
 //TODO(ollie): Make safe for threads other than the main thread to add stuff
-void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void *Data) { //NOT THREAD SAFE. OTHER THREADS CAN'T ADD TO QUEUE
+void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void *Data, ThreadWorkQueue *queue = 0) { //NOT THREAD SAFE. OTHER THREADS CAN'T ADD TO QUEUE
+
+    if(!queue) {
+        queue = &Info->queue_;
+    }
+
     for(;;)
     {
-        int OnePastTheHead = (Info->IndexToAddTo.value + 1) % arrayCount(Info->WorkQueue);
-        if(Info->WorkQueue[Info->IndexToAddTo.value].Finished && OnePastTheHead != Info->IndexToTakeFrom.value)
+        int OnePastTheHead = (queue->IndexToAddTo.value + 1) % arrayCount(queue->WorkQueue);
+        if(queue->WorkQueue[queue->IndexToAddTo.value].Finished && OnePastTheHead != queue->IndexToTakeFrom.value)
         {
-            ThreadWork *Work = Info->WorkQueue + Info->IndexToAddTo.value; 
+            ThreadWork *Work = queue->WorkQueue + queue->IndexToAddTo.value; 
             Work->FunctionPtr = WorkFunction;
             Work->Data = Data;
             Work->Finished = false;
@@ -90,7 +96,7 @@ void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void
             MemoryBarrier();
             ReadWriteBarrier();
             
-            ++Info->IndexToAddTo.value %= arrayCount(Info->WorkQueue);
+            ++queue->IndexToAddTo.value %= arrayCount(queue->WorkQueue);
             
             MemoryBarrier();
             ReadWriteBarrier();
@@ -106,21 +112,34 @@ void pushWorkOntoQueue(ThreadsInfo *Info, ThreadWorkFuncType *WorkFunction, void
     }
 }
 
-ThreadWork *GetWorkOffQueue(ThreadsInfo *Info, ThreadWork **WorkRetrieved)
+ThreadWork *GetWorkOffQueueSingle(ThreadsInfo *Info, ThreadWorkQueue *queue, ThreadWork **WorkRetrieved)
 {
     *WorkRetrieved = 0;
-    
-    int OldValue = Info->IndexToTakeFrom.value;
-    if(OldValue != Info->IndexToAddTo.value)
+
+    int OldValue = queue->IndexToTakeFrom.value;
+    if(OldValue != queue->IndexToAddTo.value)
     {
-        uint32_t NewValue = (OldValue + 1) % arrayCount(Info->WorkQueue);
+        uint32_t NewValue = (OldValue + 1) % arrayCount(queue->WorkQueue);
         
-        if(SDL_AtomicCAS(&Info->IndexToTakeFrom, OldValue, NewValue) == SDL_TRUE)
+        if(SDL_AtomicCAS(&queue->IndexToTakeFrom, OldValue, NewValue) == SDL_TRUE)
         {
-            *WorkRetrieved = Info->WorkQueue + OldValue;
+            *WorkRetrieved = queue->WorkQueue + OldValue;
             assert(*WorkRetrieved);
         }
     }    
+    return *WorkRetrieved;
+}
+
+ThreadWork *GetWorkOffQueue(ThreadsInfo *Info, ThreadWork **WorkRetrieved)
+{
+    *WorkRetrieved = 0;
+
+    if(GetWorkOffQueueSingle(Info, &Info->perFrameQueue_, WorkRetrieved)) {
+
+    } else {
+        GetWorkOffQueueSingle(Info, &Info->queue_, WorkRetrieved);
+    }
+   
     return *WorkRetrieved;
 }
 
@@ -150,24 +169,31 @@ int platformThreadEntryPoint(void *Info_) {
     
 }
 
-bool isWorkFinished(ThreadsInfo *Info)
+bool isWorkFinished(ThreadsInfo *Info, ThreadWorkQueue *queue)
 {
     bool Result = true;
     for(uint32_t WorkIndex = 0;
-        WorkIndex < arrayCount(Info->WorkQueue);
+        WorkIndex < arrayCount(queue->WorkQueue) && Result;
         ++WorkIndex)
     {
-        Result &= Info->WorkQueue[WorkIndex].Finished;
+        Result &= queue->WorkQueue[WorkIndex].Finished;
         if(!Result) { break; }
     }
-    
+
     return Result;
 }
 
-
-void waitForWorkToFinish(ThreadsInfo *Info)
+void waitForAllWorkToFinish(ThreadsInfo *Info)
 {
-    while(!isWorkFinished(Info))
+    while(!isWorkFinished(Info, &Info->queue_) && !isWorkFinished(Info, &Info->perFrameQueue_))
+    {
+        doThreadWork(Info);        
+    }
+}
+
+void waitForPerFrameWorkToFinish(ThreadsInfo *Info)
+{
+    while(!isWorkFinished(Info, &Info->perFrameQueue_))
     {
         doThreadWork(Info);        
     }
@@ -184,10 +210,17 @@ void initThreadQueue(ThreadsInfo *threadsInfo) {
     threadsInfo->Semaphore = SDL_CreateSemaphore(0);
     
     for(int WorkIndex = 0;
-        WorkIndex < arrayCount(threadsInfo->WorkQueue);
+        WorkIndex < arrayCount(threadsInfo->queue_.WorkQueue);
         ++WorkIndex)
     {
-        threadsInfo->WorkQueue[WorkIndex].Finished = true;
+        threadsInfo->queue_.WorkQueue[WorkIndex].Finished = true;
+    }
+
+    for(int WorkIndex = 0;
+        WorkIndex < arrayCount(threadsInfo->perFrameQueue_.WorkQueue);
+        ++WorkIndex)
+    {
+        threadsInfo->perFrameQueue_.WorkQueue[WorkIndex].Finished = true;
     }
     
     SDL_Thread *Threads[12];

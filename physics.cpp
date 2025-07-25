@@ -96,7 +96,6 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
 
                 a->dA = minus_float3(a->dA, scale_float3(a->invI, float3_cross(r1, Pn)));
                 b->dA = plus_float3(b->dA, scale_float3(b->invI, float3_cross(r2, Pn)));
-                
             }
         }
 
@@ -227,7 +226,7 @@ void mergePointsToArbiter(PhysicsWorld *world, CollisionPoint *points, int point
             for(int i = 0; i < arb->pointsCount && !pointFound; i++) {
                 CollisionPoint *oldP = &arb->points[i];
             
-                if(oldP->x == newP->x && oldP->y == newP->y && areEntityIdsEqual(oldP->entityId, newP->entityId)) {
+                if(oldP->x == newP->x && oldP->y == newP->y && oldP->z == newP->z && areEntityIdsEqual(oldP->entityId, newP->entityId)) {
                     //NOTE: Point already exists, so keep the accumulated impluses going
                     if (world->warmStarting) {
                         newP->Pn = oldP->Pn;

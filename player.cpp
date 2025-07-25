@@ -390,10 +390,39 @@ void updatePlayer(GameState *gameState) {
     float3 zAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
     cameraEntity.T.pos = plus_float3(cameraEntity.T.pos, scale_float3(3, zAxis));
 
+    if(gameState->playerHolding) {
+        gameState->playerHolding->T.pos = cameraEntity.T.pos;
+
+        if(gameState->keys.keys[KEY_SPACE] == MOUSE_BUTTON_PRESSED) {
+            gameState->playerHolding->dP = scale_float3(5, zAxis);
+            gameState->playerHolding = 0;
+        }
+    }
+
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         VoxelEntity *e = &gameState->voxelEntities[i];
         bool modifiedData = false;
+
+        if((e->flags & PLAYER_CAN_PICKUP) && !gameState->playerHolding)
+        {
+            VoxelEntity playerEntity = cameraEntity;
+            playerEntity.worldBounds = make_float3(1, 1, 1);
+            playerEntity.T.scale = make_float3(1, 1, 1);
+            playerEntity.T.rotation = identityQuaternion();
+
+            Rect3f aRect;
+            Rect3f bRect; 
+            bool overlap = boundingBoxOverlapWithMargin(&playerEntity, e, &aRect, &bRect, 1);
+
+            if(overlap) {
+                renderText(gameState->renderer, &gameState->mainFont, "PICKUP ITEM", make_float2(50, 90*gameState->aspectRatio_x_over_y), 0.1f);
+            }
+            if(gameState->keys.keys[KEY_SPACE] == MOUSE_BUTTON_PRESSED) {
+                gameState->playerHolding = e;
+            }
+            
+        }
         
 
         // Rect3f aRect;

@@ -114,6 +114,7 @@ struct GameState {
     int randomStartUpID;
 
     Entity player;
+    VoxelEntity *playerHolding;
 
     #define MAX_ENTITY_COUNT 1024
     int entityCount;
@@ -244,6 +245,9 @@ u32 *loadVoxelModels(GameState *gameState, int maxRowCount) {
     gameState->buildingModels[1] = loadVoxFile("./models/LargeBuilding01.vox");
     gameState->buildingModels[1].colorPalletteId = ++gameState->buildingModelCount;
 
+    gameState->buildingModels[2] = loadVoxFile("./models/axe.vox");
+    gameState->buildingModels[2].colorPalletteId = ++gameState->buildingModelCount;
+
     assert(gameState->buildingModelCount < arrayCount(gameState->buildingModels));
     
     assert(gameState->buildingModelCount < maxRowCount);
@@ -360,7 +364,7 @@ void initGameState(GameState *gameState) {
     u32 *colors = loadVoxelModels(gameState, maxRowCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModels[0], false);
-    // createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 0, gameState->randomStartUpID, &gameState->buildingModels[1], false);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 1.0 / 10, gameState->randomStartUpID, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP);
 
     Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
 
@@ -369,7 +373,7 @@ void initGameState(GameState *gameState) {
     gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete);
     gameState->renderer->numColorPalettes = maxRowCount;
 
-    gameState->mainFont = initFontAtlas("./fonts/Roboto-Regular.ttf");
+    gameState->mainFont = initFontAtlas("./fonts/Medieval.ttf");
     
     gameState->renderer->fontAtlasTexture = gameState->mainFont.textureHandle;
 

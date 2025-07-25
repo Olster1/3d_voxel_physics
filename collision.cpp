@@ -316,8 +316,8 @@ void collideVoxelEntities(void *data_) {
     bDA.z *= -1;
 
     int minSpeculativeCollisionIterations = 2;
-    int maxSpeculativeCollisionIterations = 1000;
-    float marginFactor = 0.25f;
+    int maxSpeculativeCollisionIterations = 100;
+    float marginFactor = 1.0f;
 
     float relSpeed = getRelativeSpeed(a, b);
 

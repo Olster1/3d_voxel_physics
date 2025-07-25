@@ -123,6 +123,7 @@ struct VoxelEntityMesh {
 enum VoxelEntityFlags {
     CAN_BE_DESTORYED = 1 << 0,
     DELETES_STUFF = 1 << 1,
+    PLAYER_CAN_PICKUP = 1 << 2,
 };
 
 struct VoxelEntity {
@@ -580,7 +581,7 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     return e;
 }
 
-void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED) {
+VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED) {
     initBaseVoxelEntity(e, randomStartUpID, flags);
 
     e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
@@ -636,6 +637,8 @@ void createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     }
 
     classifyPhysicsShapeAndIntertia(meshGenerator, e);
+
+    return e;
 }
 
 struct Block {

@@ -37,90 +37,20 @@ void generateChunkMesh_multiThread(void *data_) {
                         
                         pushQuadIndicies(&info->alphaIndicesData, vertexCount);
                     }
-                } else if(t == BLOCK_GRASS_SHORT_ENTITY || t == BLOCK_GRASS_TALL_ENTITY) {
-                    float height = 1;
-                    if(t == BLOCK_GRASS_TALL_ENTITY) {
-                        height = 2;
-                    }
-
-                    VertexForChunk *arrays[2] = {global_quadDataChunkDataRotate90AntiClockwise, global_quadDataChunkDataRotate90Clockwise};
-                    for(int k = 0; k < 2; k++) {
-                        //NOTE: Draw the grass
-                        
-                        int vertexCount = getArrayLength(info->triangleData);
-                        for(int i = 0; i < 4; ++i) {
-                            int indexIntoCubeData = i;
-                            VertexForChunk v = arrays[k][indexIntoCubeData];
-
-                            if(height == 2) {
-                                v.pos.y *= height;
-                                v.pos.y += 0.25f;
-                            }
-                            
-                            float3 finalP = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
-                            int palleteId = 0;
-                            int colorId = 0;
-                            VoxelVertex vForChunk = initVoxelVertex(finalP, v.normal, colorId, palleteId);
-
-                            pushArrayItem(&info->triangleData, vForChunk, VoxelVertex);
-                        }
-                        
-                        pushQuadIndicies(&info->indicesData, vertexCount);
-                    }
                 } else {
                     //NOTE: Run Greedy mesh algorithm
                     for(int k = 0; k < arrayCount(gameState->cardinalOffsets); k++) {
                         float3 p = plus_float3(worldP, gameState->cardinalOffsets[k]);
                         if(!blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
                             //NOTE: Face is exposed so add it to the mesh
-
                             int vertexCount = getArrayLength(info->triangleData);
                             //NOTE: 4 vertices for a cube face
                             for(int i = 0; i < 4; ++i) {
                                 int indexIntoCubeData = i + k*4;
                                 const VertexForChunk v = global_cubeDataForChunk[indexIntoCubeData];
 
-                                // bool blockValues[3] = {false, false, false};
-                                
-                                // for(int j = 0; j < arrayCount(blockValues); j++) {
-                                //     float3 p = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, gameState->aoOffsets[indexIntoCubeData].offsets[j]));
-                                //     if(blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
-                                //         blockValues[j] = true; 
-                                //     }
-                                // }
-
                                 float3 finalP = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
                                 VoxelVertex vForChunk = initVoxelVertex(finalP, v.normal, (int)b->colorId, (int)b->palleteId);
-
-                                //NOTE: Get the ambient occulusion level
-                                uint64_t value = 0;
-                                //SPEED: Somehow make this not into if statments
-                                // if(blockValues[0] && blockValues[2])  {
-                                //     value = 3;
-                                // } else if((blockValues[0] && blockValues[1])) {
-                                //     assert(!blockValues[2]);
-                                //     value = 2;
-                                // } else if((blockValues[1] && blockValues[2])) {
-                                //     assert(!blockValues[0]);
-                                //     value = 2;
-                                // } else if(blockValues[0]) {
-                                //     assert(!blockValues[1]);
-                                //     assert(!blockValues[2]);
-                                //     value = 1;
-                                // } else if(blockValues[1]) {
-                                //     assert(!blockValues[0]);
-                                //     assert(!blockValues[2]);
-                                //     value = 1;
-                                // } else if(blockValues[2]) {
-                                //     assert(!blockValues[0]);
-                                //     assert(!blockValues[1]);
-                                //     value = 1;
-                                // } 
-                                
-                                // vForChunk.aoMask = value;
-
-                                //NOTE: Times 2 because each value need 2 bits to write 0 - 3. 
-                                b->aoMask |= (value << (uint64_t)(indexIntoCubeData*2)); //NOTE: Add the mask value
 
                                 pushArrayItem(&info->triangleData, vForChunk, VoxelVertex);
                             }
@@ -190,7 +120,6 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
     chunk->generateState |= CHUNK_MESH_BUILDING;
     assert(chunk->generateState & CHUNK_MESH_BUILDING);
     assert(!(chunk->generateState & CHUNK_MESH_DIRTY));
-    
     
     MemoryBarrier();
     ReadWriteBarrier();

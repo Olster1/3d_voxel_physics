@@ -31,12 +31,12 @@ void updateCamera(GameState *gameState) {
         if(gameState->keys.keys[KEY_UP]) {
             gameState->camera.T.pos = plus_float3(gameState->camera.T.pos, scale_float3(gameState->dt*speed, zAxis));
         }
-        if(gameState->keys.keys[KEY_Q]) {
-            gameState->camera.T.pos = plus_float3(gameState->camera.T.pos, scale_float3(-gameState->dt*speed, yAxis));
-        }
-        if(gameState->keys.keys[KEY_E]) {
-            gameState->camera.T.pos = plus_float3(gameState->camera.T.pos, scale_float3(gameState->dt*speed, yAxis));
-        }
+        // if(gameState->keys.keys[KEY_Q]) {
+        //     gameState->camera.T.pos = plus_float3(gameState->camera.T.pos, scale_float3(-gameState->dt*speed, yAxis));
+        // }
+        // if(gameState->keys.keys[KEY_E]) {
+        //     gameState->camera.T.pos = plus_float3(gameState->camera.T.pos, scale_float3(gameState->dt*speed, yAxis));
+        // }
 
     } else if(gameState->useCameraMovement) {
         gameState->camera.T.pos = plus_float3(gameState->cameraOffset, gameState->camera.T.pos);

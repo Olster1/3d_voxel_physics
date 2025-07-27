@@ -16,6 +16,8 @@ typedef enum {
     EASY_PLATFORM_MEMORY_ZERO,
 } EasyPlatform_MemoryFlag;
 
+#define easyPlatform_allocateHeapStruct(type) ((type *)easyPlatform_allocateMemory(sizeof(type), EASY_PLATFORM_MEMORY_ZERO))
+
 static void *easyPlatform_allocateMemory(size_t sizeInBytes, EasyPlatform_MemoryFlag flags = EASY_PLATFORM_MEMORY_ZERO) {
     
     void *result = 0;

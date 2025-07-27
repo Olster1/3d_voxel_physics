@@ -182,9 +182,9 @@ void updatePhysicsSim(GameState *gameState) {
         }
         
          {
-            PROFILE_FUNC(UpdateArbiters);
+            PROFILE_FUNC(RunPGSSolver);
             //NOTE: Apply impluses
-            updateAllArbiters(&gameState->physicsWorld);
+            runPGSSolver(&gameState->physicsWorld);
          }
         
         {

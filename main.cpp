@@ -53,6 +53,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->fontTextureShader = loadShader(quadVertexShader, fontTextureFragShader);
     renderer->lineShader = loadShader(lineVertexShader, lineFragShader);
     renderer->voxelEntityShader = loadShader(voxelEntityVertexShader, voxelEntityFragShader);
+    renderer->voxelEntityShaderRayCast = loadShader(voxelEntityRaycastVertexShader, voxelEntityRaycastFragShader);
 
     renderer->rayCastShader = loadShader(fullScreenVertexShader, rayCastFragShader);
     renderer->skyboxShader = loadShader(skyboxVertexShader, skyboxFragShader);
@@ -61,7 +62,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->skeletalModelShader = loadShader(skeletalVertexShader, skeletalFragShader);
     renderer->blockSameTextureShader = loadShader(blockSameTextureVertexShader, blockPickupFragShader);
     renderer->blockColorShader = loadShader(blockVertexShader, blockFragShader);
-    renderer->voxelChunkShader = loadShader(voxelEntityVertexShader, voxelEntityFragShader);
+    renderer->voxelChunkShader = loadShader(voxelChunkVertexShader, voxelChunkFragShader);
 
     renderer->plainBlockColorShader = loadShader(blockSameColorVertexShader, blockSameColorFragShader);
     
@@ -169,6 +170,7 @@ void processBuildingStructures(GameState *gameState) {
     //NOTE: Check all inflight chunk pools to see if they have finished 
     //      so we can label them as generated.
     while(*p) {
+        assert((*p)->next != *p);
         if(getAtomicInt(&((*p)->value)) == ((*p)->targetValue)) {
             PoolChunkGeneration *entry = *p;
             for(int i = 0; i < entry->chunksInPoolCount; ++i) {
@@ -179,13 +181,13 @@ void processBuildingStructures(GameState *gameState) {
                     assert(d->chunk->generateState & CHUNK_GENERATING);
                     d->chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
                 }
-                free(d);
+                easyPlatform_freeMemory(d);
             }
             
             //NOTE: Remove from the parent list
             *p = (*p)->next;
 
-            //NOTE: Add to this list
+            // //NOTE: Add to this free list
             entry->next = gameState->chunkPostFillInfo.generationPoolFreeList;
             gameState->chunkPostFillInfo.generationPoolFreeList = entry;
             
@@ -286,7 +288,7 @@ void updateGame(GameState *gameState) {
 
     updateHotKeys(gameState);
     
-    // processBuildingStructures(gameState);
+    processBuildingStructures(gameState);
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);

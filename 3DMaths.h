@@ -656,6 +656,19 @@ static inline bool easyMath_rayVsAABB3f(float3 origin, float3 dir, Rect3f b, flo
     return true;              /* ray hits box */
 }
 
+struct float12
+{
+	union {
+		struct {
+			float E[12];
+		};
+		struct {
+			float E_[3][3];
+		};
+	};
+    
+}; 
+
 struct float16
 {
 	union {
@@ -668,6 +681,7 @@ struct float16
 	};
     
 }; 
+
 
 #define MATH_3D_NEAR_CLIP_PlANE 0.1f
 #define MATH_3D_FAR_CLIP_PlANE 1000.0f
@@ -711,6 +725,23 @@ static float16 make_ortho_matrix_bottom_left_corner_01NDC(float planeWidth, floa
 
 	return result;
 }
+
+float12 float12_multiply(float12 a, float12 b) {
+    float12 result = {};
+    
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            
+            result.E_[i][j] = 
+                a.E_[0][j] * b.E_[i][0] + 
+                a.E_[1][j] * b.E_[i][1] + 
+                a.E_[2][j] * b.E_[i][2];
+        }
+    }
+    
+    return result;
+}
+
 
 float16 float16_multiply(float16 a, float16 b) {
     float16 result = {};
@@ -865,6 +896,16 @@ static float16 float16_identity() {
 	return result;
 }
 
+static float12 float12_identity() {
+	float12 result = {};
+
+	result.E_[0][0] = 1;
+	result.E_[1][1] = 1;
+	result.E_[2][2] = 1;
+
+	return result;
+}
+
 static float16 float16_set_pos(float16 result, float3 pos) {
 
 	result.E_[3][0] = pos.x;
@@ -966,6 +1007,73 @@ float4 float16_transform(float16 i, float4 p) {
 	result.w = p.x*i.E_[0][3] + p.y*i.E_[1][3] + p.z*i.E_[2][3] + p.w*i.E_[3][3];
 
 	return result;
+}
+
+float3 float12_scale(float12 i, float3 p) {
+	float3 result;
+
+	result.x = p.x*i.E_[0][0] + p.y*i.E_[1][0] + p.z*i.E_[2][0];
+	result.y = p.x*i.E_[0][1] + p.y*i.E_[1][1] + p.z*i.E_[2][1];
+	result.z = p.x*i.E_[0][2] + p.y*i.E_[1][2] + p.z*i.E_[2][2];
+
+	return result;
+}
+
+float12 float12_zeroed() {
+	return {};
+}
+
+
+float12 float12_transpose(float12 val) {
+    float12 result = float12_identity();
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            result.E_[j][i] = val.E_[i][j];
+        }
+    }
+    return result;
+}
+
+float12 float12_inverse(float12 m) {
+    float12 result = float12_zeroed();
+
+    float a = m.E_[0][0];
+    float b = m.E_[0][1];
+    float c = m.E_[0][2];
+
+    float d = m.E_[1][0];
+    float e = m.E_[1][1];
+    float f = m.E_[1][2];
+
+    float g = m.E_[2][0];
+    float h = m.E_[2][1];
+    float i = m.E_[2][2];
+
+    float det = a * (e * i - f * h)
+              - b * (d * i - f * g)
+              + c * (d * h - e * g);
+
+    if (det == 0.0f) {
+        // Handle non-invertible matrix case
+        // Here: return identity or zero matrix as fallback
+        return float12_zeroed(); // or assert, or set to identity
+    }
+
+    float invDet = 1.0f / det;
+
+    result.E_[0][0] =  (e * i - f * h) * invDet;
+    result.E_[0][1] = -(b * i - c * h) * invDet;
+    result.E_[0][2] =  (b * f - c * e) * invDet;
+
+    result.E_[1][0] = -(d * i - f * g) * invDet;
+    result.E_[1][1] =  (a * i - c * g) * invDet;
+    result.E_[1][2] = -(a * f - c * d) * invDet;
+
+    result.E_[2][0] =  (d * h - e * g) * invDet;
+    result.E_[2][1] = -(a * h - b * g) * invDet;
+    result.E_[2][2] =  (a * e - b * d) * invDet;
+   
+    return result;
 }
 
 
@@ -1081,40 +1189,6 @@ float16 float16_angle_aroundZ(float angle_radians) {
     return result;
 }
 
-
-
-// https://codereview.stackexchange.com/questions/101144/simd-matrix-multiplication
-
-//NOTE: This is actually slower, we are still doing 16 loops whereas we should only have to do 4 
-// static float16 float16_multiply_SIMD(float16 a, float16 b) { //NOTE: This is actually slower than one below
-// 	float16 result = {};
-
-// 	for(int i = 0; i < 4; ++i) {
-//         for(int j = 0; j < 4; ++j) {
-
-//         	__m128 	a_ = _mm_set_ps(a.E_[0][j], a.E_[1][j], a.E_[2][j], a.E_[3][j]);
-
-//         	__m128 	b_ = _mm_set_ps(b.E_[i][0], b.E_[i][1], b.E_[i][2], b.E_[i][3]);
-
-//         	__m128 c_ = _mm_mul_ps(a_, b_);
-
-//         	//NOTE: This sums each 32bit float tp get one value
-//         	c_ = _mm_hadd_ps(c_, c_);
-//         	c_ = _mm_hadd_ps(c_, c_);
-
-//         	float ret[4];
-
-//             _mm_storeu_ps(ret, c_);
-            
-//             result.E_[i][j] = ret[0];
-            
-//         }
-//     }
-
-//     return result;
-// }
-
-
 float16 float16_transpose(float16 val) {
     float16 result = float16_identity();
     for(int i = 0; i < 4; ++i) {
@@ -1134,15 +1208,6 @@ float16 eulerAnglesToTransform(float y, float x, float z) {
 
 	return result;
 }
-
-// uint32_t get_crc32(char *bytes, size_t bytes_length) {
-// 	uint32_t result = 0;
-// 	for(int i = 0; i < bytes_length; ++i) {
-// 		result = __crc32b (result, bytes[i]);
-
-// 	}
-// 	return result;
-// }
 
 uint32_t get_crc32(char *bytes, size_t bytes_length) {
 	uint32_t hash[4];                
@@ -1165,6 +1230,42 @@ uint32_t get_crc32_for_string(char *string_nullterminated) {
 
 float4 identityQuaternion() {
     return make_float4(0, 0, 0, 1);
+}
+
+
+float12 quaternionToMatrix3x3(float4 q) {
+    float12 result = float12_identity();
+    
+    float x = q.x;
+    float y = q.y;
+    float z = q.z;
+    float w = q.w;
+    
+    // Compute commonly used terms to avoid redundant calculations
+    float x2 = x * x;
+    float y2 = y * y;
+    float z2 = z * z;
+    float xy = x * y;
+    float xz = x * z;
+    float yz = y * z;
+    float wx = w * x;
+    float wy = w * y;
+    float wz = w * z;
+
+    result.E[0] = 1.0f - 2.0f * (y2 + z2);
+    result.E[1] = 2.0f * (xy - wz);
+    result.E[2] = 2.0f * (xz + wy);
+
+    result.E[3] = 2.0f * (xy + wz);
+    result.E[4] = 1.0f - 2.0f * (x2 + z2);
+    result.E[5] = 2.0f * (yz - wx);
+
+    result.E[6] = 2.0f * (xz - wy);
+    result.E[7] = 2.0f * (yz + wx);
+    result.E[8] = 1.0f - 2.0f * (x2 + y2);
+
+    return result;
+    
 }
 
 float16 quaternionToMatrix(float4 q) {

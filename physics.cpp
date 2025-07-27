@@ -2,7 +2,6 @@ struct CollisionPoint {
     //NOTE: Data
     float3 point;
     float3 normal;
-    float inverseMassNormal; //NOTE: The dividend of the J calculation. This is constant throughout the iterations
     float velocityBias; //NOTE: This is an added velocity to stop penetration along the collision normal
     float seperation; //NOTE: Negative if shapes are colliding. 
     float3 seperationVector; 
@@ -19,6 +18,14 @@ struct CollisionPoint {
     int z1;
 };
 
+float12 modelIntertiaTensorToWorld(float12 I, float4 q) {
+    float12 rot = quaternionToMatrix3x3(q);
+    float12 rotTransposed = float12_transpose(rot);
+
+    float12 result = float12_multiply(float12_multiply(rot, I), rotTransposed);
+    return result;
+}
+
 float3 voxelToWorldP(VoxelEntity *e, int x, int y, int z);
 
 struct Arbiter {
@@ -34,16 +41,31 @@ struct PhysicsWorld {
     Arbiter *arbiters;
     Arbiter *arbitersFreeList;
 
-    bool warmStarting;
     bool positionCorrecting; //DONE: this is how agressively the physics tries and resolves penetration
-    bool accumulateImpulses;
 
     //NOTE: Erin Catto's talk at GDC 2006
-
-    //NEXT: Add angular momentum in now
 };
 
 float2 worldPToVoxelP(VoxelEntity *e, float2 worldP);
+
+float calculateInverseMassNormal(CollisionPoint *p, VoxelEntity *a, VoxelEntity *b) {
+
+    float12 inverseI_aWorld = modelIntertiaTensorToWorld(a->invI, a->T.rotation);
+    float12 inverseI_bWorld = modelIntertiaTensorToWorld(b->invI, b->T.rotation);
+
+    float3 relA = minus_float3(p->point, a->T.pos);
+	float3 relB = minus_float3(p->point, b->T.pos);
+
+    float kNormal = (a->inverseMass + b->inverseMass);
+    kNormal += float3_dot(p->normal, float12_scale(inverseI_aWorld, float3_cross(float3_cross(relA, p->normal), relA)));
+    kNormal += float3_dot(p->normal, float12_scale(inverseI_bWorld, float3_cross(float3_cross(relB, p->normal), relB)));
+    
+    if(kNormal == 0) {
+        kNormal = 1;
+    }
+    return 1.0f / kNormal;
+
+}
 
 void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     Arbiter *arb = world->arbiters;
@@ -58,8 +80,6 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     while(arb) {
         VoxelEntity *a = arb->a;
         VoxelEntity *b = arb->b;
-
-        float massCombined = a->inverseMass + b->inverseMass;
 
         for(int i = 0; i < arb->pointsCount; i++) {
             CollisionPoint *p = &arb->points[i];
@@ -77,91 +97,77 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
             float3 r1 = minus_float3(p->point, a->T.pos);
 		    float3 r2 = minus_float3(p->point, b->T.pos);
 
-            float rn1 = float3_dot(r1, p->normal);
-            float rn2 = float3_dot(r2, p->normal);
-            float kNormal = massCombined;
-            kNormal += (a->invI * (float3_dot(r1, r1) - rn1 * rn1)) + (b->invI * (float3_dot(r2, r2) - rn2 * rn2));
-            if(kNormal == 0) {
-                kNormal = 1;
-            }
-            p->inverseMassNormal = 1.0f / kNormal;
+            //NOTE: The accumulated impulse here is a convergence of the 'true' impulse 
+            // Apply normal + friction impulse
+            float3 Pn = scale_float3(p->Pn, p->normal);
 
-            if (world->accumulateImpulses) {
-                //NOTE: The accumulated impulse here is a convergence of the 'true' impulse 
-                // Apply normal + friction impulse
-                float3 Pn = scale_float3(p->Pn, p->normal);
+            a->dP = minus_float3(a->dP, scale_float3(a->inverseMass, Pn));
+            b->dP = plus_float3(b->dP, scale_float3(b->inverseMass, Pn));
 
-                a->dP = minus_float3(a->dP, scale_float3(a->inverseMass, Pn));
-                b->dP = plus_float3(b->dP, scale_float3(b->inverseMass, Pn));
-
-                a->dA = minus_float3(a->dA, scale_float3(a->invI, float3_cross(r1, Pn)));
-                b->dA = plus_float3(b->dA, scale_float3(b->invI, float3_cross(r2, Pn)));
-            }
+            a->dA = minus_float3(a->dA, float12_scale(a->invI, float3_cross(r1, Pn)));
+            b->dA = plus_float3(b->dA, float12_scale(b->invI, float3_cross(r2, Pn)));
         }
 
         arb = arb->next;
     }
 }
 
-void updateAllArbiters(PhysicsWorld *world) {
+void runPGSSolver(PhysicsWorld *world) {
     const int iterationCount = PHYSICS_ITERATION_COUNT;
     
     Arbiter *arb = world->arbiters;
     
     for(int m = 0; m < iterationCount; m++) {
         while(arb) {
-        VoxelEntity *a = arb->a;
-        VoxelEntity *b = arb->b;
-        for(int i = 0; i < arb->pointsCount; i++) {
-            global_updateArbCount = arb->pointsCount;
-            CollisionPoint *p = &arb->points[i];
+            VoxelEntity *a = arb->a;
+            VoxelEntity *b = arb->b;
+            for(int i = 0; i < arb->pointsCount; i++) {
+                global_updateArbCount = arb->pointsCount;
+                CollisionPoint *p = &arb->points[i];
 
-            float e = MathMaxf(a->coefficientOfRestitution, b->coefficientOfRestitution);
+                float e = MathMaxf(a->coefficientOfRestitution, b->coefficientOfRestitution);
 
-            const float3 velocityA = a->dP;
-            const float3 velocityB = b->dP;
+                const float3 velocityA = a->dP;
+                const float3 velocityB = b->dP;
 
-            //NOTE: Get the distance of the point from center of mass 
-            float3 r1 = minus_float3(p->point, a->T.pos);
-            float3 r2 = minus_float3(p->point, b->T.pos);
+                //NOTE: Get the distance of the point from center of mass 
+                float3 r1 = minus_float3(p->point, a->T.pos);
+                float3 r2 = minus_float3(p->point, b->T.pos);
 
-            float3 dpPointA = plus_float3(velocityA, float3_cross(a->dA, r1));
-            float3 dpPointB = plus_float3(velocityB, float3_cross(b->dA, r2));
+                float3 dpPointA = plus_float3(velocityA, float3_cross(a->dA, r1));
+                float3 dpPointB = plus_float3(velocityB, float3_cross(b->dA, r2));
 
-            // Relative velocity at contact
-            float3 relativeAB = minus_float3(dpPointB, dpPointA);
+                // Relative velocity at contact
+                float3 relativeAB = minus_float3(dpPointB, dpPointA);
 
-            if(float3_dot(relativeAB, relativeAB) < (PHYSICS_RESTITUTION_VELOCITY_THRESHOLD_SQR)) 
-            {
-                e = 0;
+                if(float3_dot(relativeAB, relativeAB) < (PHYSICS_RESTITUTION_VELOCITY_THRESHOLD_SQR)) 
+                {
+                    e = 0;
+                }
+
+                float vn = float3_dot(relativeAB, p->normal);
+
+                //NOTE: This is the J calculation as in Chris Hecker's phsyics tutorials. Which is actually the conservation of momentum and Newton's third law - equal and opposite reaction
+                float dPn = ((-(1 + e)*vn) + p->velocityBias) * calculateInverseMassNormal(p, a, b);
+
+                {
+                    //NOTE: accumulateImpulses
+                    assert(p->Pn >= 0);
+                    float Pn0 = p->Pn; //NOTE: Impulse magnitude previous frame
+                    p->Pn = MathMaxf(Pn0 + dPn, 0.0f);
+                    dPn = p->Pn - Pn0;
+                }
+
+                float3 Pn = scale_float3(dPn, p->normal);
+
+                a->dP = minus_float3(arb->a->dP, scale_float3(a->inverseMass, Pn));
+                b->dP = plus_float3(arb->b->dP, scale_float3(b->inverseMass, Pn));
+
+                a->dA = minus_float3(a->dA, float12_scale(a->invI, float3_cross(r1, Pn)));
+                b->dA = plus_float3(b->dA, float12_scale(b->invI, float3_cross(r2, Pn)));
             }
-
-            float vn = float3_dot(relativeAB, p->normal);
-
-            //NOTE: This is the J calculation as in Chris Hecker's phsyics tutorials. Which is actually the conservation of momentum and Newton's third law - equal and opposite reaction
-            float dPn = ((-(1 + e)*vn) + p->velocityBias) * p->inverseMassNormal;
-
-            if(world->accumulateImpulses) {
-                assert(p->Pn >= 0);
-                float Pn0 = p->Pn; //NOTE: Impulse magnitude previous frame
-                p->Pn = MathMaxf(Pn0 + dPn, 0.0f);
-                dPn = p->Pn - Pn0;
-                //NOTE: This allows impulses to go towards the collision points
-            } else {
-                //NOTE: Moving towards the objects so remove velocities component that's contributing to them colliding more
-                dPn = MathMaxf(dPn, 0.0f);
-            }
-
-            float3 Pn = scale_float3(dPn, p->normal);
-
-            a->dP = minus_float3(arb->a->dP, scale_float3(a->inverseMass, Pn));
-            b->dP = plus_float3(arb->b->dP, scale_float3(b->inverseMass, Pn));
-
-            a->dA = minus_float3(a->dA, scale_float3(a->invI, float3_cross(r1, Pn)));
-            b->dA = plus_float3(b->dA, scale_float3(b->invI, float3_cross(r2, Pn)));
+            arb = arb->next;
         }
-        arb = arb->next;
-    }
     }
 
 }
@@ -228,11 +234,9 @@ void mergePointsToArbiter(PhysicsWorld *world, CollisionPoint *points, int point
             
                 if(oldP->x == newP->x && oldP->y == newP->y && oldP->z == newP->z && areEntityIdsEqual(oldP->entityId, newP->entityId)) {
                     //NOTE: Point already exists, so keep the accumulated impluses going
-                    if (world->warmStarting) {
-                        newP->Pn = oldP->Pn;
-                        // c->Pt = cOld->Pt;
-                        // c->Pnb = cOld->Pnb;
-                    }
+                    newP->Pn = oldP->Pn;
+                    // c->Pt = cOld->Pt;
+                    // c->Pnb = cOld->Pnb;
                     pointFound = true;
                 }
             }

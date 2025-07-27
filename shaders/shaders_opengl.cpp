@@ -108,6 +108,71 @@ static char *blockPickupFragShader =
     "color = vec4((diffuseAngle*diffSample*c).xyz, 1);"
 "}";
 
+static char *voxelEntityRaycastVertexShader = 
+"#version 330\n"
+//per vertex variables
+"in vec3 vertex;"
+"in vec3 normal;"
+"in int colorId;"
+"in int palleteId;"
+
+//per instanced variables
+"in vec4 color;"
+"in mat4 M;"
+
+//uniform variables
+"uniform mat4 V;"
+"uniform mat4 projection;"
+
+//outgoing variables
+"out vec4 color_frag;"
+"out vec3 normal_frag_view_space;"
+"out vec3 fragPosInViewSpace;"
+"out vec3 sunAngle;"
+"flat out int colorIndex;"
+"flat out int palleteIndex;"
+
+"void main() {"
+    "mat4 MV = V * M;"
+    "gl_Position = projection * MV * vec4((vertex), 1);"
+    "color_frag = color;"
+    "normal_frag_view_space = mat3(transpose(inverse(MV))) * normal;"
+    "sunAngle = mat3(V) * vec3(0.17364817766, 0.98480775301, 0);"
+    "fragPosInViewSpace = vec3(MV * vec4(vertex, 1));"
+    "colorIndex = colorId;"
+    "palleteIndex = palleteId;"
+"}";
+
+static char *voxelEntityRaycastFragShader = 
+"#version 330\n"
+"in vec4 color_frag;" 
+"in vec3 normal_frag_view_space;"//viewspace
+"in vec2 uv_frag; "
+"in vec3 sunAngle;"
+"in vec3 fragPosInViewSpace;" //view space
+"uniform sampler2D diffuse;"
+"uniform vec3 lookingAxis;"
+"flat in int colorIndex;"
+"flat in int palleteIndex;"
+"uniform int numPalettes;"
+
+"out vec4 color;"
+
+"vec4 getColor(int index) {"
+    "float x = (float(index) + 0.5) / 256.0;"
+    "float y = (float(palleteIndex) + 0.5) / float(numPalettes);"
+    "return texture(diffuse, vec2(x, y));"
+"}"
+
+"void main() {"
+    "float diffuseAngle = max(dot(normal_frag_view_space, sunAngle), 0.5);"
+    "vec4 diffSample = getColor(colorIndex);"
+    "color = vec4((diffuseAngle*diffSample).xyz, 1);"
+"}";
+
+
+
+
 static char *voxelEntityVertexShader = 
 "#version 330\n"
 //per vertex variables

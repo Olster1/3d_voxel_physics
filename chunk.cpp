@@ -213,14 +213,6 @@ void getAOMaskForBlock(GameState *gameState, const float3 worldP, BlockFlags blo
     }
 }
 
-void resetChunksAO(GameState *gameState, int x, int y, int z, DimensionEnum dimension, int dimensionValue) {
-    Chunk *c = getChunkReadOnly(gameState, x, y, z);
-
-    if(c) {
-        c->generateState = ((int64_t)c->generateState) | CHUNK_MESH_DIRTY; //NOTE: Need to calculate mesh again
-    }
-}
-
 Chunk *generateChunk(GameState *gameState, int x, int y, int z, uint32_t hash) {
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     assert(chunk);

@@ -181,11 +181,14 @@ void addBuilding(FillChunkData *data, GameState *gameState, VoxelModel *model, f
 }
 
 void fillChunk_multiThread(void *data_) {
+    
     FillChunkData *data = (FillChunkData *)data_;
 
     GameState *gameState = data->gameState;
     Chunk *chunk = data->chunk;
     PoolChunkGeneration *generationPool = data->generationPool;
+
+    assert(chunk->generateState & CHUNK_GENERATING);
 
     int buildingCount = 0;
     BuildingInfo buildings[MAX_BUILDING_COUNT_PER_CHUNK];
@@ -275,24 +278,22 @@ void fillChunk_multiThread(void *data_) {
     //     }
     // }
 
+    assert(chunk->generateState & CHUNK_GENERATING);
+
     MemoryBarrier();
     ReadWriteBarrier();
-
-
-    assert(chunk->generateState & CHUNK_GENERATING);
+    
     //NOTE: Not generated yet, we can now notify this chunk is finished terrain generation, and can
     //      move to post fill with building data.
-    // addAtomicInt(&generationPool->value, 1);
+    addAtomicInt(&generationPool->value, 1);
 
-    chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
-
-    free(data_);
-    data_ = 0;
+    // chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+    // free(data_);
+    // data_ = 0;
 }
 
 
 void fillChunk(GameState *gameState, Chunk *chunk) {
-    assert(false);
     if(!gameState->chunkPostFillInfo.currentPool ||
         gameState->chunkPostFillInfo.currentPool->chunksInPoolCount < arrayCount(gameState->chunkPostFillInfo.currentPool->chunksInPool)) {
         
@@ -302,7 +303,7 @@ void fillChunk(GameState *gameState, Chunk *chunk) {
         MemoryBarrier();
         ReadWriteBarrier();
 
-        FillChunkData *data = (FillChunkData *)malloc(sizeof(FillChunkData));
+        FillChunkData *data = easyPlatform_allocateHeapStruct(FillChunkData);
 
         data->gameState = gameState;
         data->chunk = chunk;
@@ -314,10 +315,9 @@ void fillChunk(GameState *gameState, Chunk *chunk) {
                 generationPool = gameState->chunkPostFillInfo.generationPoolFreeList;
                 gameState->chunkPostFillInfo.generationPoolFreeList = generationPool->next;
             } else {
-                generationPool = pushStruct(&globalPerFrameArena, PoolChunkGeneration);
+                generationPool = pushStruct(&globalLongTermArena, PoolChunkGeneration);
             }
             easyMemory_zeroSize(generationPool, sizeof(PoolChunkGeneration));
-            setAtomicInt(&generationPool->value, 0);
             gameState->chunkPostFillInfo.currentPool = generationPool;
             generationPool->next = gameState->chunkPostFillInfo.generationPools;
             gameState->chunkPostFillInfo.generationPools = generationPool;
@@ -348,7 +348,7 @@ void fillChunkWithPostBuildingData_multiThread(void *data_) {
     ReadWriteBarrier();
 
     //NOTE: Actually considered finished generating so can now notify other systems to this is the case
-    chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+    // chunk->generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
 
     free(data_);
     data_ = 0;
@@ -360,7 +360,7 @@ void fillChunkWithPostBuildingData(GameState *gameState, Chunk *chunk) {
     MemoryBarrier();
     ReadWriteBarrier();
 
-    FillChunkData *data = (FillChunkData *)malloc(sizeof(FillChunkData));
+    FillChunkData *data = (FillChunkData *)easyPlatform_allocateMemory((sizeof(FillChunkData)), EASY_PLATFORM_MEMORY_ZERO);
 
     data->gameState = gameState;
     data->chunk = chunk;

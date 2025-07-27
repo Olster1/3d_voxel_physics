@@ -105,13 +105,12 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
                 result.x1 = testX;
                 result.y1 = testY;
                 result.z1 = testZ;
-                e->data[testZ*e->stride*e->pitch + testY*e->stride + testX] |= VOXEL_COLLIDING;
+                e->data[getVoxelIndex(e, testX, testY, testZ)] |= VOXEL_COLLIDING;
                 result.point = lerp_float3(worldP, voxelWorldP, 0.5f);
                 
                 result.normal = normalize_float3(diff);//TODO: I think this is causing an issue since the normal value shouldn't 
                 result.seperation = sqrt(distanceSqr) - VOXEL_SIZE_IN_METERS; //NOTE: Just resolves the individual voxel
                 result.Pn = 0;
-                result.inverseMassNormal = 0;
                 result.velocityBias = 0;
 
                 assert(pointCount < MAX_CONTACT_POINTS_PER_PAIR);

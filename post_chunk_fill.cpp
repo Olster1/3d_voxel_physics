@@ -36,7 +36,7 @@ struct PoolChunkGeneration {
     int targetValue;
 
     int chunksInPoolCount;
-    FillChunkData *chunksInPool[1];
+    FillChunkData *chunksInPool[128];
 
     PoolChunkGeneration *next;
 };

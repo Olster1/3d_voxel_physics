@@ -272,6 +272,7 @@ struct Renderer {
     Shader rayCastShader;
     Shader voxelChunkShader;
     Shader voxelEntityShader;
+    Shader voxelEntityShaderRayCast;
     
     ModelBuffer blockModel;
     ModelBuffer blockModelWithInstancedT;

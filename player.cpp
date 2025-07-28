@@ -343,7 +343,7 @@ void mineBlock(GameState *gameState, float3 lookingAxis, Entity *e) {
             if(b.block->timeLeft <= 0) {
                 //NOTE: Add block to pickup 
                 if(!(getBlockFlags(gameState, b.block->type) & BLOCK_NOT_PICKABLE) && gameState->camera.followingPlayer) {
-                    initPickupItem(gameState, b.chunk, blockWorldP, (BlockType)b.block->type, gameState->randomStartUpID);
+                    initPickupItem(gameState, b.chunk, blockWorldP, (BlockType)b.block->type);
                 }
                 
                 //NOTE: Destory the block
@@ -428,28 +428,28 @@ void updatePlayer(GameState *gameState) {
         // Rect3f aRect;
         // Rect3f bRect; 
         // bool collided = boundingBoxOverlapWithMargin(&cameraEntity, e, &aRect, &bRect, BOUNDING_BOX_MARGIN);
-        if(e->flags & CAN_BE_DESTORYED) 
-        {
-            for(int x = 0; x < 10; x++) {
-                for(int y = 0; y < 10; y++) {
-                    for(int z = 0; z < 10; z++) {
-                        float3 modelSpace = getVoxelPositionInModelSpaceFromCenter(&cameraEntity, make_float3(x, y, z));
-                        float3 voxelPWorldSpace = plus_float3(modelSpace, cameraEntity.T.pos);
-                        // if(in_rect3f_bounds(bRect, voxelP)) 
-                        {
-                            CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-                            int numPointsFound = doesVoxelCollide(voxelPWorldSpace, e, x, y, z, true, pointsFound, VOXEL_OCCUPIED);
+        // if(e->flags & CAN_BE_DESTORYED) 
+        // {
+        //     for(int x = 0; x < 10; x++) {
+        //         for(int y = 0; y < 10; y++) {
+        //             for(int z = 0; z < 10; z++) {
+        //                 float3 modelSpace = getVoxelPositionInModelSpaceFromCenter(&cameraEntity, make_float3(x, y, z));
+        //                 float3 voxelPWorldSpace = plus_float3(modelSpace, cameraEntity.T.pos);
+        //                 // if(in_rect3f_bounds(bRect, voxelP)) 
+        //                 {
+        //                     CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
+        //                     int numPointsFound = doesVoxelCollide(voxelPWorldSpace, e, x, y, z, true, pointsFound, VOXEL_OCCUPIED);
 
-                            for(int i = 0; i < numPointsFound; i++) {
-                                CollisionPoint p = pointsFound[i];
-                                e->data[getVoxelIndex(e, p.x1, p.y1, p.z1)] = VOXEL_NONE;
-                                modifiedData = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                     for(int i = 0; i < numPointsFound; i++) {
+        //                         CollisionPoint p = pointsFound[i];
+        //                         e->data[getVoxelIndex(e, p.x1, p.y1, p.z1)] = VOXEL_NONE;
+        //                         modifiedData = true;
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         if(modifiedData) {
             classifyPhysicsShapeAndIntertia(&gameState->meshGenerator, e);

@@ -235,11 +235,11 @@ void updateHotKeys(GameState *gameState) {
     float speed = 30;
 
     if(gameState->keys.keys[KEY_E] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        VoxelEntity *e = createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, startP, 1.0f / 1.0f, gameState->randomStartUpID, 0);
+        VoxelEntity *e = createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, startP, 1.0f / 1.0f, 0);
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_R] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, gameState->randomStartUpID, 0);    
+        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, 0);    
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {

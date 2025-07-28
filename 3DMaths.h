@@ -986,18 +986,6 @@ float16 float16_scale(float16 a, float3 scale) {
     return a;
 }
 
-
-float16 float16_angle_aroundY(float angle_radians) {
-    float16 result = {{
-            (float)cos(angle_radians), 0, (float)sin(angle_radians), 0,
-			0, 1, 0, 0,
-            (float)cos(angle_radians + HALF_PI32), 0, (float)sin(angle_radians + HALF_PI32), 0,
-            0, 0, 0, 1
-        }};
-    return result;
-}
-
-
 float4 float16_transform(float16 i, float4 p) {
 	float4 result;
 
@@ -1178,6 +1166,17 @@ float16 float16_angle_aroundX(float angle_radians) {
         }};
     return result;
 }
+
+float16 float16_angle_aroundY(float angle_radians) {
+    float16 result = {{
+            (float)cos(angle_radians), 0, (float)sin(angle_radians), 0,
+			0, 1, 0, 0,
+            (float)cos(angle_radians + HALF_PI32), 0, (float)sin(angle_radians + HALF_PI32), 0,
+            0, 0, 0, 1
+        }};
+    return result;
+}
+
 
 float16 float16_angle_aroundZ(float angle_radians) {
     float16 result = {{

@@ -4,7 +4,7 @@ enum DimensionEnum {
     DIMENSION_Z
 };
 
-void initPickupItem(GameState *gameState, Chunk *chunk, float3 pos, BlockType itemType, int randomStartUpID) {
+void initPickupItem(GameState *gameState, Chunk *chunk, float3 pos, BlockType itemType) {
     if(!chunk->entities) {
         chunk->entities = initResizeArray(Entity);
     }
@@ -16,7 +16,7 @@ void initPickupItem(GameState *gameState, Chunk *chunk, float3 pos, BlockType it
     }
     assert(e);
     if(e) {
-        initBaseEntity(e, randomStartUpID);
+        initBaseEntity(e);
         e->T.pos = pos;
         float scale = 0.3f;
         e->T.scale = make_float3(scale, scale, scale);
@@ -409,9 +409,8 @@ void removeEntityFromChunk(Chunk *chunk, EntityID id) {
 
     for(int i = 0; i < entityCount && !found; ++i) {
         //NOTE: Check the string pointer is the same
-        if(id.stringID == chunk->entities[i].id.stringID) {
+        if(areEntityIdsEqual(id, chunk->entities[i].id)) {
             //NOTE: Double check the hash is the same for sanity check
-            assert(chunk->entities[i].id.crc32Hash == id.crc32Hash);
             found = true;
             ResizeArrayHeader *header = getResizeArrayHeader((u8 *)chunk->entities);
             chunk->entities[i] = chunk->entities[--header->elementsCount];

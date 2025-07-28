@@ -111,8 +111,6 @@ struct GameState {
 
     float timeOfDay; //NOTE: 0 - 1 is one day
 
-    int randomStartUpID;
-
     Entity player;
     VoxelEntity *playerHolding;
 
@@ -306,18 +304,17 @@ void initGameState(GameState *gameState) {
     createCardinalDirectionsForMeshGenerator(&gameState->meshGenerator);
     createCardinalDirections(gameState);
 
-    gameState->randomStartUpID = rand();
     float inverseMass = 1.0f / 50000.0f;
     {
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 6, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass, gameState->randomStartUpID);
-        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, gameState->randomStartUpID, 0);
+        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass);
+        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass);
+        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 6, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass);
+        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, 0);
         // gameState->grabbed = &gameState->voxelEntities[2]; 
     }
     
@@ -338,7 +335,7 @@ void initGameState(GameState *gameState) {
 
     gameState->timeOfDay = 0.4f;
     
-    initPlayer(&gameState->player, gameState->randomStartUpID);
+    initPlayer(&gameState->player);
     gameState->player.T.pos = gameState->camera.T.pos;
 
     gameState->physicsWorld.positionCorrecting = true;
@@ -361,8 +358,8 @@ void initGameState(GameState *gameState) {
     int maxRowCount = 4;
     u32 *colors = loadVoxelModels(gameState, maxRowCount);
 
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, gameState->randomStartUpID, &gameState->buildingModels[0], false);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 0, 5), 1.0 / 10, gameState->randomStartUpID, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], false);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 1.0 / 10, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP);
 
     Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
 

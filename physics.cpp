@@ -1,4 +1,9 @@
+enum CollisionPointFlag {
+    COLLISION_POINT_SHOULD_DESTORY = 1 << 0,
+};
+
 struct CollisionPoint {
+    u8 flags;
     //NOTE: Data
     float3 point;
     float3 normal;
@@ -13,6 +18,7 @@ struct CollisionPoint {
     int y;
     int z;
 
+    EntityID entityIdOther;
     int x1;
     int y1;
     int z1;
@@ -24,6 +30,17 @@ float12 modelIntertiaTensorToWorld(float12 I, float4 q) {
 
     float12 result = float12_multiply(float12_multiply(rot, I), rotTransposed);
     return result;
+}
+
+int getVoxelIndex(VoxelEntity *e, int x, int y, int z)
+{
+    assert(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth);
+    if(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth) {
+        return (z * e->pitch * e->stride + y * e->stride + x);
+    } else {
+        return 0;
+    }
+    
 }
 
 float3 voxelToWorldP(VoxelEntity *e, int x, int y, int z);
@@ -76,13 +93,35 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     // The bias factor is important because overly aggressive corrections (with a high bias factor) can cause instability or jittering in the simulation, while too small of a correction (with a low bias factor) may leave objects slightly penetrated.
 	// It strikes a balance between stability and realism, ensuring that objects resolve overlaps without visibly popping or jittering in the simulation.
     float biasFactor = (world->positionCorrecting) ? 0.1f : 0.0f;
+    
 
     while(arb) {
         VoxelEntity *a = arb->a;
         VoxelEntity *b = arb->b;
+        bool destroyedStuff = false;
 
         for(int i = 0; i < arb->pointsCount; i++) {
             CollisionPoint *p = &arb->points[i];
+
+            if(p->flags & COLLISION_POINT_SHOULD_DESTORY) {
+                destroyedStuff = true;
+
+                VoxelEntity *entity = a;
+                VoxelEntity *entityOther = b;
+
+                if(areEntityIdsEqual(p->entityId, a->id)) {
+                    //NOTE: Should flip the entities becuase the collision point was from the opposite order.
+                    entity = b;
+                    entityOther = a;
+                }
+
+                //NOTE: Should remove this voxel from the object
+                entity->data[getVoxelIndex(entity, p->x, p->y, p->z)] = 0;
+                entityOther->data[getVoxelIndex(entityOther, p->x1, p->y1, p->z1)] = 0;
+
+                p->flags &= (~(COLLISION_POINT_SHOULD_DESTORY));
+                assert(!(p->flags & COLLISION_POINT_SHOULD_DESTORY));
+            }
             
             //NOTE: The reason Baumgarte Stabilization is wrong is that it adds kinetic energy into the system 
             //      so energy is not conserved. Instead we have a seperate impulse(momentum) that tries and seperates the 
@@ -108,8 +147,15 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
             b->dA = plus_float3(b->dA, float12_scale(b->invI, float3_cross(r2, Pn)));
         }
 
+        if(destroyedStuff) {
+            // classifyPhysicsShapeAndIntertia(meshGenerator, a);
+            // classifyPhysicsShapeAndIntertia(meshGenerator, b);
+        }
+
         arb = arb->next;
     }
+
+  
 }
 
 void runPGSSolver(PhysicsWorld *world) {
@@ -151,10 +197,12 @@ void runPGSSolver(PhysicsWorld *world) {
                 float dPn = ((-(1 + e)*vn) + p->velocityBias) * calculateInverseMassNormal(p, a, b);
 
                 {
-                    //NOTE: accumulateImpulses
                     assert(p->Pn >= 0);
                     float Pn0 = p->Pn; //NOTE: Impulse magnitude previous frame
+
+                    //NOTE: Acculumating the impulse
                     p->Pn = MathMaxf(Pn0 + dPn, 0.0f);
+                    
                     dPn = p->Pn - Pn0;
                 }
 

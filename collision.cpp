@@ -48,7 +48,33 @@ float getFractionalPart(float number) {
     return number - integerPart;
 }
 
-int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelPhysicsFlag flags) {
+void checkDestoryForceAndAddFlag(CollisionPoint *p, VoxelEntity *a, VoxelEntity *b) {
+    if(a > b) {
+        VoxelEntity *temp = b;
+        b = a;
+        a = temp;
+    }
+
+    const float3 velocityA = a->dP;
+    const float3 velocityB = b->dP;
+
+    float3 r1 = minus_float3(p->point, a->T.pos);
+    float3 r2 = minus_float3(p->point, b->T.pos);
+
+    float3 dpPointA = plus_float3(velocityA, float3_cross(a->dA, r1));
+    float3 dpPointB = plus_float3(velocityB, float3_cross(b->dA, r2));
+
+    // Relative velocity at contact
+    float3 relativeAB = minus_float3(dpPointB, dpPointA);
+
+    float forceMagnitudeSqr =  float3_dot(relativeAB, relativeAB);
+    float maxForceMagnitudeSqr = 10;
+    if(forceMagnitudeSqr > maxForceMagnitudeSqr) {
+        p->flags |= COLLISION_POINT_SHOULD_DESTORY;
+    }
+}
+
+int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelPhysicsFlag flags, VoxelEntity *otherEntity) {
     float3 p = worldPToVoxelP(e, worldP);
 
     int x = (int)(p.x);
@@ -97,11 +123,13 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
 
             if(distanceSqr <= VOXEL_SIZE_IN_METERS_SQR) {
                 CollisionPoint result = {};
-
-                result.entityId = e->id;
+                
+                result.entityIdOther = otherEntity->id;
                 result.x = idX;
                 result.y = idY;
                 result.z = idZ;
+
+                result.entityId = e->id;
                 result.x1 = testX;
                 result.y1 = testY;
                 result.z1 = testZ;
@@ -112,6 +140,8 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
                 result.seperation = sqrt(distanceSqr) - VOXEL_SIZE_IN_METERS; //NOTE: Just resolves the individual voxel
                 result.Pn = 0;
                 result.velocityBias = 0;
+
+                checkDestoryForceAndAddFlag(&result, e, otherEntity);
 
                 assert(pointCount < MAX_CONTACT_POINTS_PER_PAIR);
                 if(pointCount < MAX_CONTACT_POINTS_PER_PAIR) {
@@ -238,6 +268,10 @@ int checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Voxe
         int z = corner.z;
         u8 byte = getByteFromVoxelEntity(a, x, y, z);
 
+        if(byte == 0) {
+            continue;
+        }
+
         float3 voxelP = voxelToWorldP(a, x, y, z);
         VoxelPhysicsFlag flagToTest = VOXEL_OCCUPIED; //(VoxelPhysicsFlag)(VOXEL_CORNER | VOXEL_EDGE | VOXEL_FACE); 
         
@@ -252,7 +286,7 @@ int checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Voxe
                 #endif
             }
             CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-            int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, flagToTest);
+            int numPointsFound = doesVoxelCollide(voxelP, b, x, y, z, flip, pointsFound, flagToTest, a);
 
             if(numPointsFound > 0) {
                 //NOTE: Found a point

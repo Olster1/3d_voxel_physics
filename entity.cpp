@@ -55,12 +55,17 @@ enum VoxelPhysicsFlag
     VOXEL_COLLIDING = 1 << 5,
 };
 
+static int global_entityIdAt = 0;
 struct EntityID
 {
-    size_t stringSizeInBytes; // NOTE: Not include null terminator
-    char stringID[256];
-    uint32_t crc32Hash;
+    int entityID;
 };
+
+EntityID getNewEntityId() {
+    EntityID result = {};
+    result.entityID = global_entityIdAt++;
+    return result;
+}
 
 struct Texture3d
 {
@@ -89,40 +94,11 @@ struct VoxelModel
     int colorPalletteId; // NOTE: This is the id given to the voxel model to identify where it's color data is placed in the global color pallette texture. It's not dervied from the .vox file.
 };
 
-static int global_entityIdCreated = 0;
 
-EntityID makeEntityId(int randomStartUpID)
-{
-    EntityID result = {};
-
-    time_t timeSinceEpoch = time(0);
-
-#define ENTITY_ID_PRINTF_STRING "%ld-%d-%d", timeSinceEpoch, randomStartUpID, global_entityIdCreated
-
-    // NOTE: Allocate the string
-    size_t bufsz = snprintf(NULL, 0, ENTITY_ID_PRINTF_STRING) + 1;
-    assert(bufsz < arrayCount(result.stringID));
-    result.stringSizeInBytes = MathMin_sizet(arrayCount(result.stringID), bufsz);
-    snprintf(result.stringID, bufsz, ENTITY_ID_PRINTF_STRING);
-
-    result.crc32Hash = get_crc32(result.stringID, result.stringSizeInBytes);
-
-#undef ENTITY_ID_PRINTF_STRING
-
-    // NOTE: This would have to be locked in threaded application
-    global_entityIdCreated++;
-
-    return result;
-}
 
 bool areEntityIdsEqual(EntityID a, EntityID b)
 {
-    bool result = false;
-    if (a.crc32Hash == b.crc32Hash && easyString_stringsMatch_nullTerminated(a.stringID, b.stringID))
-    {
-        result = true;
-    }
-    return result;
+    return (a.entityID == b.entityID);
 }
 
 struct VoxelEntityMesh
@@ -174,7 +150,7 @@ struct VoxelEntity
 
     int occupiedCount;
     u8 *data;
-    u8 *bitwiseData;
+    u8 *material;
     u8 *colorData;
     int stride; // x
     int pitch;  // y
@@ -219,17 +195,6 @@ struct VoxelCollideData
 
     VoxelCollideData *next;
 };
-
-int getVoxelIndex(VoxelEntity *e, int x, int y, int z)
-{
-    assert(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth);
-    if(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth) {
-        return (z * e->pitch * e->stride + y * e->stride + x);
-    } else {
-        return 0;
-    }
-    
-}
 
 u8 getByteFromVoxelEntity(VoxelEntity *e, int x, int y, int z)
 {
@@ -510,18 +475,18 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
     pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
 }
 
-void initBaseVoxelEntity(VoxelEntity *e, int randomStartUpID, u64 flags)
+void initBaseVoxelEntity(VoxelEntity *e, u64 flags)
 {
-    e->id = makeEntityId(randomStartUpID);
+    e->id = getNewEntityId();
     e->T.rotation = identityQuaternion();
     e->T.pos = make_float3(0, 0, 0);
     e->T.scale = make_float3(0, 0, 0);
     e->flags = flags;
 }
 
-VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
 {
-    initBaseVoxelEntity(e, randomStartUpID, flags);
+    initBaseVoxelEntity(e, flags);
     e->sleepTimer = 0;
     e->asleep = false;
 
@@ -541,7 +506,7 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     int t = (int)(diameterInVoxels * diameterInVoxels * diameterInVoxels);
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
-    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
+    e->material = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
 
     e->stride = diameterInVoxels;
     e->pitch = diameterInVoxels;
@@ -566,7 +531,7 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
                 {
                     flags |= VOXEL_OCCUPIED;
                     e->occupiedCount++;
-                    e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
+                    e->material[getVoxelIndex(e, x, y, z)] = 1;
                 }
 
                 e->data[getVoxelIndex(e, x, y, z)] = flags;
@@ -579,9 +544,9 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     return e;
 }
 
-void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED)
+void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
 {
-    initBaseVoxelEntity(e, randomStartUpID, flags);
+    initBaseVoxelEntity(e, flags);
 
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -603,7 +568,7 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
 
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->material = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->occupiedCount = 0;
 
     for (int z = 0; z < e->depth; z++)
@@ -613,7 +578,7 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
             for (int x = 0; x < e->stride; x++)
             {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
-                e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
+                e->material[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }
@@ -622,10 +587,10 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     classifyPhysicsShapeAndIntertia(meshGenerator, e, true);
 }
 
-VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, int randomStartUpID, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
 {
 
-    initBaseVoxelEntity(e, randomStartUpID, flags);
+    initBaseVoxelEntity(e, flags);
 
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -648,7 +613,7 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     e->occupiedCount = 0;
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->material = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
 
     for (int z = 0; z < e->depth; z++)
     {
@@ -657,7 +622,7 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
             for (int x = 0; x < e->stride; x++)
             {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
-                e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
+                e->material[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }
@@ -668,9 +633,9 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     return e;
 }
 
-VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, int randomStartUpID, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED)
 {
-    initBaseVoxelEntity(e, randomStartUpID, flags);
+    initBaseVoxelEntity(e, flags);
 
     e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
     e->T.scale = e->worldBounds;
@@ -702,7 +667,7 @@ VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshG
     e->occupiedCount = 0;
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
-    e->bitwiseData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
+    e->material = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * areaInVoxels, EASY_PLATFORM_MEMORY_ZERO);
 
     for (int i = 0; i < model->totalVoxelCount; i++)
     {
@@ -722,7 +687,7 @@ VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshG
 
         e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
         e->colorData[getVoxelIndex(e, x, y, z)] = colorId;
-        e->bitwiseData[getVoxelIndex(e, x, y, z)] = 1;
+        e->material[getVoxelIndex(e, x, y, z)] = 1;
         e->occupiedCount++;
     }
 
@@ -833,16 +798,16 @@ struct Camera
     bool followingPlayer;
 };
 
-void initBaseEntity(Entity *e, int randomStartUpID)
+void initBaseEntity(Entity *e)
 {
-    e->id = makeEntityId(randomStartUpID);
+    e->id = getNewEntityId();
     e->T.rotation = identityQuaternion();
     e->recoverDP = e->dP = make_float3(0, 0, 0);
 }
 
-Entity *initPlayer(Entity *e, int randomStartUpID)
+Entity *initPlayer(Entity *e)
 {
-    initBaseEntity(e, randomStartUpID);
+    initBaseEntity(e);
     e->T.pos = make_float3(0, 0, 0);
     float playerWidth = 0.7f;
     e->T.scale = make_float3(playerWidth, 1.7f, playerWidth);

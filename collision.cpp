@@ -68,7 +68,7 @@ void checkDestoryForceAndAddFlag(CollisionPoint *p, VoxelEntity *a, VoxelEntity 
     float3 relativeAB = minus_float3(dpPointB, dpPointA);
 
     float forceMagnitudeSqr =  float3_dot(relativeAB, relativeAB);
-    float maxForceMagnitudeSqr = 10;
+    float maxForceMagnitudeSqr = 100;
     if(forceMagnitudeSqr > maxForceMagnitudeSqr) {
         p->flags |= COLLISION_POINT_SHOULD_DESTORY;
     }

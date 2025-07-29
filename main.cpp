@@ -12,8 +12,8 @@ static float global_timeInPhysicsUpdate_cycles = 0;
 static float global_totalLoopTime = 0;
 
 #include "./easy_memory.h"
-#include "./resize_array.cpp"
 #include "./memory_arena.h"
+#include "./resize_array.cpp"
 #include "./easy_string_utf8.h"
 #include "./profiler.cpp"
 #include "./easy_string.h"
@@ -257,6 +257,7 @@ void updateGame(GameState *gameState) {
         globalPerFrameArena = createArena(Kilobytes(100));
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
         initGameState(gameState);
+        // DEBUG_ArrayTests();
     } else { 
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
@@ -289,6 +290,8 @@ void updateGame(GameState *gameState) {
     updateHotKeys(gameState);
     
     processBuildingStructures(gameState);
+
+    completePhysicsDestructionForFrame(&gameState->physicsWorld, &gameState->meshGenerator);
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);

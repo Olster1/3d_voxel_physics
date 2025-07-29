@@ -114,6 +114,7 @@ enum VoxelEntityFlags
     CAN_BE_DESTORYED = 1 << 0,
     DELETES_STUFF = 1 << 1,
     PLAYER_CAN_PICKUP = 1 << 2,
+    GRAVITY_AFFECTED = 1 << 3,
 };
 
 struct VoxelEntity
@@ -121,6 +122,7 @@ struct VoxelEntity
     EntityID id;
     TransformX T;
     u64 flags;
+    u8 physicsFlags; //NOTE: Used by the intertia function
 
     VoxelEntityMesh mesh;
     int colorPalletteId;
@@ -251,7 +253,12 @@ CorneChecks makeCornerCheck(float3 a, float3 b, float3 c, float3 d, float3 e, fl
 
 void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, VoxelEntity *e);
 
-void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, VoxelEntity *e, bool isInfiniteShape = false)
+enum ClassifyPhysicsShapesFlags {
+    PHYSICS_OBJECT_CAN_ROTATE = 1 << 0,
+    PHYSICS_OBJECT_IS_INIFINTE = 1 << 1,
+};
+
+void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, VoxelEntity *e)
 {
     float12 inertiaTensor = {};
     float massPerVoxel = (1.0f / e->inverseMass) / (float)e->occupiedCount;
@@ -347,7 +354,7 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
 
                     bool found = false;
 
-                    if (!isInfiniteShape)
+                    if (!(e->physicsFlags & PHYSICS_OBJECT_IS_INIFINTE))
                     {
 
                         // NOTE: Check if CORNER
@@ -462,7 +469,7 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
     inertiaTensor.E_[2][0] = inertiaTensor.E_[0][2];
     inertiaTensor.E_[2][1] = inertiaTensor.E_[1][2];
 
-    if (e->inverseMass != 0)
+    if ((e->physicsFlags & PHYSICS_OBJECT_CAN_ROTATE))
     {
         e->invI = float12_inverse(inertiaTensor);
     }
@@ -475,6 +482,10 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
     pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
 }
 
+void removeVoxelEntityAngularInertia(VoxelEntity *e) {
+    e->invI = float12_zeroed();
+}
+
 void initBaseVoxelEntity(VoxelEntity *e, u64 flags)
 {
     e->id = getNewEntityId();
@@ -482,9 +493,10 @@ void initBaseVoxelEntity(VoxelEntity *e, u64 flags)
     e->T.pos = make_float3(0, 0, 0);
     e->T.scale = make_float3(0, 0, 0);
     e->flags = flags;
+    e->physicsFlags = PHYSICS_OBJECT_CAN_ROTATE;
 }
 
-VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, u64 flags = (CAN_BE_DESTORYED | GRAVITY_AFFECTED))
 {
     initBaseVoxelEntity(e, flags);
     e->sleepTimer = 0;
@@ -544,7 +556,7 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     return e;
 }
 
-void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
+void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float length, float3 pos, float inverseMass, u64 flags = (CAN_BE_DESTORYED | GRAVITY_AFFECTED))
 {
     initBaseVoxelEntity(e, flags);
 
@@ -552,6 +564,8 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
     e->inverseMass = inverseMass;
     e->coefficientOfRestitution = 0;
     e->friction = 0.2f;
+
+    e->physicsFlags = PHYSICS_OBJECT_IS_INIFINTE;
 
     e->sleepTimer = 0;
     e->asleep = false;
@@ -584,10 +598,10 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
         }
     }
 
-    classifyPhysicsShapeAndIntertia(meshGenerator, e, true);
+    classifyPhysicsShapeAndIntertia(meshGenerator, e);
 }
 
-VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float w, float h, float d, float3 pos, float inverseMass, u64 flags = (CAN_BE_DESTORYED | GRAVITY_AFFECTED))
 {
 
     initBaseVoxelEntity(e, flags);
@@ -633,9 +647,10 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     return e;
 }
 
-VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, VoxelModel *model, bool centerOnPosition = true, u64 flags = CAN_BE_DESTORYED)
+VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float3 pos, float inverseMass, VoxelModel *model, bool centerOnPosition = true, u64 flags = (CAN_BE_DESTORYED | GRAVITY_AFFECTED), u8 physicsFlags = PHYSICS_OBJECT_CAN_ROTATE)
 {
     initBaseVoxelEntity(e, flags);
+    e->physicsFlags = physicsFlags;
 
     e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
     e->T.scale = e->worldBounds;

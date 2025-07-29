@@ -1310,6 +1310,29 @@ float16 quaternionToMatrix(float4 q) {
     
 }
 
+float4 eulerAnglesToQuaternion(float y, float x, float z) {
+    // Convert degrees to radians
+    y = (y / 360.0f) * TAU32;
+    x = (x / 360.0f) * TAU32;
+    z = (z / 360.0f) * TAU32;
+
+    // Half angles
+    float cy = cosf(y * 0.5f);
+    float sy = sinf(y * 0.5f);
+    float cx = cosf(x * 0.5f);
+    float sx = sinf(x * 0.5f);
+    float cz = cosf(z * 0.5f);
+    float sz = sinf(z * 0.5f);
+
+    // Combine in Y (yaw), X (pitch), Z (roll) order
+    float xq = sx * cy * cz + cx * sy * sz;
+    float yq = cx * sy * cz - sx * cy * sz;
+    float zq = cx * cy * sz - sx * sy * cz;
+    float wq = cx * cy * cz + sx * sy * sz;
+
+    return make_float4(xq, yq, zq, wq);
+}
+
 float4 inverseQuaternion(float4 q) {
     return make_float4(-q.x, -q.y, -q.z, q.w);
 }

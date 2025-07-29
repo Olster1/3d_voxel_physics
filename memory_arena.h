@@ -30,6 +30,13 @@ typedef struct {
 
 } Arena;
 
+MemoryPiece *getCurrentMemoryPiece(Arena *arena) {
+    MemoryPiece *piece = arena->pieces;
+    assert(piece);
+    return piece;
+
+}
+
 #define pushStruct(arena, type) (type *)pushSize(arena, sizeof(type))
 #define pushStructAligned(arena, type, alignment) (type *)pushSize(arena, sizeof(type), alignment)
 
@@ -112,10 +119,6 @@ Arena createArena(size_t size) {
     result.pieces->currentSize = 0;
     return result;
 }
-
-// Arena easyArena_subDivideArena(Arena *parentArena, size_t size) {
-    
-// }
 
 typedef struct { 
     int id;

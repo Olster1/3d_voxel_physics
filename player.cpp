@@ -392,13 +392,18 @@ void updatePlayer(GameState *gameState) {
 
     if(gameState->playerHolding) {
         gameState->playerHolding->T.pos = cameraEntity.T.pos;
+        // gameState->playerHolding->T.rotation = eulerAnglesToQuaternion(cameraEntity.T.rotation.y + 90, 0, 0);
+
+        //NOTE: Attack with the item 
+        if(gameState->keys.keys[KEY_X] == MOUSE_BUTTON_DOWN) {
+            gameState->playerHolding->ddAForFrame.x = 10000;
+        }
 
         if(gameState->keys.keys[KEY_SPACE] == MOUSE_BUTTON_PRESSED) {
             gameState->playerHolding->dP = scale_float3(5, zAxis);
             gameState->playerHolding = 0;
         }
     }
-
 
     for(int i = 0; i < gameState->voxelEntityCount; ++i) {
         VoxelEntity *e = &gameState->voxelEntities[i];
@@ -420,39 +425,12 @@ void updatePlayer(GameState *gameState) {
             }
             if(gameState->keys.keys[KEY_SPACE] == MOUSE_BUTTON_PRESSED) {
                 gameState->playerHolding = e;
+                e->flags &= ~(GRAVITY_AFFECTED);
+                // removeVoxelEntityAngularInertia(e);
+                e->T.rotation = identityQuaternion();
+                e->dA = make_float3(0, 0, 0);
             }
             
-        }
-        
-
-        // Rect3f aRect;
-        // Rect3f bRect; 
-        // bool collided = boundingBoxOverlapWithMargin(&cameraEntity, e, &aRect, &bRect, BOUNDING_BOX_MARGIN);
-        // if(e->flags & CAN_BE_DESTORYED) 
-        // {
-        //     for(int x = 0; x < 10; x++) {
-        //         for(int y = 0; y < 10; y++) {
-        //             for(int z = 0; z < 10; z++) {
-        //                 float3 modelSpace = getVoxelPositionInModelSpaceFromCenter(&cameraEntity, make_float3(x, y, z));
-        //                 float3 voxelPWorldSpace = plus_float3(modelSpace, cameraEntity.T.pos);
-        //                 // if(in_rect3f_bounds(bRect, voxelP)) 
-        //                 {
-        //                     CollisionPoint pointsFound[MAX_CONTACT_POINTS_PER_PAIR];
-        //                     int numPointsFound = doesVoxelCollide(voxelPWorldSpace, e, x, y, z, true, pointsFound, VOXEL_OCCUPIED);
-
-        //                     for(int i = 0; i < numPointsFound; i++) {
-        //                         CollisionPoint p = pointsFound[i];
-        //                         e->data[getVoxelIndex(e, p.x1, p.y1, p.z1)] = VOXEL_NONE;
-        //                         modifiedData = true;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        if(modifiedData) {
-            classifyPhysicsShapeAndIntertia(&gameState->meshGenerator, e);
         }
     }
 }

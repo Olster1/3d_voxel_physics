@@ -75,28 +75,19 @@ void updatePhysicsSim(GameState *gameState) {
         VoxelEntity *e = &gameState->voxelEntities[i];
         e->ddPForFrame = make_float3(0, 0, 0);
         e->ddAForFrame = make_float3(0, 0, 0);
-        if(e->inverseMass > 0 && e != gameState->grabbed) {
+        if(e->inverseMass > 0 && e != gameState->grabbed && (e->flags & GRAVITY_AFFECTED)) {
             e->ddPForFrame.y -= 10.0f; //NOTE: Gravity
-            // e->ddAForFrame = make_float3(0, 0, 1);
         }
 
         e->inBounds = false;
-
-        //NOTE: Remove debug flags
-        for(int z = 0; z < e->depth; z++) {
-            for(int y = 0; y < e->pitch; y++) {
-                for(int x = 0; x < e->stride; x++) {
-                    e->data[getVoxelIndex(e, x, y, z)] &= ~(VOXEL_COLLIDING);
-                }
-            }
-        }
     }
 
     physicsLoopsCount = 0;
     Uint32 startPhysics = profiler_getCount();
 
-    const int maxContinousIterations = 8;
     int interations = 0;
+
+    gameState->physicsWorld.entitiesNeedRebuilding = initResizeArrayArena(VoxelEntity *, &globalPerFrameArena);
     
     //NOTE: Physics loop
     while(gameState->physicsAccum >= minStep && interations < 4) {

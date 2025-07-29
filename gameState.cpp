@@ -338,7 +338,8 @@ void initGameState(GameState *gameState) {
     initPlayer(&gameState->player);
     gameState->player.T.pos = gameState->camera.T.pos;
 
-    gameState->physicsWorld.positionCorrecting = true;
+    initPhysicsWorld(&gameState->physicsWorld);
+    
 
     // loadWavFile(&gameState->cardFlipSound[0], "./sounds/cardFlip.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->cardFlipSound[1], "./sounds/cardFlip1.wav", &gameState->audioSpec);
@@ -359,7 +360,7 @@ void initGameState(GameState *gameState) {
     u32 *colors = loadVoxelModels(gameState, maxRowCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], false);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 1.0 / 10, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 1.0 / 10, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP | GRAVITY_AFFECTED);
 
     Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
 

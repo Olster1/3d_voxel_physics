@@ -60,8 +60,13 @@ struct PhysicsWorld {
 
     bool positionCorrecting; //DONE: this is how agressively the physics tries and resolves penetration
 
-    //NOTE: Erin Catto's talk at GDC 2006
+    VoxelEntity **entitiesNeedRebuilding;
 };
+
+void initPhysicsWorld(PhysicsWorld *world) {
+    world->positionCorrecting = true;
+    world->entitiesNeedRebuilding = 0;
+}
 
 float2 worldPToVoxelP(VoxelEntity *e, float2 worldP);
 
@@ -83,7 +88,7 @@ float calculateInverseMassNormal(CollisionPoint *p, VoxelEntity *a, VoxelEntity 
     return 1.0f / kNormal;
 
 }
-
+void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, VoxelEntity *e);
 void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     Arbiter *arb = world->arbiters;
 
@@ -93,7 +98,6 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     // The bias factor is important because overly aggressive corrections (with a high bias factor) can cause instability or jittering in the simulation, while too small of a correction (with a low bias factor) may leave objects slightly penetrated.
 	// It strikes a balance between stability and realism, ensuring that objects resolve overlaps without visibly popping or jittering in the simulation.
     float biasFactor = (world->positionCorrecting) ? 0.1f : 0.0f;
-    
 
     while(arb) {
         VoxelEntity *a = arb->a;
@@ -113,14 +117,27 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
                     //NOTE: Should flip the entities becuase the collision point was from the opposite order.
                     entity = b;
                     entityOther = a;
+                }   
+
+                if(entity->flags & CAN_BE_DESTORYED) {
+                    //NOTE: Should remove this voxel from the object
+                    entity->data[getVoxelIndex(entity, p->x, p->y, p->z)] = 0;
+                    if(!doesArrayContain(world->entitiesNeedRebuilding, &entity)) {
+                        pushArrayItem(&world->entitiesNeedRebuilding, entity, VoxelEntity);
+                    }
                 }
 
-                //NOTE: Should remove this voxel from the object
-                entity->data[getVoxelIndex(entity, p->x, p->y, p->z)] = 0;
-                entityOther->data[getVoxelIndex(entityOther, p->x1, p->y1, p->z1)] = 0;
+                if(entityOther->flags & CAN_BE_DESTORYED) {
+                    //NOTE: Should remove this voxel from the object
+                    entityOther->data[getVoxelIndex(entityOther, p->x1, p->y1, p->z1)] = 0;
+
+                     if(!doesArrayContain(world->entitiesNeedRebuilding, &entityOther)) {
+                        pushArrayItem(&world->entitiesNeedRebuilding, entityOther, VoxelEntity);
+                    }
+                }
 
                 p->flags &= (~(COLLISION_POINT_SHOULD_DESTORY));
-                assert(!(p->flags & COLLISION_POINT_SHOULD_DESTORY));
+               
             }
             
             //NOTE: The reason Baumgarte Stabilization is wrong is that it adds kinetic energy into the system 
@@ -147,15 +164,18 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
             b->dA = plus_float3(b->dA, float12_scale(b->invI, float3_cross(r2, Pn)));
         }
 
-        if(destroyedStuff) {
-            // classifyPhysicsShapeAndIntertia(meshGenerator, a);
-            // classifyPhysicsShapeAndIntertia(meshGenerator, b);
-        }
-
         arb = arb->next;
     }
+}
 
-  
+void completePhysicsDestructionForFrame(PhysicsWorld *world, MultiThreadedMeshList *meshGenerator) {
+    int l = getArrayLength(world->entitiesNeedRebuilding);
+    if(l > 0) {
+        for(int i = 0; i < l; ++i) {
+            VoxelEntity *e = world->entitiesNeedRebuilding[i];
+            classifyPhysicsShapeAndIntertia(meshGenerator, e);
+        }
+    }
 }
 
 void runPGSSolver(PhysicsWorld *world) {

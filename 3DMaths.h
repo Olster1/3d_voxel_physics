@@ -822,27 +822,28 @@ static float16 make_ortho_matrix_origin_center(float planeWidth, float planeHeig
 	return result;
 }
 
-float2 getPlaneSize(float FOV_degrees, float aspectRatio_x_over_y) {
-	float FOV_radians = (FOV_degrees*PI32) / 180.0f;
-
-	//NOTE: Get the size of the plane the game world will be projected on.
-	float t = tan(FOV_radians); //plane's height
-	float r = t*aspectRatio_x_over_y; //plane's width
-
-	return make_float2(r, t);
-}
-
 float2 perp2d(float2 p) {
 	return make_float2(-p.y, p.x);
 }
 
-static float16 make_perspective_matrix_origin_center(float FOV_degrees, float nearClip, float farClip, float aspectRatio_x_over_y) {
+float2 getProjectionPlaneSize(float FOV_degrees, float aspectRatio_y_over_x) {
+	//NOTE: Convert the Camera's Field of View from Degress to Radians
+	float FOV_radians = (FOV_degrees*PI32) / 180.0f;
+
+	//NOTE: Get the size of the plane the game world will be projected on.
+	float t = 2*tan(FOV_radians/2); //plane's height
+	float r = t*(1.0f / aspectRatio_y_over_x); //plane's width
+
+	return make_float2(r, t);
+}
+
+static float16 make_perspective_matrix_origin_center(float FOV_degrees, float nearClip, float farClip, float aspectRatio_y_over_x) {
 	//NOTE: Convert the Camera's Field of View from Degress to Radians
 	float FOV_radians = (FOV_degrees*PI32) / 180.0f;
 
 	//NOTE: Get the size of the plane the game world will be projected on.
 	float t = tan(FOV_radians/2); //plane's height
-	float r = t*aspectRatio_x_over_y; //plane's width
+	float r = t*(1.0f / aspectRatio_y_over_x); //plane's width
 
 #if D3D_MATRIX
 	float16 result = {{
@@ -1065,7 +1066,7 @@ float12 float12_inverse(float12 m) {
 }
 
 
-bool rect3fInsideViewFrustrum(Rect3f rect, float3 cameraP, float16 cameraMatrix, float FOV_degrees, float nearClip, float farClip, float aspectRatio_x_over_y) {
+bool rect3fInsideViewFrustrum(Rect3f rect, float3 cameraP, float16 cameraMatrix, float FOV_degrees, float nearClip, float farClip, float aspectRatio_y_over_x) {
 	bool result = true;
 	
 	float3 unitXAxis = make_float3(cameraMatrix.E_[0][0], cameraMatrix.E_[0][1], cameraMatrix.E_[0][2]);
@@ -1089,7 +1090,7 @@ bool rect3fInsideViewFrustrum(Rect3f rect, float3 cameraP, float16 cameraMatrix,
 
 	//NOTE: Get the size of the plane the game world will be projected on.
 	float y = tan(FOV_radians/2); //plane's half height
-	float x = y*aspectRatio_x_over_y; //plane's half width
+	float x = y*(1.0f / aspectRatio_y_over_x); //plane's half width
 
 	float yFar = farClip*y; //plane's far half height
 	float xFar = farClip*x; //plane's far half width

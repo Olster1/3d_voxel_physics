@@ -5,18 +5,28 @@ void renderVoxelEntities(GameState *gameState) {
         PROFILE_FUNC(RENDER_CUBES);
         VoxelEntity *e = &gameState->voxelEntities[i];
 
-        const float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
+        const float16 T = sqt_to_float16(e->T.rotation, e->T.scale, e->T.pos);
 
-        if(e->mesh.modelBuffer.handle > 0) {
-            //NOTE: Has a mesh to be rendered
+        {
+            //TODO: Change this to a perframe dynamic array
             ModelBufferList *l = pushStruct(&globalPerFrameArena, ModelBufferList);
             l->modelBuffer = e->mesh.modelBuffer;
+            l->palletteId = e->colorPalletteId;
+
+            if(!e->centerOnPosition) {
+                l->min_AABB = make_float3(0, 0, 0);
+                l->max_AABB = e->T.scale;
+            } else {
+                float3 halfScale = scale_float3(0.5f, e->T.scale);
+                l->min_AABB = float3_negate(halfScale);
+                l->max_AABB = halfScale;
+            }
+
             l->data = getInstanceDataWithRotation(T, make_float4(1, 0.5f, 0, 1), make_float4(0.25f, 0.5f, 0, 0.25f));
             l->next = gameState->renderer->voxelEntityMeshes;
             gameState->renderer->voxelEntityMeshes = l;
-        } else {
-            int h = 0;
-        }
+        } 
+        
         
         if(false)
         {

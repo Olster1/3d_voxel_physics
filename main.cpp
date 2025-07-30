@@ -207,7 +207,8 @@ void processVoxelMeshes(GameState *gameState) {
             ChunkVertexToCreate *info = *infoPtr;
             if(info->ready) {
                 if(info->voxelEntity) {
-                    processVoxelEntityMeshData(info);
+                    assert(false);
+                    // processVoxelEntityMeshData(info);
                 } else {
                     processMeshData(info);
                 }
@@ -266,13 +267,17 @@ void updateGame(GameState *gameState) {
     
     updateCamera(gameState);
   
-    float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
-    float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_x_over_y, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
+    float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
+    float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
 
-    float16 screenT = make_perspective_matrix_origin_center(gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, 1.0f / gameState->aspectRatio_x_over_y);
+    float16 screenT = make_perspective_matrix_origin_center(gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_y_over_x);
     float16 cameraT = transform_getInverseX(gameState->camera.T);
     float16 cameraToWorldT = getModelToViewSpace(gameState->camera.T);
     float16 cameraTWithoutTranslation = getCameraX_withoutTranslation(gameState->camera.T);
+
+    gameState->renderer->viewport = make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x) ; 
+    gameState->renderer->projectionPlaneSize = getProjectionPlaneSize(gameState->camera.fov, gameState->aspectRatio_y_over_x);
+    gameState->renderer->invViewMatrix = cameraToWorldT;
 
     gameState->renderer->cameraP = gameState->camera.T.pos;
 
@@ -291,7 +296,7 @@ void updateGame(GameState *gameState) {
     
     processBuildingStructures(gameState);
 
-    completePhysicsDestructionForFrame(&gameState->physicsWorld, &gameState->meshGenerator);
+    // completePhysicsDestructionForFrame(&gameState->physicsWorld, &gameState->meshGenerator);
 
     TimeOfDayValues timeOfDayValues = getTimeOfDayValues(gameState);
     updateAndDrawDebugCode(gameState);

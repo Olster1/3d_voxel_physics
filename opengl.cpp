@@ -1,6 +1,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "./libs/stb_image.h"
 #include "./shaders/shaders_opengl.cpp"
+#include "./shaders/shaders_opengl_raycast.cpp"
 
 // NOTE: Each location index in a vertex attribute index - i.e. 4 floats. that's why for matrix we skip 4 values
 #define VERTEX_ATTRIB_LOCATION 0
@@ -849,7 +850,7 @@ void prepareChunkRender(Renderer *renderer, ModelBuffer *model, Shader *shader, 
    
 }
 
-void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 cameraToWorldT, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1) {
+void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 cameraToWorldT, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1, int paletteId = 0) {
     glUseProgram(shader->handle);
     renderCheckError();
     
@@ -897,6 +898,29 @@ void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t
 
     bindTexture("diffuse", 1, textureId, shader, flags);
     renderCheckError();
+
+    if(voxelTextureHandle >= 0) {
+        bindTexture("voxels", 2, voxelTextureHandle, shader, SHADER_3D_TEXTURE);
+        renderCheckError();
+
+        glUniform2f(glGetUniformLocation(shader->handle, "projectionPlaneSize"), renderer->projectionPlaneSize.x, renderer->projectionPlaneSize.y);
+        renderCheckError();
+
+        glUniformMatrix4fv(glGetUniformLocation(shader->handle, "invViewMatrix"), 1, GL_FALSE, renderer->invViewMatrix.E);
+        renderCheckError();
+
+        glUniform2f(glGetUniformLocation(shader->handle, "viewportSize"), renderer->viewport.x, renderer->viewport.y);
+        renderCheckError();
+
+        glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"), renderer->minAABB.x, renderer->minAABB.y, renderer->minAABB.z);
+        renderCheckError();
+
+        glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"), renderer->maxAABB.x, renderer->maxAABB.y, renderer->maxAABB.z);
+        renderCheckError();
+    }
+
+    glUniform1i(glGetUniformLocation(shader->handle, "palleteIndex"), paletteId);
+    renderCheckError();
     
     if(skinningTextureId >= 0) {
         bindTexture("boneMatrixBuffer", 2, skinningTextureId, shader, SHADER_TEXTURE_BUFFER);
@@ -930,21 +954,26 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
 
     unsigned int texture;
     glGenTextures(1, &texture);
+    renderCheckError();
     glBindTexture(GL_TEXTURE_3D, texture);
+    renderCheckError();
     
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, width, height, depth, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8UI, width, height, depth, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
+    renderCheckError();
 
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Wrapping along X
+    renderCheckError();
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Wrapping along Y
+    renderCheckError();
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Wrapping along Z
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
-
-    // GLuint64 handle = glGetTextureHandleARB(texture);
-    // glMakeTextureHandleResidentARB(handle);
-
+    renderCheckError();
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    renderCheckError();
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    renderCheckError();
 
     glBindTexture(GL_TEXTURE_3D, 0); 
+    renderCheckError();
 
     result.handle = texture;   
 
@@ -970,8 +999,10 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     {
         ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
-            updateInstanceData(l->modelBuffer.instanceBufferhandle, &l->data, sizeof(InstanceDataWithRotation));
-            drawModels(renderer, &l->modelBuffer, &renderer->voxelEntityShader, renderer->voxelColorPallete, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay);
+            renderer->minAABB = l->min_AABB;
+            renderer->maxAABB = l->max_AABB;
+            updateInstanceData(renderer->blockModelSameTexture.instanceBufferhandle, &l->data, sizeof(InstanceDataWithRotation));
+            drawModels(renderer, &renderer->blockModelSameTexture, &renderer->voxelEntityShaderRayCast, renderer->voxelColorPallete, 1, cameraToWorldT, projectionTransform, modelViewTransform, lookingAxis, renderer->underWater, timeOfDay, 0, -1, GL_TRIANGLES, l->modelBuffer.voxelTextureHandle, l->palletteId);
 
             l = l->next;
         }

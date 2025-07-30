@@ -40,7 +40,7 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
                                     modelP.z = z*VOXEL_SIZE_IN_METERS + halfVoxel - center.z;
 
                                     int palleteId = e->colorPalletteId;
-                                    int colorId = e->colorData[getVoxelIndex(e, x, y, z)];;
+                                    int colorId = e->colorData[getVoxelIndex(e, x, y, z)];
                                     VoxelVertex vForChunk = initVoxelVertex(plus_float3(modelP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos)), v.normal, colorId, palleteId);
 
                                     pushArrayItem(&info->triangleData, vForChunk, VoxelVertex);
@@ -80,7 +80,6 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
                     deleteVao(e->mesh.modelBuffer.handle);
                     e->mesh.modelBuffer.indexCount = 0;
                 }
-                // e->mesh.modelBuffer = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
                 e->mesh.modelBuffer = generateVertexBuffer(info->triangleData, vertexCount, info->indicesData, indexCount, ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY);
                 assert(e->mesh.modelBuffer.handle > 0);
             } 

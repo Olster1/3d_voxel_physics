@@ -40,7 +40,7 @@ struct GameState {
     bool inited;
     float dt;
     float screenWidth;
-    float aspectRatio_x_over_y;
+    float aspectRatio_y_over_x;
 
     TextureAtlas spriteTextureAtlas;
 
@@ -236,7 +236,7 @@ void createAOOffsets(GameState *gameState) {
     }
 }
 
-u32 *loadVoxelModels(GameState *gameState, int maxRowCount) {
+u32 *loadVoxelModels(GameState *gameState, int maxRowCount, int maxColumnCount) {
     gameState->buildingModels[0] = loadVoxFile("./models/TallBuilding01.vox");
     gameState->buildingModels[0].colorPalletteId = ++gameState->buildingModelCount;
     
@@ -247,17 +247,18 @@ u32 *loadVoxelModels(GameState *gameState, int maxRowCount) {
     gameState->buildingModels[2].colorPalletteId = ++gameState->buildingModelCount;
 
     assert(gameState->buildingModelCount < arrayCount(gameState->buildingModels));
-    
+
     assert(gameState->buildingModelCount < maxRowCount);
-    u32 *colors = pushArray(&globalPerFrameArena, 256*maxRowCount, u32);
+    u32 *colors = pushArray(&globalPerFrameArena, maxColumnCount*maxRowCount, u32);
 
     //NOTE: Add the generated terrain texture colors
-    easyPlatform_copyMemory(colors, voxelGrassBitmap, sizeof(u32)*256);
+    int emptyOffset = 0;
+    easyPlatform_copyMemory((colors + emptyOffset), voxelGrassBitmap, sizeof(u32)*256);
 
     //NOTE: Add all the model texture pallettes
     for(int i = 0; i < gameState->buildingModelCount; ++i) {
         if(gameState->buildingModels[i].colors) {
-            u8 *at = (u8 *)(colors + (256*gameState->buildingModels[i].colorPalletteId)); //NOTE: Move to the next row
+            u8 *at = (u8 *)(colors + (maxColumnCount*gameState->buildingModels[i].colorPalletteId) + emptyOffset); //NOTE: Move to the next row
             easyPlatform_copyMemory(at, gameState->buildingModels[i].colors, sizeof(u32)*256);
         }
     }
@@ -357,12 +358,13 @@ void initGameState(GameState *gameState) {
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
 
     int maxRowCount = 4;
-    u32 *colors = loadVoxelModels(gameState, maxRowCount);
+    int maxColumnCount = 512;
+    u32 *colors = loadVoxelModels(gameState, maxRowCount, maxColumnCount);
 
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], false);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 1.0 / 10, &gameState->buildingModels[2], false, PLAYER_CAN_PICKUP | GRAVITY_AFFECTED);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], true);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[1], true);
 
-    Texture voxelColorPallete = createGPUTexture(256, maxRowCount, colors);
+    Texture voxelColorPallete = createGPUTexture(maxColumnCount, maxRowCount, colors);
 
     gameState->currentMiningBlock = 0;
 

@@ -421,7 +421,7 @@ void updatePlayer(GameState *gameState) {
             bool overlap = boundingBoxOverlapWithMargin(&playerEntity, e, &aRect, &bRect, 1);
 
             if(overlap) {
-                renderText(gameState->renderer, &gameState->mainFont, "PICKUP ITEM", make_float2(50, 90*gameState->aspectRatio_x_over_y), 0.1f);
+                renderText(gameState->renderer, &gameState->mainFont, "PICKUP ITEM", make_float2(50, 90*gameState->aspectRatio_y_over_x), 0.1f);
             }
             if(gameState->keys.keys[KEY_SPACE] == MOUSE_BUTTON_PRESSED) {
                 gameState->playerHolding = e;

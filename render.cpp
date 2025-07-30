@@ -209,14 +209,14 @@ InstanceDataWithRotation getInstanceDataWithRotation(float16 M,
 struct ModelBufferList { 
     ModelBuffer modelBuffer;
     InstanceDataWithRotation data;
+    int palletteId;
+    float3 min_AABB;
+    float3 max_AABB;
     ModelBufferList *next;
 };
 
 struct Renderer {
     uint32_t terrainTextureHandle;
-    // uint32_t circleHandle;
-    // uint32_t circleOutlineHandle;
-    // uint32_t skyboxTextureHandle;
     uint32_t breakBlockTexture;
     uint32_t atlasTexture;
     uint32_t fontAtlasTexture;
@@ -284,6 +284,12 @@ struct Renderer {
     ModelBuffer lineModel;
 
     ModelBufferList *voxelEntityMeshes;
+
+    float2 viewport; 
+    float2 projectionPlaneSize;
+    float16 invViewMatrix;
+    float3 minAABB;
+    float3 maxAABB;
 
     bool underWater;
 };

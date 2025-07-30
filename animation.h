@@ -5,6 +5,8 @@ struct ModelBuffer {
     uint32_t tboHandle; //NOTE: For Skinning Matrix
     uint32_t textureHandle; //NOTE: For Skinning Matrix
 
+	uint32_t voxelTextureHandle;
+
     int indexCount;
 };
 

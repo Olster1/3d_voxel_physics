@@ -78,9 +78,9 @@ struct Texture3d
 
 Texture3d upload3dTexture(int width, int height, int depth, void *data);
 
-void delete3dTexture(Texture3d *t)
+void delete3dTexture(u32 *handle)
 {
-    glDeleteTextures(1, &t->handle);
+    glDeleteTextures(1, handle);
 }
 
 struct VoxelModel
@@ -145,15 +145,17 @@ struct VoxelEntity
     float3 worldBounds;
     float3 furtherestVoxel; // NOTE: To calculate the max speed any voxel can have
 
+    bool centerOnPosition;
+
     float sleepTimer;
     bool asleep;
 
     float3 *corners;
 
     int occupiedCount;
-    u8 *data;
-    u8 *material;
-    u8 *colorData;
+    u8 *data; //NOTE: Corners, edges, flat, inside
+    u8 *material; 
+    u8 *colorData; 
     int stride; // x
     int pitch;  // y
     int depth;  // z
@@ -478,8 +480,15 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
         e->invI = float12_zeroed();
     }
 
-    e->mesh.generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
-    pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
+    // e->mesh.generateState = CHUNK_GENERATED | CHUNK_MESH_DIRTY;
+    // pushCreateVoxelEntityMeshToThreads(meshGenerator, e);
+
+    e->mesh.generateState = CHUNK_GENERATED;
+    if(e->mesh.modelBuffer.voxelTextureHandle > 0) {
+        delete3dTexture(&e->mesh.modelBuffer.voxelTextureHandle);
+    }
+
+    e->mesh.modelBuffer.voxelTextureHandle = upload3dTexture(e->stride, e->pitch, e->depth, e->colorData).handle;
 }
 
 void removeVoxelEntityAngularInertia(VoxelEntity *e) {
@@ -494,6 +503,7 @@ void initBaseVoxelEntity(VoxelEntity *e, u64 flags)
     e->T.scale = make_float3(0, 0, 0);
     e->flags = flags;
     e->physicsFlags = PHYSICS_OBJECT_CAN_ROTATE;
+    e->centerOnPosition = true;
 }
 
 VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator, float radius, float3 pos, float inverseMass, u64 flags = (CAN_BE_DESTORYED | GRAVITY_AFFECTED))
@@ -512,9 +522,8 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
     e->worldBounds = make_float3(diameter, diameter, diameter);
 
     e->T.scale = make_float3(diameter, diameter, diameter);
-    // result.T.rotation.z = 0.25f*PI32;
 
-    int diameterInVoxels = round(diameter * VOXELS_PER_METER);
+    int diameterInVoxels = floor(diameter * VOXELS_PER_METER);
     int t = (int)(diameterInVoxels * diameterInVoxels * diameterInVoxels);
     e->data = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
     e->colorData = (u8 *)easyPlatform_allocateMemory(sizeof(u8) * t, EASY_PLATFORM_MEMORY_ZERO);
@@ -544,6 +553,7 @@ VoxelEntity *createVoxelCircleEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
                     flags |= VOXEL_OCCUPIED;
                     e->occupiedCount++;
                     e->material[getVoxelIndex(e, x, y, z)] = 1;
+                    e->colorData[getVoxelIndex(e, x, y, z)] = 1;
                 }
 
                 e->data[getVoxelIndex(e, x, y, z)] = flags;
@@ -593,6 +603,7 @@ void createVoxelPlaneEntity(VoxelEntity *e, MultiThreadedMeshList *meshGenerator
             {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
                 e->material[getVoxelIndex(e, x, y, z)] = 1;
+                e->colorData[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }
@@ -637,6 +648,7 @@ VoxelEntity *createVoxelSquareEntity(VoxelEntity *e, MultiThreadedMeshList *mesh
             {
                 e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
                 e->material[getVoxelIndex(e, x, y, z)] = 1;
+                e->colorData[getVoxelIndex(e, x, y, z)] = 1;
                 e->occupiedCount++;
             }
         }
@@ -655,12 +667,14 @@ VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshG
     e->worldBounds = scale_float3(VOXEL_SIZE_IN_METERS, model->voxelDim);
     e->T.scale = e->worldBounds;
 
-    if (!centerOnPosition)
-    {
-        pos.x += 0.5f * e->worldBounds.x;
-        pos.y += 0.5f * e->worldBounds.y;
-        pos.z -= 0.5f * e->worldBounds.z;
-    }
+    // if (!centerOnPosition)
+    // {
+    //     pos.x += 0.5f * e->worldBounds.x;
+    //     pos.y += 0.5f * e->worldBounds.y;
+    //     pos.z -= 0.5f * e->worldBounds.z;
+    // }
+
+    // e->centerOnPosition = centerOnPosition;
 
     e->T.pos = pos;
     e->inverseMass = inverseMass;
@@ -701,7 +715,9 @@ VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshG
         assert(z < e->depth);
 
         e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
+        assert(colorId >= 0 && colorId < 256);
         e->colorData[getVoxelIndex(e, x, y, z)] = colorId;
+        
         e->material[getVoxelIndex(e, x, y, z)] = 1;
         e->occupiedCount++;
     }

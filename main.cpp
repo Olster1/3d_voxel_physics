@@ -34,7 +34,7 @@ static float global_totalLoopTime = 0;
 #include "./particles.cpp"
 #include "./load_gltf.cpp"
 
-Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete) {
+Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete, float2 resolution) {
     
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     
@@ -54,6 +54,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->lineShader = loadShader(lineVertexShader, lineFragShader);
     renderer->voxelEntityShader = loadShader(voxelEntityVertexShader, voxelEntityFragShader);
     renderer->voxelEntityShaderRayCast = loadShader(voxelEntityRaycastVertexShader, voxelEntityRaycastFragShader);
+    renderer->compositeGBufferShader = loadShader(compositeTextureVertexShader, compositeTextureFragShader);
 
     renderer->rayCastShader = loadShader(fullScreenVertexShader, rayCastFragShader);
     renderer->skyboxShader = loadShader(skyboxVertexShader, skyboxFragShader);
@@ -73,7 +74,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->lineModel = generateVertexBuffer(global_lineModelData, 2, global_lineIndicies, 2, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelWithInstancedT = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelSameTexture = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
-    
+
+    renderer->gBuffer = createGBuffer(resolution.x, resolution.y);
 
     renderer->voxelEntityMeshes = 0;
 

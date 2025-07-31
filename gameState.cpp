@@ -341,7 +341,6 @@ void initGameState(GameState *gameState) {
 
     initPhysicsWorld(&gameState->physicsWorld);
     
-
     // loadWavFile(&gameState->cardFlipSound[0], "./sounds/cardFlip.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->cardFlipSound[1], "./sounds/cardFlip1.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->blockBreakSound, "./sounds/blockBreak.wav", &gameState->audioSpec);
@@ -368,7 +367,7 @@ void initGameState(GameState *gameState) {
 
     gameState->currentMiningBlock = 0;
 
-    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete);
+    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete, make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x));
     gameState->renderer->numColorPalettes = maxRowCount;
 
     gameState->mainFont = initFontAtlas("./fonts/Medieval.ttf");

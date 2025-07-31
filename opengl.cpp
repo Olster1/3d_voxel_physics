@@ -1,6 +1,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "./libs/stb_image.h"
 #include "./shaders/shaders_opengl.cpp"
+#include "./shaders/shaders_g_buffer_composite.cpp"
 #include "./shaders/shaders_opengl_raycast.cpp"
 
 // NOTE: Each location index in a vertex attribute index - i.e. 4 floats. that's why for matrix we skip 4 values
@@ -65,7 +66,7 @@ FrameBuffer createFrameBuffer(int width, int height, void *data = 0) {
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
 
-     glBindTexture(GL_TEXTURE_2D, 0);    
+    glBindTexture(GL_TEXTURE_2D, 0);    
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         assert(false);
@@ -78,6 +79,129 @@ FrameBuffer createFrameBuffer(int width, int height, void *data = 0) {
 
 void deleteFrameBuffer(FrameBuffer *buffer) {
     glDeleteFramebuffers(1, &buffer->handle);
+}
+
+GBuffer createGBuffer(int width, int height) {
+    GBuffer result = {};
+    result.resolution = make_float2(width, height);
+
+    GLuint frameBufferHandle;
+    glGenFramebuffers(1, &frameBufferHandle);
+    renderCheckError();
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBufferHandle);
+    renderCheckError();
+
+    result.frameHandle = frameBufferHandle;
+
+    {
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        renderCheckError();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        renderCheckError();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
+        renderCheckError();
+
+        result.albedo.handle = texture;
+    }
+
+    {
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        renderCheckError();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        renderCheckError();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture, 0); 
+        renderCheckError();
+
+        result.normal.handle = texture;
+    }
+
+    {
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        renderCheckError();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        renderCheckError();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texture, 0); 
+        renderCheckError();
+
+        result.material.handle = texture;
+    }
+
+    {
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        renderCheckError();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        renderCheckError();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texture, 0); 
+        renderCheckError();
+
+        result.motion.handle = texture;
+    }
+
+    unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+    glDrawBuffers(4, attachments);    
+    
+    {
+        GLuint depthId;
+        glGenTextures(1, &depthId);
+        renderCheckError();
+        
+        glBindTexture(GL_TEXTURE_2D, depthId);
+        renderCheckError();
+        
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthId, 0);
+        renderCheckError();  
+
+        result.depth.handle = depthId;
+    }
+    
+    assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    renderCheckError();
+
+    
+    return result;
 }
 
 enum AttribInstancingType {
@@ -850,6 +974,26 @@ void prepareChunkRender(Renderer *renderer, ModelBuffer *model, Shader *shader, 
    
 }
 
+void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
+    glUseProgram(shader->handle);
+    renderCheckError();
+    
+    glBindVertexArray(model->handle);
+    renderCheckError();
+
+    bindTexture("diffuse", 1, renderer->gBuffer.albedo.handle, shader, 0);
+    renderCheckError();
+
+    glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1); 
+    renderCheckError();
+    
+    glBindVertexArray(0);
+    renderCheckError();    
+
+    glUseProgram(0);
+    renderCheckError();
+}
+
 void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 cameraToWorldT, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1, int paletteId = 0) {
     glUseProgram(shader->handle);
     renderCheckError();
@@ -996,6 +1140,12 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         renderer->blockItemsCount = 0;
     }
 
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer->gBuffer.frameHandle);
+    renderCheckError();
+
+    glClearColor(0.678, 0.847, 0.902, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
+    
     {
         ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
@@ -1007,11 +1157,26 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
             l = l->next;
         }
     }
-    
+
     //NOTE: Draw the skybox here
     glDepthMask(GL_FALSE); //NOTE: Disable WRITING to the depth buffer
     drawModels(renderer, &renderer->blockModel, &renderer->skyboxShader, renderer->terrainTextureHandle, 1, cameraToWorldT, projectionTransform, cameraTransformWithoutTranslation, lookingAxis, renderer->underWater, timeOfDay, SHADER_CUBE_MAP);
     glDepthMask(GL_TRUE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    renderCheckError();
+
+    glDepthMask(GL_FALSE); //NOTE: Disable WRITING to the depth buffer
+    
+    //NOTE: Composite the G-Buffer
+    InstanceDataWithRotation data = getInstanceDataWithRotation(float16_scale(float16_identity(), make_float3(2, 2, 2)),
+    make_float4(1, 1, 1, 1),
+    make_float4(1, 1, 1, 1));
+    updateInstanceData(renderer->quadModel.instanceBufferhandle, &data, sizeof(InstanceDataWithRotation));
+    drawGBuffer(renderer, &renderer->quadModel, &renderer->compositeGBufferShader);
+    
+    glDepthMask(GL_TRUE);
+    
 
     if(renderer->alphaBlockCount > 0) {
         //NOTE: Draw Cubes

@@ -206,6 +206,22 @@ InstanceDataWithRotation getInstanceDataWithRotation(float16 M,
     return c;
 }
 
+struct TextureHandle {
+    GLuint handle;
+};
+
+struct GBuffer {
+    float2 resolution;
+
+    uint frameHandle;
+    TextureHandle albedo;
+    TextureHandle normal;
+    TextureHandle material;
+    TextureHandle motion;
+    TextureHandle depth;
+};
+
+
 struct ModelBufferList { 
     ModelBuffer modelBuffer;
     InstanceDataWithRotation data;
@@ -273,6 +289,7 @@ struct Renderer {
     Shader voxelChunkShader;
     Shader voxelEntityShader;
     Shader voxelEntityShaderRayCast;
+    Shader compositeGBufferShader;
     
     ModelBuffer blockModel;
     ModelBuffer blockModelWithInstancedT;
@@ -290,6 +307,8 @@ struct Renderer {
     float16 invViewMatrix;
     float3 minAABB;
     float3 maxAABB;
+
+    GBuffer gBuffer;
 
     bool underWater;
 };

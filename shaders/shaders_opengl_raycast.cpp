@@ -155,6 +155,7 @@ static char *voxelEntityRaycastFragShader =
     
     "float tMin = ray_aabb(AABB_min_metres, AABB_max_metres, ray.origin, ray.direction);"
     "if(tMin == 1e30f) {"
+        "discard;"
         "return vec4(0, 0, 0, 1);"
     "}"
 
@@ -168,11 +169,6 @@ static char *voxelEntityRaycastFragShader =
     "vec3 delta = abs(safeInverse(ray.direction));"
     "ivec3 pos = clamp(ivec3(floor(entryP)), ivec3(0, 0, 0), size);"
     "vec3 tmax = safeDivide((vec3(pos) + max(step, 0) -  entryP), ray.direction);"
-
-    // "return vec4(vec3(pos) / size, 1);"
-    // "return vec4(tmax, 1);"
-    // "int color = texture(voxels, vec3(3, 3, 3) / size).r;"
-    // "return vec4(color,color,color, 1);"
 
     "int maxSteps = 128;"
     "int axis = 0;"
@@ -210,8 +206,8 @@ static char *voxelEntityRaycastFragShader =
         "}"
 
     "}"
-    // "discard;"
-    "return vec4(1, 0, 0, 1);"
+    "discard;"
+    // "return vec4(1, 0, 0, 1);"
   
 "}"
 

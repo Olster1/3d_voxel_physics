@@ -117,7 +117,7 @@ GBuffer createGBuffer(int width, int height) {
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8_SNORM, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
         renderCheckError();
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -136,7 +136,7 @@ GBuffer createGBuffer(int width, int height) {
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
         renderCheckError();
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -155,7 +155,7 @@ GBuffer createGBuffer(int width, int height) {
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
         renderCheckError();
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -163,14 +163,33 @@ GBuffer createGBuffer(int width, int height) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, texture, 0); 
         renderCheckError();
 
         result.motion.handle = texture;
     }
 
-    unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
-    glDrawBuffers(4, attachments);    
+     {
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8_SNORM, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        renderCheckError();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        renderCheckError();
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, texture, 0); 
+        renderCheckError();
+
+        result.linearDepth.handle = texture;
+    }
+
+    unsigned int attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
+    glDrawBuffers(5, attachments);    
     
     {
         GLuint depthId;
@@ -180,7 +199,7 @@ GBuffer createGBuffer(int width, int height) {
         glBindTexture(GL_TEXTURE_2D, depthId);
         renderCheckError();
         
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
         renderCheckError();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -188,6 +207,7 @@ GBuffer createGBuffer(int width, int height) {
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);  
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
     
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthId, 0);
         renderCheckError();  
@@ -691,6 +711,7 @@ void initBackendRenderer() {
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL); 
+    glDepthMask(GL_TRUE);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
@@ -984,6 +1005,21 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     bindTexture("diffuse", 1, renderer->gBuffer.albedo.handle, shader, 0);
     renderCheckError();
 
+    bindTexture("normal", 2, renderer->gBuffer.normal.handle, shader, 0);
+    renderCheckError();
+
+    bindTexture("material", 3, renderer->gBuffer.material.handle, shader, 0);
+    renderCheckError();
+
+    bindTexture("motion", 4, renderer->gBuffer.motion.handle, shader, 0);
+    renderCheckError();
+
+    bindTexture("linearDepth", 5, renderer->gBuffer.linearDepth.handle, shader, 0);
+    renderCheckError();
+
+    bindTexture("hyperbolicDepth", 6, renderer->gBuffer.depth.handle, shader, 0);
+    renderCheckError();
+
     glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1); 
     renderCheckError();
     
@@ -1144,7 +1180,9 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     renderCheckError();
 
     glClearColor(0.678, 0.847, 0.902, 1);
+    renderCheckError();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
+    renderCheckError();
     
     {
         ModelBufferList *l = renderer->voxelEntityMeshes;

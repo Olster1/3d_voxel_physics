@@ -218,6 +218,8 @@ struct GBuffer {
     TextureHandle normal;
     TextureHandle material;
     TextureHandle motion;
+    TextureHandle linearDepth;
+    
     TextureHandle depth;
 };
 

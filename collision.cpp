@@ -35,10 +35,16 @@ float3 worldPToVoxelP(VoxelEntity *e, float3 worldP) {
     p.y *= VOXELS_PER_METER;
     p.z *= VOXELS_PER_METER;
 
+     assert(p.x != NAN);
+    assert(p.y != NAN);
+    assert(p.z != NAN);
+
+
     p.x = (int)p.x;
     p.y = (int)p.y;
     p.z = (int)p.z;
 
+   
     return p;
 }
 
@@ -69,9 +75,9 @@ void checkDestoryForceAndAddFlag(CollisionPoint *p, VoxelEntity *a, VoxelEntity 
 
     float forceMagnitudeSqr =  float3_dot(relativeAB, relativeAB);
     float maxForceMagnitudeSqr = 100;
-    if(forceMagnitudeSqr > maxForceMagnitudeSqr) {
-        p->flags |= COLLISION_POINT_SHOULD_DESTORY;
-    }
+    // if(forceMagnitudeSqr > maxForceMagnitudeSqr) {
+    //     p->flags |= COLLISION_POINT_SHOULD_DESTORY;
+    // }
 }
 
 int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, bool swap, CollisionPoint *points, VoxelPhysicsFlag flags, VoxelEntity *otherEntity) {

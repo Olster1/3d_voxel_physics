@@ -102,14 +102,11 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     while(arb) {
         VoxelEntity *a = arb->a;
         VoxelEntity *b = arb->b;
-        bool destroyedStuff = false;
 
         for(int i = 0; i < arb->pointsCount; i++) {
             CollisionPoint *p = &arb->points[i];
 
             if(p->flags & COLLISION_POINT_SHOULD_DESTORY) {
-                destroyedStuff = true;
-
                 VoxelEntity *entity = a;
                 VoxelEntity *entityOther = b;
 
@@ -119,22 +116,22 @@ void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
                     entityOther = a;
                 }   
 
-                if(entity->flags & CAN_BE_DESTORYED) {
-                    //NOTE: Should remove this voxel from the object
-                    entity->data[getVoxelIndex(entity, p->x, p->y, p->z)] = 0;
-                    if(!doesArrayContain(world->entitiesNeedRebuilding, &entity)) {
-                        pushArrayItem(&world->entitiesNeedRebuilding, entity, VoxelEntity);
-                    }
-                }
+                // if(entity->flags & CAN_BE_DESTORYED) {
+                //     //NOTE: Should remove this voxel from the object
+                //     entity->data[getVoxelIndex(entity, p->x, p->y, p->z)] = 0;
+                //     if(!doesArrayContain(world->entitiesNeedRebuilding, &entity)) {
+                //         pushArrayItem(&world->entitiesNeedRebuilding, entity, VoxelEntity);
+                //     }
+                // }
 
-                if(entityOther->flags & CAN_BE_DESTORYED) {
-                    //NOTE: Should remove this voxel from the object
-                    entityOther->data[getVoxelIndex(entityOther, p->x1, p->y1, p->z1)] = 0;
+                // if(entityOther->flags & CAN_BE_DESTORYED) {
+                //     //NOTE: Should remove this voxel from the object
+                //     entityOther->data[getVoxelIndex(entityOther, p->x1, p->y1, p->z1)] = 0;
 
-                     if(!doesArrayContain(world->entitiesNeedRebuilding, &entityOther)) {
-                        pushArrayItem(&world->entitiesNeedRebuilding, entityOther, VoxelEntity);
-                    }
-                }
+                //      if(!doesArrayContain(world->entitiesNeedRebuilding, &entityOther)) {
+                //         pushArrayItem(&world->entitiesNeedRebuilding, entityOther, VoxelEntity);
+                //     }
+                // }
 
                 p->flags &= (~(COLLISION_POINT_SHOULD_DESTORY));
                

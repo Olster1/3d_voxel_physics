@@ -208,7 +208,7 @@ u8 getByteFromVoxelEntity(VoxelEntity *e, int x, int y, int z)
 bool isVoxelOccupied(VoxelEntity *e, int x, int y, int z, u32 flags = VOXEL_OCCUPIED)
 {
     bool result = false;
-    if (x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth)
+    if (isfinite(x) && isfinite(y) && isfinite(z) && x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth)
     {
         result = (e->data[getVoxelIndex(e, x, y, z)] & flags);
     }
@@ -471,7 +471,7 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
     inertiaTensor.E_[2][0] = inertiaTensor.E_[0][2];
     inertiaTensor.E_[2][1] = inertiaTensor.E_[1][2];
 
-    if ((e->physicsFlags & PHYSICS_OBJECT_CAN_ROTATE))
+    if ((e->physicsFlags & PHYSICS_OBJECT_CAN_ROTATE) && e->inverseMass > 0)
     {
         e->invI = float12_inverse(inertiaTensor);
     }

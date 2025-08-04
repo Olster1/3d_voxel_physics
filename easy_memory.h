@@ -63,6 +63,11 @@ static inline void easyPlatform_copyMemory(void *to, void *from, size_t sizeInBy
     memcpy(to, from, sizeInBytes);
 }
 
+static inline void easyPlatform_clearMemory(void *at, size_t sizeInBytes) {
+    memset(at, 0, sizeInBytes);
+}
+
+
 static inline char * easyPlatform_reallocMemory(void *from, size_t oldSize, size_t newSize) {
     char *result = (char *)easyPlatform_allocateMemory(newSize, EASY_PLATFORM_MEMORY_ZERO);
 

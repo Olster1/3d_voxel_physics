@@ -36,7 +36,7 @@ void renderVoxelEntities(GameState *gameState) {
             float halfVoxel = 0.5f*VOXEL_SIZE_IN_METERS;
             float4 color = make_float4(1, 0.5f, 0, 1);
             if(e->inverseMass == 0) {
-                color.x = 0;
+                // color.x = 0;
             }
             
             for(int z = 0; z < e->depth; ++z) {
@@ -196,12 +196,7 @@ void updatePhysicsSim(GameState *gameState) {
 
                 // if(!e->asleep) 
                 {   
-                    float3 v = e->dA;
-                    v.x *= -1;
-                    v.y *= -1;
-                    v.z *= -1;
-                    e->T.rotation = integrateAngularVelocity(e->T.rotation, v, dt);
-                    e->T.pos = plus_float3(e->T.pos, scale_float3(dt, e->dP));
+                    integrateVelocitiesForEntity(e, dt);
                 }
             }
         }

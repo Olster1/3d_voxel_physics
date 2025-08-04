@@ -79,7 +79,7 @@ static char *voxelEntityRaycastFragShader =
 "layout(location = 1) out vec4 normalOut;"
 "layout(location = 2) out vec4 materialOut;"
 "layout(location = 3) out vec4 motionOut;"
-"layout(location = 4) out vec4 linearDepthOut;"
+"layout(location = 4) out vec4 worldPositionOut;"
 
 "struct Ray {"
     "vec3 origin;"
@@ -216,6 +216,8 @@ static char *voxelEntityRaycastFragShader =
             "}"
             
             "vec3 hitPos_modelSpace = ray.origin + finalHitTime*ray.direction;"
+
+            "worldPositionOut = modelT*vec4(hitPos_modelSpace, 1);"
            
             "vec4 hyperbolicDepth =  (PVM*vec4(hitPos_modelSpace, 1));"
             "hyperbolicDepth.z /= hyperbolicDepth.w;"

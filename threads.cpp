@@ -59,6 +59,12 @@ void endMutex(MutexLock *lock) {
    SDL_UnlockMutex(lock->mutex);
 }
 
+struct ThreadConditionVariable {
+    SDL_cond *condition;
+    SDL_mutex *mutex;
+    bool ready; //NOTE: Whether it has work
+};
+
 struct AtomicInt {
     SDL_atomic_t value;
 };
@@ -223,17 +229,17 @@ void initThreadQueue(ThreadsInfo *threadsInfo) {
         threadsInfo->perFrameQueue_.WorkQueue[WorkIndex].Finished = true;
     }
     
-    SDL_Thread *Threads[12];
     int threadCount = 0;
+    int maxThreadCount = 64;
 
-    int coreCount = MathMin(numberOfUnusedProcessors, arrayCount(Threads));
+    int coreCount = MathMin(numberOfUnusedProcessors, maxThreadCount);
 
     for(int CoreIndex = 0;
-        CoreIndex < coreCount;
+        CoreIndex < coreCount - 1; //NOTE: Minus 1 for the thread that create the shadow map
         ++CoreIndex)
     {
-        assert(threadCount < arrayCount(Threads));
-        Threads[threadCount++] = SDL_CreateThread(platformThreadEntryPoint, "", threadsInfo);
-    }
-            
+        assert(threadCount < maxThreadCount);
+        SDL_CreateThread(platformThreadEntryPoint, "", threadsInfo);
+        threadCount++;
+    }            
 }

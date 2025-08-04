@@ -35,7 +35,7 @@ float12 modelIntertiaTensorToWorld(float12 I, float4 q) {
 int getVoxelIndex(VoxelEntity *e, int x, int y, int z)
 {
     assert(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth);
-    if(x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth) {
+    if(isfinite(x) && isfinite(y) && isfinite(z) && x >= 0 && x < e->stride && y >= 0 && y < e->pitch && z >= 0 && z < e->depth) {
         return (z * e->pitch * e->stride + y * e->stride + x);
     } else {
         return 0;
@@ -58,17 +58,24 @@ struct PhysicsWorld {
     Arbiter *arbiters;
     Arbiter *arbitersFreeList;
 
-    bool positionCorrecting; //DONE: this is how agressively the physics tries and resolves penetration
-
     VoxelEntity **entitiesNeedRebuilding;
 };
 
 void initPhysicsWorld(PhysicsWorld *world) {
-    world->positionCorrecting = true;
     world->entitiesNeedRebuilding = 0;
 }
 
 float2 worldPToVoxelP(VoxelEntity *e, float2 worldP);
+
+void integrateVelocitiesForEntity(VoxelEntity *e, float dt) {
+    float3 v = e->dA;
+    v.x *= -1;
+    v.y *= -1;
+    v.z *= -1;
+    e->T.rotation = integrateAngularVelocity(e->T.rotation, v, dt);
+    e->T.rotation = easyMath_normalizeQuaternion(e->T.rotation);
+    e->T.pos = plus_float3(e->T.pos, scale_float3(dt, e->dP));
+}
 
 float calculateInverseMassNormal(CollisionPoint *p, VoxelEntity *a, VoxelEntity *b) {
 
@@ -92,12 +99,12 @@ void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, Voxel
 void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {
     Arbiter *arb = world->arbiters;
 
-    float allowedPenertration = 0.01;//NOTE: Meters
-
     //NOTE: If positionCorrection correction is on
     // The bias factor is important because overly aggressive corrections (with a high bias factor) can cause instability or jittering in the simulation, while too small of a correction (with a low bias factor) may leave objects slightly penetrated.
 	// It strikes a balance between stability and realism, ensuring that objects resolve overlaps without visibly popping or jittering in the simulation.
-    float biasFactor = (world->positionCorrecting) ? 0.1f : 0.0f;
+    //NOTE: this is how agressively the physics tries and resolves penetration
+    float biasFactor = 0.1f;
+    float allowedPenertration = 0.1*VOXEL_SIZE_IN_METERS;//NOTE: Meters
 
     while(arb) {
         VoxelEntity *a = arb->a;

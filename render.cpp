@@ -218,7 +218,7 @@ struct GBuffer {
     TextureHandle normal;
     TextureHandle material;
     TextureHandle motion;
-    TextureHandle linearDepth;
+    TextureHandle worldPosition;
     
     TextureHandle depth;
 };
@@ -240,6 +240,8 @@ struct Renderer {
     uint32_t fontAtlasTexture;
     uint32_t whiteTexture;
     uint32_t voxelColorPallete;
+
+    uint32_t shadowMapVoxelHandle;
 
     float3 cameraP;
 

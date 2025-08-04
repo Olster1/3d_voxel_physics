@@ -1233,8 +1233,22 @@ float4 identityQuaternion() {
 }
 
 
+float4 easyMath_normalizeQuaternion(float4 q) {
+    float n = sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
+    
+    q.x /= n;
+    q.y /= n;
+    q.z /= n;
+    q.w /= n;
+
+    return q;
+}
+
+
 float12 quaternionToMatrix3x3(float4 q) {
     float12 result = float12_identity();
+
+	q = easyMath_normalizeQuaternion(q);
     
     float x = q.x;
     float y = q.y;
@@ -1336,17 +1350,6 @@ float4 eulerAnglesToQuaternion(float y, float x, float z) {
 
 float4 inverseQuaternion(float4 q) {
     return make_float4(-q.x, -q.y, -q.z, q.w);
-}
-
-float4 easyMath_normalizeQuaternion(float4 q) {
-    float n = sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
-    
-    q.x /= n;
-    q.y /= n;
-    q.z /= n;
-    q.w /= n;
-
-    return q;
 }
 
 float4 slerp(float4 q1, float4 q2, float t) {

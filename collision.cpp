@@ -312,9 +312,11 @@ int checkCornerAndEdgeVoxels(VoxelCollideData *collideData, VoxelEntity *a, Voxe
 }
 
 float getRelativeSpeed(VoxelEntity *a, VoxelEntity *b) {
+    float12 rotA = quaternionToMatrix3x3(a->T.rotation);
+    float12 rotB = quaternionToMatrix3x3(b->T.rotation);
      //NOTE: Get the distance of the point from center of mass 
-    float3 dpPointA = plus_float3(a->dP, float3_cross(a->dA, a->furtherestVoxel));
-    float3 dpPointB = plus_float3(b->dP, float3_cross(b->dA, b->furtherestVoxel));
+    float3 dpPointA = plus_float3(a->dP, float3_cross(a->dA, float12_scale(rotA, a->furtherestVoxel)));
+    float3 dpPointB = plus_float3(b->dP, float3_cross(b->dA, float12_scale(rotB, b->furtherestVoxel)));
 
     float result = float3_magnitude(minus_float3(dpPointB, dpPointA));
 
@@ -341,28 +343,14 @@ void collideVoxelEntities(void *data_) {
         a = temp;
     }
 
-    TransformX aT = a->T;
-    TransformX bT = b->T;
-
-    float3 aDA = a->dA;
-    aDA.x *= -1;
-    aDA.y *= -1;
-    aDA.z *= -1;
-
-    float3 bDA = b->dA;
-    bDA.x *= -1;
-    bDA.y *= -1;
-    bDA.z *= -1;
-
-    int minSpeculativeCollisionIterations = 2;
+    int minSpeculativeCollisionIterations = 1;
     int maxSpeculativeCollisionIterations = 100;
-    float marginFactor = 1.0f;
 
     float relSpeed = getRelativeSpeed(a, b);
 
     float dtAccum = 0;
     if(relSpeed != 0) {
-        dtAccum = ((marginFactor*VOXEL_SIZE_IN_METERS) / relSpeed); 
+        dtAccum = ((VOXEL_SIZE_IN_METERS) / relSpeed); 
     }
 
     int increments = 0;
@@ -375,7 +363,7 @@ void collideVoxelEntities(void *data_) {
         //NOTE: clamp the loop to a certain number of steps
         increments = maxSpeculativeCollisionIterations;
         dtAccum = collideData->deltaStep / (float)maxSpeculativeCollisionIterations;
-    } else if(increments < minSpeculativeCollisionIterations) {
+    } else if(increments <= minSpeculativeCollisionIterations) {
         increments = minSpeculativeCollisionIterations;
         dtAccum = collideData->deltaStep / (float)minSpeculativeCollisionIterations;
     } else {
@@ -388,13 +376,11 @@ void collideVoxelEntities(void *data_) {
     VoxelEntity tempA = *a;
     VoxelEntity tempB = *b;
 
-    assert(dtAccum < collideData->deltaStep);
+    assert(dtAccum <= collideData->deltaStep);
 
     for(int i = 0; i < increments && search; i++) {
-        tempA.T.rotation = integrateAngularVelocity(aT.rotation, aDA, dt);
-        tempA.T.pos = plus_float3(aT.pos, scale_float3(dt, a->dP));
-        tempB.T.rotation = integrateAngularVelocity(bT.rotation, bDA, dt);
-        tempB.T.pos = plus_float3(bT.pos, scale_float3(dt, b->dP));
+        integrateVelocitiesForEntity(&tempA, dtAccum);
+        integrateVelocitiesForEntity(&tempB, dtAccum);
 
         Rect3f aRect;
         Rect3f bRect; 

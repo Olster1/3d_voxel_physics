@@ -174,7 +174,7 @@ GBuffer createGBuffer(int width, int height) {
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8_SNORM, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
         renderCheckError();
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -185,7 +185,7 @@ GBuffer createGBuffer(int width, int height) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, texture, 0); 
         renderCheckError();
 
-        result.linearDepth.handle = texture;
+        result.worldPosition.handle = texture;
     }
 
     unsigned int attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
@@ -910,6 +910,30 @@ void updateInstanceData(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     renderCheckError();
 }
 
+void update3dTextureData(uint32_t bufferHandle, void *data) {
+    assert(bufferHandle > 0);
+   
+    glBindTexture(GL_TEXTURE_3D, bufferHandle);
+    renderCheckError();
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // must be before glTexImage3D
+    renderCheckError();
+
+    glTexSubImage3D(GL_TEXTURE_3D,
+                    0,            
+                    0, 0, 0,      
+                    SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH,
+                    GL_RED_INTEGER,         
+                    GL_UNSIGNED_BYTE,
+                    data);
+    renderCheckError();
+
+    
+    glBindTexture(GL_TEXTURE_3D, 0);
+    renderCheckError();
+}
+
+
 void updateInstanceDataSub(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
     renderCheckError();
@@ -1014,10 +1038,19 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     bindTexture("motion", 4, renderer->gBuffer.motion.handle, shader, 0);
     renderCheckError();
 
-    bindTexture("linearDepth", 5, renderer->gBuffer.linearDepth.handle, shader, 0);
+    bindTexture("worldPosition", 5, renderer->gBuffer.worldPosition.handle, shader, 0);
     renderCheckError();
 
     bindTexture("hyperbolicDepth", 6, renderer->gBuffer.depth.handle, shader, 0);
+    renderCheckError();
+
+    bindTexture("voxels", 7, renderer->shadowMapVoxelHandle, shader, SHADER_3D_TEXTURE);
+    renderCheckError();
+
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"), 0, 0, 0);
+    renderCheckError();
+
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"), VOXEL_SIZE_IN_METERS*SHADOW_MAP_WIDTH, VOXEL_SIZE_IN_METERS*SHADOW_MAP_HEIGHT, VOXEL_SIZE_IN_METERS*SHADOW_MAP_DEPTH);
     renderCheckError();
 
     glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1); 
@@ -1137,7 +1170,8 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
     renderCheckError();
     glBindTexture(GL_TEXTURE_3D, texture);
     renderCheckError();
-    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // must be before glTexImage3D
+    renderCheckError();
     glTexImage3D(GL_TEXTURE_3D, 0, GL_R8UI, width, height, depth, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
     renderCheckError();
 
@@ -1150,6 +1184,9 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     renderCheckError();
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    renderCheckError();
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // default value
     renderCheckError();
 
     glBindTexture(GL_TEXTURE_3D, 0); 

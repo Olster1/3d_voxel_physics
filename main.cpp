@@ -47,6 +47,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->whiteTexture = whiteTexture.handle;
     renderer->voxelColorPallete = voxelColorPallete.handle;
 
+    renderer->shadowMapVoxelHandle = upload3dTexture(SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH, 0).handle;
+
     renderer->blockShader = loadShader(blockVertexShader, blockFragShader);
     renderer->blockGreedyShader = loadShader(blockGreedyVertexShader, blockFragShader);
     renderer->quadTextureShader = loadShader(quadVertexShader, quadTextureFragShader);
@@ -238,11 +240,11 @@ void updateHotKeys(GameState *gameState) {
     float speed = 30;
 
     if(gameState->keys.keys[KEY_E] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        VoxelEntity *e = createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, startP, 1.0f / 1.0f, 0);
+        VoxelEntity *e = createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, startP, 1.0f / 1.0f, GRAVITY_AFFECTED);
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_R] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, 0);    
+        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, GRAVITY_AFFECTED);    
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
@@ -291,6 +293,9 @@ void updateGame(GameState *gameState) {
     processVoxelMeshes(gameState);
 
     updatePhysicsSim(gameState);
+
+    mainThread_signifyRebuild(gameState);
+
     renderVoxelEntities(gameState);
     // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
 

@@ -34,8 +34,6 @@ enum BlockFlags {
 
 };
 
-#define CHUNK_LIST_SIZE 4096*4
-
 struct GameState {
     bool inited;
     float dt;
@@ -72,6 +70,8 @@ struct GameState {
     float placeBlockTimer;
     float mineBlockTimer;
     float showCircleTimer;
+
+    u8 shadowMap[SHADOW_MAP_WIDTH*SHADOW_MAP_HEIGHT*SHADOW_MAP_DEPTH];
 
     WavFile cardFlipSound[2];
 
@@ -160,7 +160,12 @@ struct GameState {
 
     VoxelCollideData *voxelCollideDataFreeList;
     VoxelCollideData *voxelCollideData;
+
+    ThreadConditionVariable shadowMapThreadInfo;
+    bool shouldUploadShadowMapToGPU;
 };
+
+#include "./shadow_map_thread.cpp"
 
 void createBlockFlags(GameState *gameState) {
     for(int i = 0; i < arrayCount(gameState->blockFlags); ++i) {
@@ -305,7 +310,7 @@ void initGameState(GameState *gameState) {
     createCardinalDirectionsForMeshGenerator(&gameState->meshGenerator);
     createCardinalDirections(gameState);
 
-    float inverseMass = 1.0f / 50000.0f;
+    float inverseMass = 1.0f / 50.0f;
     {
         createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass);
         createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass);
@@ -361,7 +366,7 @@ void initGameState(GameState *gameState) {
     u32 *colors = loadVoxelModels(gameState, maxRowCount, maxColumnCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], true);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[1], true);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[2], true);
 
     Texture voxelColorPallete = createGPUTexture(maxColumnCount, maxRowCount, colors);
 
@@ -404,6 +409,8 @@ void initGameState(GameState *gameState) {
     gameState->perlinNoiseValue.x = 0.5f;
     gameState->perlinNoiseValue.y = 0.5f;
     gameState->perlinNoiseValue.z = 0.5f;
+
+    initShadowMapThread(gameState);
 
     gameState->inited = true;
 

@@ -34,7 +34,6 @@ MemoryPiece *getCurrentMemoryPiece(Arena *arena) {
     MemoryPiece *piece = arena->pieces;
     assert(piece);
     return piece;
-
 }
 
 #define pushStruct(arena, type) (type *)pushSize(arena, sizeof(type))

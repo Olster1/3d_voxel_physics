@@ -84,9 +84,9 @@ bool updateParticler(Renderer *renderer, Particler *particler, float3 cameraPos,
 
             assert(p);
 
-            float x = lerp(particler->spawnBox.minX, particler->spawnBox.maxX, make_lerpTValue((float)rand() / RAND_MAX));
-            float y = lerp(particler->spawnBox.minY, particler->spawnBox.maxY, make_lerpTValue((float)rand() / RAND_MAX));
-            float z = lerp(particler->spawnBox.minZ, particler->spawnBox.maxZ, make_lerpTValue((float)rand() / RAND_MAX));
+            float x = lerp(particler->spawnBox.minX, particler->spawnBox.maxX, make_lerpTValue((float)rand() / (float)RAND_MAX));
+            float y = lerp(particler->spawnBox.minY, particler->spawnBox.maxY, make_lerpTValue((float)rand() / (float)RAND_MAX));
+            float z = lerp(particler->spawnBox.minZ, particler->spawnBox.maxZ, make_lerpTValue((float)rand() / (float)RAND_MAX));
             p->T.pos = make_float3(x, y, z);
             p->T.scale = make_float3(0.1f, 0.1f, 0.1f);
 

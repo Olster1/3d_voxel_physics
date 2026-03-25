@@ -46,7 +46,6 @@ static char *compositeTextureFragShader =
     "vec3 voxels_per_unit = size / (AABB_max_metres - AABB_min_metres);"
 
     "vec3 entryP = ((ro + nudge*rd) - AABB_min_metres) * voxels_per_unit;"
-    "vec3 at = entryP;"
     "for(int i = 0; i < maxSearchDist; ++i) {"
         "ivec3 pos = clamp(ivec3(floor(entryP)), ivec3(0, 0, 0), size);"
         "vec3 texCoord = vec3(pos) / vec3(size);"

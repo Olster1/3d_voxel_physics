@@ -54,8 +54,8 @@ void updateCamera(GameState *gameState) {
                 gameState->camera.shakeTimer = -1;
                 gameState->cameraOffset = CAMERA_OFFSET;
             } else {
-                float randomOffset = ((float)rand() / RAND_MAX) * 100; 
-                float randomYOffset = ((float)rand() / RAND_MAX) * 50; 
+                float randomOffset = ((float)rand() / (float)RAND_MAX) * 100; 
+                float randomYOffset = ((float)rand() / (float)RAND_MAX) * 50; 
 
                 float tx = gameState->camera.shakeTimer*100 + randomOffset;
                 float ty = gameState->camera.shakeTimer*100 + randomYOffset + randomOffset;

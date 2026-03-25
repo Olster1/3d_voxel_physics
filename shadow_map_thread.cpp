@@ -5,6 +5,9 @@ void updateShadowMap(void *gameState_) {
     for(int entityIndex = 0; entityIndex < gameState->voxelEntityCount; ++entityIndex) {
         VoxelEntity *e = &gameState->voxelEntities[entityIndex];
 
+        float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
+        float3 origin = make_float3(0, 0, 0);
+
         for (int k = 0; k < e->depth; k++) {
             for (int j = 0; j < e->pitch; j++) {
                 for (int i = 0; i < e->stride; i++)
@@ -15,10 +18,8 @@ void updateShadowMap(void *gameState_) {
                         //NOTE: get proper matrix for conversion 
                         float3 p = make_float3(i, j, k);
                         float3 modelP = getVoxelPositionInModelSpaceFromCenter(e, p);
-                        float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
+                        
                         float4 worldP = float16_transform(T, make_float4(modelP.x, modelP.y, modelP.z, 1));
-
-                        float3 origin = make_float3(0, 0, 0);
 
                         int x = (int)((worldP.x - origin.x) * VOXELS_PER_METER);
                         int y = (int)((worldP.y - origin.y) * VOXELS_PER_METER);
@@ -28,7 +29,7 @@ void updateShadowMap(void *gameState_) {
                             x >= 0 && x < SHADOW_MAP_WIDTH &&
                             y >= 0 && y < SHADOW_MAP_HEIGHT &&
                             z >= 0 && z < SHADOW_MAP_DEPTH) {
-                            int index = (z * SHADOW_MAP_HEIGHT * SHADOW_MAP_WIDTH + y * SHADOW_MAP_WIDTH + x);
+                            int index = ((z * SHADOW_MAP_HEIGHT * SHADOW_MAP_WIDTH) + (y * SHADOW_MAP_WIDTH) + x);
                             gameState->shadowMap[index] = 1;
                         }
                     }

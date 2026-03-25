@@ -412,6 +412,9 @@ void initGameState(GameState *gameState) {
 
     initShadowMapThread(gameState);
 
+    // createTextureAtlas(gameState->renderer, "/Users/olivermarsh/Documents/dev/adventure_game/images/atlasImages/");
+    // exit(0);
+
     gameState->inited = true;
 
 }

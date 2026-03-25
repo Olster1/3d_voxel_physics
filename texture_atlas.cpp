@@ -97,7 +97,7 @@
 
         glViewport(0, 0, outputW, outputH);
 
-        game_file_handle atlasJsonFile = platformBeginFileWrite("./texture_atlas.json");
+        game_file_handle atlasJsonFile = platformBeginFileWrite("/Users/olivermarsh/Documents/dev/adventure_game/images/texture_atlas.json");
         assert(!atlasJsonFile.HasErrors);
         
         size_t offset = 0;
@@ -107,6 +107,12 @@
             char *name = files.names[i];
             
             Texture t = loadTextureToGPU(name);
+
+            if((xAt + t.w) >= outputW) {
+                xAt = 0;
+                yAt -= largestY;
+                largestY = 0;
+            }
 
             pushAtlasQuad_(renderer, make_float3(xAt + 0.5f*t.w, yAt - 0.5f*t.h, 1), make_float3(t.w, t.h, 1), make_float3(0, 0, 0), make_float4(0, 1, 0, 1), make_float4(1, 1, 1, 1), true);
 
@@ -120,7 +126,7 @@
                 renderer->atlasQuadHUDCount = 0;
             }
 
-            char *strToWrite = easy_createString_printf(&globalPerFrameArena, "{\"name\": \"%s\", \"uv\": %f %f %f %f}\n", getFileLastPortionWithArena(name, &globalPerFrameArena), xAt / outputW, (xAt + t.w) / outputW, -1*yAt / outputW, (-1*yAt + t.h) / outputW);
+            char *strToWrite = easy_createString_printf(&globalPerFrameArena, "{\"name\": \"%s\", \"uv\": %f %f %f %f}\n", getFileLastPortionWithArena(name, &globalPerFrameArena), xAt / outputW, -1*yAt / outputH, (xAt + t.w) / outputW, (-1*yAt + t.h) / outputH);
 
             offset = platformWriteFile(&atlasJsonFile, strToWrite, easyString_getSizeInBytes_utf8(strToWrite), offset);
 
@@ -132,11 +138,7 @@
 
             xAt += t.w;
 
-            if(xAt >= outputW) {
-                xAt = 0;
-                yAt -= largestY;
-                largestY = 0;
-            }
+        
 
             if(yAt >= outputH) {
                 assert(false);
@@ -165,7 +167,7 @@
         
         
         stbi_flip_vertically_on_write(1);
-        int writeResult = stbi_write_png("./texture_atlas.png", outputW, outputH, 4, pixelBuffer, stride_in_bytes);
+        int writeResult = stbi_write_png("/Users/olivermarsh/Documents/dev/adventure_game/images/texture_atlas.png", outputW, outputH, 4, pixelBuffer, stride_in_bytes);
 
         free(pixelBuffer);
 

@@ -581,10 +581,26 @@ static char *quadTextureFragShader =
 "out vec4 color;"
 "void main() {"
     "vec4 diffSample = texture(diffuse, uv_frag);"
-    "if(diffSample.w == 0) {"
-        "discard;"
+
+    "if (diffSample.a > 0.0) {"
+        // Standard pixel: premultiply and output
+        "diffSample.rgb *= diffSample.a;"
+        "color = diffSample*color_frag;"
+    "} else {"
+        // Transparent pixel: check neighbors to "bleed" color into the void
+        "vec2 offset = 1.0 / textureSize(diffuse, 0);"
+        "vec4 n = texture(diffuse, uv_frag + vec2(0, offset.y));"
+        "vec4 s = texture(diffuse, uv_frag - vec2(0, offset.y));"
+        "vec4 e = texture(diffuse, uv_frag + vec2(offset.x, 0));"
+        "vec4 w = texture(diffuse, uv_frag - vec2(offset.x, 0));"
+
+        // If a neighbor is solid, use its RGB but stay transparent (Alpha 0)
+        "if (n.a > 0.0) color = vec4(n.rgb, 0);"
+        "else if (s.a > 0.0) color = vec4(s.rgb, 0);"
+        "else if (e.a > 0.0) color = vec4(e.rgb, 0);"
+        "else if (w.a > 0.0) color = vec4(w.rgb, 0);"
+        "else discard;"
     "}"
-    "color = diffSample*color_frag;"
 "}";
 
 static char *fontTextureFragShader = 
@@ -617,6 +633,7 @@ static char *skyboxVertexShader =
 //uniform variables
 "uniform mat4 V;"
 "uniform mat4 projection;"
+"uniform vec3 sunAngle;"
 
 //outgoing variables
 "out vec3 uv_frag;"
@@ -633,8 +650,15 @@ static char *skyboxFragShader =
 "uniform samplerCube diffuse;"
 "uniform vec4 skyColorA;"
 "uniform vec4 skyColorB;"
+"vec3 sunAngle = " TOSTR(SUN_DIRECTION) ";"
 "out vec4 color;"
 "void main() {"
 "float value = dot(normalize(uv_frag), vec3(0, 1, 0));"
-"color = mix(skyColorA, skyColorB, value);"
+"float dotValue = dot(normalize(uv_frag), normalize(sunAngle));"
+"if(dotValue > 0.99) {"
+    "color = mix(skyColorB,vec4(1),  (dotValue - 0.99) / (1.0 - 0.99));"
+"} else {"
+    "color = mix(skyColorA, skyColorB, value);"
+"}"
+
 "}";

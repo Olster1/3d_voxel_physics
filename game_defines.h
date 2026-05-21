@@ -1,3 +1,22 @@
+// #define TEXTURE_ATLAS_READ_FOLDER "/Users/olivermarsh/dev/adventure_game/images/atlasImages/"
+// #define TEXTURE_ATLAS_WRITE_IMAGE "/Users/olivermarsh/dev/adventure_game/images/texture_atlas.png"
+// #define TEXTURE_ATLAS_WRITE_DATA "/Users/olivermarsh/dev/adventure_game/images/texture_atlas.json"
+
+
+// #define TEXTURE_ATLAS_READ_FOLDER "/Users/olivermarsh/dev/calculator/assets/images/"
+// #define TEXTURE_ATLAS_WRITE_IMAGE "/Users/olivermarsh/dev/calculator/assets/texture_atlas.png"
+// #define TEXTURE_ATLAS_WRITE_DATA "/Users/olivermarsh/dev/calculator/assets/texture_atlas.json"
+
+#define TEXTURE_ATLAS_READ_FOLDER "/Users/olivermarsh/dev/jungle_runner/assets/images/"
+#define TEXTURE_ATLAS_WRITE_IMAGE "/Users/olivermarsh/dev/jungle_runner/assets/texture_atlas.png"
+#define TEXTURE_ATLAS_WRITE_DATA "/Users/olivermarsh/dev/jungle_runner/assets/texture_atlas.json"
+
+// #define TEXTURE_ATLAS_DIM 4096 
+
+#define TEXTURE_ATLAS_DIM 1000 
+
+
+
 #define GRAVITY_POWER 28
 #define JUMP_POWER 6
 #define MAX_SHAKE_TIMER 0.4f
@@ -44,3 +63,4 @@
 #define SHADOW_MAP_DEPTH 512
 
 #define CHUNK_LIST_SIZE 4096*4
+

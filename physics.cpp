@@ -40,7 +40,6 @@ int getVoxelIndex(VoxelEntity *e, int x, int y, int z)
     } else {
         return 0;
     }
-    
 }
 
 float3 voxelToWorldP(VoxelEntity *e, int x, int y, int z);

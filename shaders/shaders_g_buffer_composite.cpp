@@ -21,7 +21,6 @@ static char *compositeTextureVertexShader =
     "uv_frag = vec2(texUV.x, -1*texUV.y);"
 "}";
 
-
 static char *compositeTextureFragShader = 
 "#version 330\n"
 "in vec4 color_frag;" 
@@ -33,40 +32,48 @@ static char *compositeTextureFragShader =
 "uniform sampler2D worldPosition;"
 "uniform sampler2D hyperbolicDepth;"
 "out vec4 color;"
-"vec3 sunAngle = vec3(0.17364817766, 0.98480775301, 0);"
+"vec3 sunAngle = " TOSTR(SUN_DIRECTION) ";" // Your normalized light direction
 "uniform usampler3D voxels;"
-"uniform vec3 AABB_min_metres;" //NOTE: Size of the map in meteres
+"uniform vec3 AABB_min_metres;" 
 "uniform vec3 AABB_max_metres;"
 
-"float sampleShadowVoxels(vec3 ro, vec3 rd) {"
+"float sampleShadowVoxels(vec3 ro, vec3 rd, vec3 normal) {"
     "int mipLevel = 0;" 
     "ivec3 size = textureSize(voxels, mipLevel);"
-    "int maxSearchDist = 128;"
-    "float nudge = 0.0001;"
-    "vec3 voxels_per_unit = size / (AABB_max_metres - AABB_min_metres);"
+    "int maxSearchDist = 256;"
+    "float normalBias = 0.05;" // Lift up away from the geometry skin
+    
+    "vec3 voxels_per_unit = vec3(size) / (AABB_max_metres - AABB_min_metres);"
 
-    "vec3 entryP = ((ro + nudge*rd) - AABB_min_metres) * voxels_per_unit;"
+    // 1. First lift it vertically off the surface, then push it slightly along the sun ray
+    "vec3 currentWorldP = ro + (normalize(normal) * normalBias) + (rd);"
+    
+    // Scale the ray direction so one step in world space equals roughly one voxel unit step
+    // This stops the ray from stepping too fast or slow depending on voxel density
+    "float min_voxel_size = 1.0 / max(voxels_per_unit.x, max(voxels_per_unit.y, voxels_per_unit.z));"
+    "vec3 stepVector = rd * min_voxel_size;"
+
     "for(int i = 0; i < maxSearchDist; ++i) {"
-        "ivec3 pos = clamp(ivec3(floor(entryP)), ivec3(0, 0, 0), size);"
-        "vec3 texCoord = vec3(pos) / vec3(size);"
-        "int intVal = int(texture(voxels, texCoord).r);"
-        "if(intVal > 0) {"
-            "return 0.4;"
+        // Convert current world position to voxel texture coordinates
+        "vec3 voxelSpaceP = (currentWorldP - AABB_min_metres) * voxels_per_unit;"
+        "ivec3 pos = ivec3(floor(voxelSpaceP));"
+
+        // Out of bounds check against the voxel grid dimensions
+        "if(pos.x < 0 || pos.x >= size.x || pos.y < 0 || pos.y >= size.y || pos.z < 0 || pos.z >= size.z) {"
+            "return 1.0;" // Exited voxel bounds, sky is visible -> light
         "}"
-        "entryP += rd;"
-        "if(entryP.x < 0 || entryP.x >= size.x) {"
-            "return 1;"
-        "}"
-        "if(entryP.y < 0 || entryP.y >= size.y) {"
-            "return 1;"
-        "}"
-        "if(entryP.z < 0 || entryP.z >= size.z) {"
-            "return 1;"
+
+        // Use texelFetch for perfect pixel-accurate integer voxel lookup
+        "uint intVal = texelFetch(voxels, pos, 0).r;"
+        "if(intVal > 0u) {"
+            "return 0.4;" // Hit a voxel -> shadow
         "}"
         
+        // Step forward along the sun ray
+        "currentWorldP += stepVector;"
     "}"
     
-    "return 1;"
+    "return 1.0;"
 "}"
 
 "void main() {"
@@ -75,11 +82,10 @@ static char *compositeTextureFragShader =
     "depth = pow(depth, 20.0); "
     "vec4 albedo = texture(diffuse, uv_frag);"
     "vec3 worldNormal = texture(normal, uv_frag).xyz;"
-    "float mixValue = max(dot(worldNormal, sunAngle), 0.4);"
-    "vec3 mappedColor = (worldNormal.xyz + vec3(1.0)) * 0.5;"
-    // "color = vec4(mappedColor, 1);"
-    // "color = vec4(depth, depth, depth, 1);"
-    // "color = vec4(worldP, 1);"
-    "float shadowValue = sampleShadowVoxels(worldP, worldNormal);"
-    "color = vec4(shadowValue*mixValue*albedo.xyz, 1);"
+    
+    "float shadowValue = sampleShadowVoxels(worldP, sunAngle, worldNormal);"
+
+    "float mixValue = max(dot(normalize(worldNormal), normalize(sunAngle)), 0.4);"
+    
+    "color = vec4(mixValue * shadowValue * albedo.xyz, 1);"
 "}";

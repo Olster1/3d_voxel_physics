@@ -4,7 +4,7 @@
 
     struct TextureAtlas {
         Texture texture;
-        
+
         //NOTE: Hash table of assets
         AtlasAsset *items[4096];
     };
@@ -67,7 +67,7 @@
     //     AtlasAsset *d = getItem(&atlas, "name", 1);
 
     //     AtlasAsset *e = getItem(&atlas, "name1", 1);
-        
+
 
     //     assert(a);
     //     assert(b);
@@ -78,38 +78,44 @@
     //     assert(a != d);
 
     //     assert(!e);
-        
-    // }
 
+    // }
+ 
     void createTextureAtlas(Renderer *renderer, char *folder) {
         char *imgFileTypes[] = {"jpg", "jpeg", "png", "bmp", "PNG"};
         FileNameOfType files = getDirectoryFilesOfType(folder, imgFileTypes, arrayCount(imgFileTypes));
 
-        float outputW = 4096*0.5f;
-        float outputH = 4096*0.5f;
+        float outputW = TEXTURE_ATLAS_DIM;
+        float outputH = TEXTURE_ATLAS_DIM;
 
-        float xAt = 0;
-        float yAt = 0;
+        int margin = 4;
+
+        float xAt = margin;
+        float yAt = -margin;
 
         float16 screenGuiT = make_ortho_matrix_top_left_corner(outputW, outputH, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
         FrameBuffer frameBuffer = createFrameBuffer(outputW, outputH);
         rendererBindFrameBuffer(&frameBuffer);
+        glClearColor(0, 0, 0, 0);
+        renderCheckError();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
+        renderCheckError();
 
         glViewport(0, 0, outputW, outputH);
 
-        game_file_handle atlasJsonFile = platformBeginFileWrite("/Users/olivermarsh/Documents/dev/adventure_game/images/texture_atlas.json");
+        game_file_handle atlasJsonFile = platformBeginFileWrite(TEXTURE_ATLAS_WRITE_DATA);
         assert(!atlasJsonFile.HasErrors);
-        
+
         size_t offset = 0;
-        
+
         float largestY = 0;
         for(int i = 0; i < files.count; ++i) {
             char *name = files.names[i];
-            
+
             Texture t = loadTextureToGPU(name);
 
-            if((xAt + t.w) >= outputW) {
-                xAt = 0;
+            if((xAt + t.w + margin) >= outputW) {
+                xAt = margin;
                 yAt -= largestY;
                 largestY = 0;
             }
@@ -126,19 +132,17 @@
                 renderer->atlasQuadHUDCount = 0;
             }
 
-            char *strToWrite = easy_createString_printf(&globalPerFrameArena, "{\"name\": \"%s\", \"uv\": %f %f %f %f}\n", getFileLastPortionWithArena(name, &globalPerFrameArena), xAt / outputW, -1*yAt / outputH, (xAt + t.w) / outputW, (-1*yAt + t.h) / outputH);
+            char *strToWrite = easy_createString_printf(&globalPerFrameArena, "{\"name\": \"%s\", \"uv\": %f %f %f %f}\n", getFileLastPortionWithArena(name, &globalPerFrameArena), (double)xAt / (double)outputW, (double)-1*yAt / (double)outputH, (double)(xAt + t.w) / (double)outputW, (double)(-1*yAt + t.h) / (double)outputH);
 
             offset = platformWriteFile(&atlasJsonFile, strToWrite, easyString_getSizeInBytes_utf8(strToWrite), offset);
 
             renderer->alphaItemCount = 0;
 
-            if(largestY < t.h) {
-                largestY = t.h;
+            if(largestY < (t.h + margin)) {
+                largestY = (t.h + margin);
             }
 
-            xAt += t.w;
-
-        
+            xAt += (t.w + margin);
 
             if(yAt >= outputH) {
                 assert(false);
@@ -155,19 +159,19 @@
         size_t bytesPerPixel = sizeof(uint8_t)*4;
         size_t sizeToAlloc = outputW*outputH*bytesPerPixel;
         int stride_in_bytes = bytesPerPixel*outputW;
-        
+
         uint8_t *pixelBuffer = (uint8_t *)calloc(sizeToAlloc, 1);
-        
+
         glReadPixels(0, 0,
                             outputW,
                             outputH,
                             GL_RGBA,
                             GL_UNSIGNED_BYTE,
                             pixelBuffer);
-        
-        
+
+
         stbi_flip_vertically_on_write(1);
-        int writeResult = stbi_write_png("/Users/olivermarsh/Documents/dev/adventure_game/images/texture_atlas.png", outputW, outputH, 4, pixelBuffer, stride_in_bytes);
+        int writeResult = stbi_write_png(TEXTURE_ATLAS_WRITE_IMAGE, outputW, outputH, 4, pixelBuffer, stride_in_bytes);
 
         free(pixelBuffer);
 

@@ -1,8 +1,19 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "./libs/stb_image.h"
+
+#define STR(x) #x
+#define TOSTR(x) STR(x)
+// #define SUN_DIRECTION vec3(0.17364817766, 0.98480775301, 0)
+// #define SUN_DIRECTION vec3(0, 1, 0)
+#define SUN_DIRECTION vec3(0.70710678118, 0.70710678118, 0)
+
+
 #include "./shaders/shaders_opengl.cpp"
 #include "./shaders/shaders_g_buffer_composite.cpp"
 #include "./shaders/shaders_opengl_raycast.cpp"
+
+#undef STR
+#undef TOSTR
 
 // NOTE: Each location index in a vertex attribute index - i.e. 4 floats. that's why for matrix we skip 4 values
 #define VERTEX_ATTRIB_LOCATION 0
@@ -714,7 +725,7 @@ void initBackendRenderer() {
     glDepthMask(GL_TRUE);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 struct Texture {
@@ -1047,11 +1058,17 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     bindTexture("voxels", 7, renderer->shadowMapVoxelHandle, shader, SHADER_3D_TEXTURE);
     renderCheckError();
 
-    glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"), 0, 0, 0);
-    renderCheckError();
+    float half_width  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_WIDTH)  / 2.0f;
+    float half_height = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_HEIGHT) / 2.0f;
+    float half_depth  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_DEPTH)  / 2.0f;
 
-    glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"), VOXEL_SIZE_IN_METERS*SHADOW_MAP_WIDTH, VOXEL_SIZE_IN_METERS*SHADOW_MAP_HEIGHT, VOXEL_SIZE_IN_METERS*SHADOW_MAP_DEPTH);
-    renderCheckError();
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"), 
+            -half_width, -half_height, -half_depth);
+            renderCheckError();
+
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"), 
+            half_width, half_height, half_depth);
+            renderCheckError();
 
     glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1); 
     renderCheckError();

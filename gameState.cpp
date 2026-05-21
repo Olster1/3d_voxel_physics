@@ -30,7 +30,7 @@ enum BlockFlags {
     BLOCK_FLAGS_NO_MINE_OUTLINE = 1 << 4, //NOTE: Whether it shows the mining outline
     BLOCK_FLAGS_AO = 1 << 5, //NOTE: Whether it shows the mining outline
     BLOCK_FLAGS_UNSAFE_UNDER = 1 << 6, //NOTE: Whether the block should be destroyed if underneath block destroyed
-    BLOCK_FLAGS_MINEABLE = 1 << 7, 
+    BLOCK_FLAGS_MINEABLE = 1 << 7,
 
 };
 
@@ -50,7 +50,7 @@ struct GameState {
 
     int particlerCount;
     Particler particlers[512];
-    
+
     Font mainFont;
 
     Texture grassTexture;
@@ -62,8 +62,8 @@ struct GameState {
 
     VoxelModel buildingModels[32];
     int buildingModelCount;
-    
-    
+
+
     MouseKeyState mouseLeftBtn;
 
     Block *currentMiningBlock;
@@ -71,7 +71,9 @@ struct GameState {
     float mineBlockTimer;
     float showCircleTimer;
 
-    u8 shadowMap[SHADOW_MAP_WIDTH*SHADOW_MAP_HEIGHT*SHADOW_MAP_DEPTH];
+    u8 *shadowMapGPUReady; 
+    // Pointer to the buffer the background thread is currently writing to
+    u8 *shadowMapWorkerBackbuffer;
 
     WavFile cardFlipSound[2];
 
@@ -189,7 +191,7 @@ void createBlockFlags(GameState *gameState) {
                 flags = 0;
             } break;
             default: {
-                
+
             };
         }
         gameState->blockFlags[i] = flags;
@@ -236,7 +238,7 @@ void createAOOffsets(GameState *gameState) {
         }
 
         gameState->aoOffsets[i].offsets[0] = plus_float3(sizedOffset, masks[0]);
-        gameState->aoOffsets[i].offsets[1] = sizedOffset; 
+        gameState->aoOffsets[i].offsets[1] = sizedOffset;
         gameState->aoOffsets[i].offsets[2] = plus_float3(sizedOffset, masks[1]);
     }
 }
@@ -244,12 +246,15 @@ void createAOOffsets(GameState *gameState) {
 u32 *loadVoxelModels(GameState *gameState, int maxRowCount, int maxColumnCount) {
     gameState->buildingModels[0] = loadVoxFile("./models/TallBuilding01.vox");
     gameState->buildingModels[0].colorPalletteId = ++gameState->buildingModelCount;
-    
-    gameState->buildingModels[1] = loadVoxFile("./models/LargeBuilding01.vox");
+
+    gameState->buildingModels[1] = loadVoxFile("./models/nyc.vox");
     gameState->buildingModels[1].colorPalletteId = ++gameState->buildingModelCount;
 
-    gameState->buildingModels[2] = loadVoxFile("./models/axe.vox");
-    gameState->buildingModels[2].colorPalletteId = ++gameState->buildingModelCount;
+    // gameState->buildingModels[1] = loadVoxFile("./models/LargeBuilding01.vox");
+    // gameState->buildingModels[1].colorPalletteId = ++gameState->buildingModelCount;
+
+    // gameState->buildingModels[2] = loadVoxFile("./models/axe.vox");
+    // gameState->buildingModels[2].colorPalletteId = ++gameState->buildingModelCount;
 
     assert(gameState->buildingModelCount < arrayCount(gameState->buildingModels));
 
@@ -286,13 +291,13 @@ void createSearchOffsets(GameState *gameState) {
     }
     assert(index == 26);
 
-    gameState->searchOffsetsSmall[0] = make_float3(1, 0, 0); 
-    gameState->searchOffsetsSmall[0] = make_float3(0, 0, 1); 
-    gameState->searchOffsetsSmall[0] = make_float3(-1, 0, 0); 
-    gameState->searchOffsetsSmall[0] = make_float3(0, 0, -1); 
+    gameState->searchOffsetsSmall[0] = make_float3(1, 0, 0);
+    gameState->searchOffsetsSmall[0] = make_float3(0, 0, 1);
+    gameState->searchOffsetsSmall[0] = make_float3(-1, 0, 0);
+    gameState->searchOffsetsSmall[0] = make_float3(0, 0, -1);
 
-    gameState->searchOffsetsSmall[0] = make_float3(0, 1, 0); 
-    gameState->searchOffsetsSmall[0] = make_float3(0, -1, 0); 
+    gameState->searchOffsetsSmall[0] = make_float3(0, 1, 0);
+    gameState->searchOffsetsSmall[0] = make_float3(0, -1, 0);
 }
 
 void initGameState(GameState *gameState) {
@@ -320,10 +325,11 @@ void initGameState(GameState *gameState) {
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass);
-        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 70.0f, make_float3(0, -3, 0), 0, 0);
-        // gameState->grabbed = &gameState->voxelEntities[2]; 
+        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 50.0f, make_float3(0, -3, 0), 0, 0);
+        // createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 30.0f, make_float3(0, 5, 0), 0, 0);
+        // gameState->grabbed = &gameState->voxelEntities[2];
     }
-    
+
     assert(BLOCK_TYPE_COUNT < 255);
     gameState->camera.fov = 60;
     gameState->camera.T.pos = make_float3(0, 0, -10);
@@ -340,12 +346,12 @@ void initGameState(GameState *gameState) {
     gameState->entitiesToAddCount = 0;
 
     gameState->timeOfDay = 0.4f;
-    
+
     initPlayer(&gameState->player);
     gameState->player.T.pos = gameState->camera.T.pos;
 
     initPhysicsWorld(&gameState->physicsWorld);
-    
+
     // loadWavFile(&gameState->cardFlipSound[0], "./sounds/cardFlip.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->cardFlipSound[1], "./sounds/cardFlip1.wav", &gameState->audioSpec);
     // loadWavFile(&gameState->blockBreakSound, "./sounds/blockBreak.wav", &gameState->audioSpec);
@@ -363,10 +369,17 @@ void initGameState(GameState *gameState) {
 
     int maxRowCount = 4;
     int maxColumnCount = 512;
+    // u32 *colors = pushArray(&globalPerFrameArena, maxRowCount*maxColumnCount, u32);
+    // u32 forestGreen = 0x228B22; 
+    // int totalElements = maxRowCount * maxColumnCount;
+    // for (int i = 0; i < totalElements; ++i){
+    //     colors[i] = forestGreen;
+    // }
     u32 *colors = loadVoxelModels(gameState, maxRowCount, maxColumnCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], true);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[2], true);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, -1, 0), CAN_BE_DESTORYED | GRAVITY_AFFECTED, &gameState->buildingModels[1], true);
+    // createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[2], true);
 
     Texture voxelColorPallete = createGPUTexture(maxColumnCount, maxRowCount, colors);
 
@@ -376,7 +389,7 @@ void initGameState(GameState *gameState) {
     gameState->renderer->numColorPalettes = maxRowCount;
 
     gameState->mainFont = initFontAtlas("./fonts/Medieval.ttf");
-    
+
     gameState->renderer->fontAtlasTexture = gameState->mainFont.textureHandle;
 
     gameState->placeBlockTimer = -1;
@@ -394,11 +407,11 @@ void initGameState(GameState *gameState) {
     gameState->particlerCount = 0;
 
     gameState->spriteTextureAtlas = readTextureAtlas("./texture_atlas.json", "./texture_atlas.png");
-    
+
     GLint maxUniformBlockSize;
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize);
     assert((maxUniformBlockSize / sizeof(float16)) > MAX_BONES_PER_MODEL);
-    
+
     createSearchOffsets(gameState);
 
     gameState->perlinTestTexture = createGPUTexture(PERLIN_SIZE, PERLIN_SIZE, 0);
@@ -412,7 +425,7 @@ void initGameState(GameState *gameState) {
 
     initShadowMapThread(gameState);
 
-    // createTextureAtlas(gameState->renderer, "/Users/olivermarsh/Documents/dev/adventure_game/images/atlasImages/");
+    // createTextureAtlas(gameState->renderer, TEXTURE_ATLAS_READ_FOLDER);
     // exit(0);
 
     gameState->inited = true;

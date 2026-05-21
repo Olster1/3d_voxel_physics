@@ -21,6 +21,7 @@ struct ThreadsInfo {
     SDL_sem *Semaphore;
     ThreadWorkQueue queue_;
     ThreadWorkQueue perFrameQueue_;
+    int threadCount;
 };
 
 typedef struct {
@@ -241,5 +242,6 @@ void initThreadQueue(ThreadsInfo *threadsInfo) {
         assert(threadCount < maxThreadCount);
         SDL_CreateThread(platformThreadEntryPoint, "", threadsInfo);
         threadCount++;
-    }            
+    }   
+    threadsInfo->threadCount = threadCount;         
 }

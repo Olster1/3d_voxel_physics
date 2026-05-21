@@ -74,6 +74,7 @@ struct GameState {
     u8 *shadowMapGPUReady; 
     // Pointer to the buffer the background thread is currently writing to
     u8 *shadowMapWorkerBackbuffer;
+    u8 *persistentThreadBuffers;
 
     WavFile cardFlipSound[2];
 
@@ -321,12 +322,12 @@ void initGameState(GameState *gameState) {
         createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass);
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 6, 0), inverseMass);
+        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 20, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass);
         createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass);
         createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 50.0f, make_float3(0, -3, 0), 0, 0);
-        // createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 30.0f, make_float3(0, 5, 0), 0, 0);
+        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 30.0f, make_float3(0, 5, 0), 0, 0);
         // gameState->grabbed = &gameState->voxelEntities[2];
     }
 
@@ -423,7 +424,8 @@ void initGameState(GameState *gameState) {
     gameState->perlinNoiseValue.y = 0.5f;
     gameState->perlinNoiseValue.z = 0.5f;
 
-    initShadowMapThread(gameState);
+    initShadowMapState(gameState);
+    // initShadowMapThread(gameState);
 
     // createTextureAtlas(gameState->renderer, TEXTURE_ATLAS_READ_FOLDER);
     // exit(0);

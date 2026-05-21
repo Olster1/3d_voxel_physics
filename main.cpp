@@ -48,6 +48,7 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->voxelColorPallete = voxelColorPallete.handle;
 
     renderer->shadowMapVoxelHandle = upload3dTexture(SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH, 0).handle;
+    renderer->shadowMapPboVoxelHandle = render_createPBOTexture();
 
     renderer->blockShader = loadShader(blockVertexShader, blockFragShader);
     renderer->blockGreedyShader = loadShader(blockGreedyVertexShader, blockFragShader);
@@ -294,7 +295,8 @@ void updateGame(GameState *gameState) {
 
     updatePhysicsSim(gameState);
 
-    mainThread_signifyRebuild(gameState);
+    // mainThread_signifyRebuild(gameState);
+    singleThreadedShadowMap(gameState);
 
     renderVoxelEntities(gameState);
     // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);

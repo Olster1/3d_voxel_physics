@@ -242,6 +242,7 @@ struct Renderer {
     uint32_t voxelColorPallete;
 
     uint32_t shadowMapVoxelHandle;
+    uint32_t shadowMapPboVoxelHandle;
 
     float3 cameraP;
 

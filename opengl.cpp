@@ -921,6 +921,53 @@ void updateInstanceData(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     renderCheckError();
 }
 
+uint32_t render_createPBOTexture() {
+    uint32_t shadowMapPBO = 0;
+    glGenBuffers(1, &shadowMapPBO);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, shadowMapPBO);
+
+    size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH * sizeof(u8);
+    // Allocate memory for the PBO buffer. GL_STREAM_DRAW means we update it every frame.
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+    return shadowMapPBO;
+}
+
+
+void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *data) {
+    assert(bufferHandle > 0);
+    assert(pboHandle > 0);
+    
+    size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH * sizeof(u8);
+
+    // 1. Bind the PBO and stream the CPU data into it
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboHandle);
+    
+    // Orphans the old buffer to prevent driver stalling, then uploads fresh data
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
+    glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, mapSizeInBytes, data);
+
+    // 2. Bind the 3D texture
+    glBindTexture(GL_TEXTURE_3D, bufferHandle);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    // 3. Trigger the asynchronous GPU-to-GPU transfer
+    // Because a PBO is bound, the last argument '0' is an offset, NOT a pointer!
+    glTexSubImage3D(GL_TEXTURE_3D,
+                    0,            
+                    0, 0, 0,      
+                    SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH,
+                    GL_RED_INTEGER,         
+                    GL_UNSIGNED_BYTE,
+                    (void*)0); 
+
+    // 4. Clean up state bindings
+    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+}
+
 void update3dTextureData(uint32_t bufferHandle, void *data) {
     assert(bufferHandle > 0);
    

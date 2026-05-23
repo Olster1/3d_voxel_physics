@@ -163,8 +163,7 @@ int doesVoxelCollide(float3 worldP, VoxelEntity *e, int idX, int idY, int idZ, b
 float3 modelSpaceToWorldSpace(VoxelEntity *e, float x, float y, float z) {
     float16 T = quaternionToMatrix(e->T.rotation);
     float3 p = plus_float3(float16_transform(T, make_float4(x, y, z, 1)).xyz, e->T.pos); 
-    return plus_float3(make_float3(x, y, z), e->T.pos);
-    // return make_float3(x, y, z);
+    return p; // Return the actual transformed position!
 }
 
 bool boundingBoxOverlapWithMargin(VoxelEntity *a, VoxelEntity *b, Rect3f *aRect, Rect3f *bRect, float margin) {

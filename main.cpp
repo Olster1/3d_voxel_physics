@@ -34,7 +34,7 @@ static float global_totalLoopTime = 0;
 #include "./particles.cpp"
 #include "./load_gltf.cpp"
 
-Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete, float2 resolution) {
+Renderer *initRenderer(Texture blueNoiseTexture, Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete, float2 resolution) {
     
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     
@@ -42,6 +42,8 @@ Renderer *initRenderer(Texture grassTexture, Texture breakBlockTexture, Texture 
     renderer->atlasQuadCount = 0;
     renderer->glyphCount = 0;
     renderer->terrainTextureHandle = grassTexture.handle;
+    renderer->blueNoiseTexture = blueNoiseTexture.handle;
+    
     renderer->breakBlockTexture = breakBlockTexture.handle;
     renderer->atlasTexture = atlasTexture.handle;
     renderer->whiteTexture = whiteTexture.handle;

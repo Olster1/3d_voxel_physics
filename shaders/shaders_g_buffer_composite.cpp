@@ -34,48 +34,71 @@ static char *compositeTextureFragShader =
 "out vec4 color;"
 "vec3 sunAngle = " TOSTR(SUN_DIRECTION) ";" // Your normalized light direction
 "uniform usampler3D voxels;"
+"uniform sampler2D blueNoise;"
 "uniform vec3 AABB_min_metres;" 
 "uniform vec3 AABB_max_metres;"
+"uniform vec2 screenSize;"
+"float lightRadius = 0.05;"
 
-"float sampleShadowVoxels(vec3 ro, vec3 rd, vec3 normal) {"
-    "int mipLevel = 0;" 
-    "ivec3 size = textureSize(voxels, mipLevel);"
-    "int maxSearchDist = 256;"
-    "float normalBias = 0.05;" // Lift up away from the geometry skin
-    
-    "vec3 voxels_per_unit = vec3(size) / (AABB_max_metres - AABB_min_metres);"
-
-    // 1. First lift it vertically off the surface, then push it slightly along the sun ray
-    "vec3 currentWorldP = ro + (normalize(normal) * normalBias) + (rd);"
-    
-    // Scale the ray direction so one step in world space equals roughly one voxel unit step
-    // This stops the ray from stepping too fast or slow depending on voxel density
-    "float min_voxel_size = 1.0 / max(voxels_per_unit.x, max(voxels_per_unit.y, voxels_per_unit.z));"
-    "vec3 stepVector = rd * min_voxel_size;"
-
-    "for(int i = 0; i < maxSearchDist; ++i) {"
-        // Convert current world position to voxel texture coordinates
-        "vec3 voxelSpaceP = (currentWorldP - AABB_min_metres) * voxels_per_unit;"
-        "ivec3 pos = ivec3(floor(voxelSpaceP));"
-
-        // Out of bounds check against the voxel grid dimensions
-        "if(pos.x < 0 || pos.x >= size.x || pos.y < 0 || pos.y >= size.y || pos.z < 0 || pos.z >= size.z) {"
-            "return 1.0;" // Exited voxel bounds, sky is visible -> light
-        "}"
-
-        // Use texelFetch for perfect pixel-accurate integer voxel lookup
-        "uint intVal = texelFetch(voxels, pos, 0).r;"
-        "if(intVal > 0u) {"
-            "return 0.4;" // Hit a voxel -> shadow
-        "}"
-        
-        // Step forward along the sun ray
-        "currentWorldP += stepVector;"
-    "}"
-    
-    "return 1.0;"
+"vec2 getNoiseUV() {"
+"    vec2 noiseSize = vec2(textureSize(blueNoise, 0));"
+"    return gl_FragCoord.xy / noiseSize;" 
 "}"
 
+"vec3 jitterRay(vec3 rd, vec2 noiseValue) {"
+"    float angle = noiseValue.x * 6.28318530718;" 
+"    float radius = sqrt(noiseValue.y) * lightRadius;" 
+"    "
+"    vec3 up = abs(rd.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);"
+"    vec3 tangent = normalize(cross(up, rd));"
+"    vec3 bitangent = cross(rd, tangent);"
+"    "
+"    vec3 jitteredOffset = (tangent * cos(angle) + bitangent * sin(angle)) * radius;"
+"    return normalize(rd + jitteredOffset);"
+"}"
+
+"float raycastVoxelShadow(vec3 ro, vec3 rd, vec3 normal) {"
+"    int mipLevel = 0;" 
+"    ivec3 size = textureSize(voxels, mipLevel);" 
+"    int maxSearchDist = 256;"
+"    float normalBias = 0.07;" 
+"    "
+"    vec3 voxels_per_unit = vec3(size) / (AABB_max_metres - AABB_min_metres);"
+"    vec3 currentWorldP = ro + (normalize(normal) * normalBias);"
+"    "
+"    float min_voxel_size = 1.0 / max(voxels_per_unit.x, max(voxels_per_unit.y, voxels_per_unit.z));"
+"    vec3 stepVector = rd * min_voxel_size;"
+"    "
+"    for(int i = 0; i < maxSearchDist; ++i) {"
+"        vec3 voxelSpaceP = (currentWorldP - AABB_min_metres) * voxels_per_unit;"
+"        ivec3 pos = ivec3(floor(voxelSpaceP));"
+"        "
+"        if(pos.x < 0 || pos.x >= (size.x - 1) || pos.y < 0 || pos.y >= (size.y - 1) || pos.z < 0 || pos.z >= (size.z - 1)) {"
+"            return 1.0;" 
+"        }"
+"        "
+"        uint intVal = texelFetch(voxels, pos, 0).r;"
+"        if(intVal > 0u) {"
+"            return 0.4;" 
+"        }"
+"        "
+"        currentWorldP += stepVector;"
+"    }"
+"    return 1.0;"
+"}"
+
+"float sampleShadowVoxels(vec3 ro, vec3 rd, vec3 normal) {"
+"    vec2 noiseUV = getNoiseUV();"
+"    vec4 noiseValue = texture(blueNoise, noiseUV);"
+"    "
+"    vec3 ray1 = jitterRay(rd, noiseValue.rg);"
+"    vec3 ray2 = jitterRay(rd, noiseValue.ba);"
+"    "
+"    float shadowResult1 = raycastVoxelShadow(ro, ray1, normal);"
+"    float shadowResult2 = raycastVoxelShadow(ro, ray2, normal);"
+"    "
+"    return (shadowResult1 + shadowResult2) * 0.5;"
+"}"
 "void main() {"
     "float depth = texture(hyperbolicDepth, uv_frag).r;"
     "vec3 worldP = texture(worldPosition, uv_frag).rgb;"

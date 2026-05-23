@@ -235,6 +235,7 @@ struct ModelBufferList {
 
 struct Renderer {
     uint32_t terrainTextureHandle;
+    uint32_t blueNoiseTexture;
     uint32_t breakBlockTexture;
     uint32_t atlasTexture;
     uint32_t fontAtlasTexture;

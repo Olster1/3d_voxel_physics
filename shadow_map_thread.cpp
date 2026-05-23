@@ -98,18 +98,6 @@ void initShadowMapThread(GameState *gameState) {
     SDL_CreateThread(shadowMapThreadEntryPoint, "", info);
 }
 
-//NOTE: On the main thread, main thread has to be in charge of uploading to the GPU
-void mainThread_signifyRebuild(GameState *gameState) {
-    SDL_LockMutex(gameState->shadowMapThreadInfo.mutex);
-    
-    if(gameState->shouldUploadShadowMapToGPU) {
-        // 4. Send the completely stable GPUReady buffer over to OpenGL/DirectX
-        update3dTextureData(gameState->renderer->shadowMapVoxelHandle, gameState->shadowMapGPUReady);
-        gameState->shouldUploadShadowMapToGPU = false;
-    }
-
-    SDL_UnlockMutex(gameState->shadowMapThreadInfo.mutex);
-}
 
 void initShadowThreadBuffers(GameState *gameState) {
     size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH;
@@ -240,10 +228,7 @@ void writeShadowMapEntities(void *data_) {
     int localDirtyMin = data->dirtyMinIndex;
     int localDirtyMax = data->dirtyMaxIndex;
 
-    // 1. Create native NEON registers for boundary constraints
-    float32x4_t minBounds = vdupq_n_f32(0.0f); // [0.0, 0.0, 0.0, 0.0]
-    
-    // NEON layout: index 0=X, 1=Y, 2=Z, 3=W
+    float32x4_t minBounds = vdupq_n_f32(0.0f);
     float32x4_t maxBounds = {
         (float)SHADOW_MAP_WIDTH,
         (float)SHADOW_MAP_HEIGHT,
@@ -253,28 +238,24 @@ void writeShadowMapEntities(void *data_) {
 
     for (int entityIndex = data->startIndex; entityIndex < data->endIndex; ++entityIndex) {
         VoxelEntity *e = &data->entities[entityIndex];
-
         float16 T = sqt_to_float16(e->T.rotation, make_float3(1, 1, 1), e->T.pos);
 
-        // (Keeping your base math pipeline for delta calculations intact)
+        // (Your existing base math pipeline for delta calculations stays here...)
         float3 worldP0 = make_float3(
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).z, 1.0f)).x,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).z, 1.0f)).y,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,0)).z, 1.0f)).z
         );
-
         float3 worldPX = make_float3(
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).z, 1.0f)).x,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).z, 1.0f)).y,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(1,0,0)).z, 1.0f)).z
         );
-        
         float3 worldPY = make_float3(
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).z, 1.0f)).x,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).z, 1.0f)).y,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,1,0)).z, 1.0f)).z
         );
-
         float3 worldPZ = make_float3(
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).z, 1.0f)).x,
             float16_transform(T, make_float4(getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).x, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).y, getVoxelPositionInModelSpaceFromCenter(e, make_float3(0,0,1)).z, 1.0f)).y,
@@ -285,7 +266,6 @@ void writeShadowMapEntities(void *data_) {
         float3 dY = minus_float3(worldPY, worldP0);
         float3 dZ = minus_float3(worldPZ, worldP0);
 
-        // 2. Load delta step increments into NEON float registers [X, Y, Z, W]
         float32x4_t simdDeltaX = { dX.x * VOXELS_PER_METER, dX.y * VOXELS_PER_METER, dX.z * VOXELS_PER_METER, 0.0f };
         float32x4_t simdDeltaY = { dY.x * VOXELS_PER_METER, dY.y * VOXELS_PER_METER, dY.z * VOXELS_PER_METER, 0.0f };
         float32x4_t simdDeltaZ = { dZ.x * VOXELS_PER_METER, dZ.y * VOXELS_PER_METER, dZ.z * VOXELS_PER_METER, 0.0f };
@@ -301,46 +281,38 @@ void writeShadowMapEntities(void *data_) {
 
         float32x4_t k_Pos = shadowSpaceOrigin;
         for (int k = 0; k < e->depth; k++) {
-            
             float32x4_t j_Pos = k_Pos;
             for (int j = 0; j < e->pitch; j++) {
-                
                 float32x4_t i_Pos = j_Pos;
                 for (int i = 0; i < e->stride; i++) {
                     u8 flags = e->data[voxelIndex++];
 
                     if (flags & VOXEL_OCCUPIED) {
-                        // 3. Parallel Boundary Check using ARM NEON
-                        // Checks: i_Pos >= minBounds AND i_Pos < maxBounds
                         uint32x4_t gteMin = vcgeq_f32(i_Pos, minBounds);
                         uint32x4_t ltMax  = vcltq_f32(i_Pos, maxBounds);
                         uint32x4_t inside = vandq_u32(gteMin, ltMax);
                         
-                        // Extract lanes 0, 1, 2 (X, Y, Z) and combine them to evaluate pass state
-                        uint32_t x_ok = vgetq_lane_u32(inside, 0);
-                        uint32_t y_ok = vgetq_lane_u32(inside, 1);
-                        uint32_t z_ok = vgetq_lane_u32(inside, 2);
-
-                        // On ARM, comparison masks set all bits to 1 (0xFFFFFFFF) if true
-                        if (x_ok && y_ok && z_ok) {
-                            
-                            // 4. Vectorized Truncation (Float to Int)
-                            // Converts X, Y, Z lanes simultaneously to integers via hardware
+                        if (vgetq_lane_u32(inside, 0) && vgetq_lane_u32(inside, 1) && vgetq_lane_u32(inside, 2)) {
                             int32x4_t indices = vcvtq_s32_f32(i_Pos);
-
                             int x = vgetq_lane_s32(indices, 0);
                             int y = vgetq_lane_s32(indices, 1);
                             int z = vgetq_lane_s32(indices, 2);
 
-                            int index = (z * strideZ) + (y * strideY) + x;
-                            data->destBuffer[index] = 1; 
+                            // 1. Calculate the spatial 1D voxel index
+                            int voxelBitIndex = (z * strideZ) + (y * strideY) + x;
+                            
+                            // 2. Map it to our bit field: byte position and specific bit offset
+                            int byteIndex = voxelBitIndex >> 3; // Equivalent to voxelBitIndex / 8
+                            int bitShift  = voxelBitIndex & 7;  // Equivalent to voxelBitIndex % 8
 
-                            if (index < localDirtyMin) localDirtyMin = index;
-                            if (index > localDirtyMax) localDirtyMax = index;
+                            // 3. Flip the bit on our private buffer
+                            data->destBuffer[byteIndex] |= (1 << bitShift); 
+
+                            // Track byte boundaries for our main-thread merge
+                            if (byteIndex < localDirtyMin) localDirtyMin = byteIndex;
+                            if (byteIndex > localDirtyMax) localDirtyMax = byteIndex;
                         }
                     }
-                    
-                    // 5. Native ARM Vector addition in one pipeline step
                     i_Pos = vaddq_f32(i_Pos, simdDeltaX);
                 }
                 j_Pos = vaddq_f32(j_Pos, simdDeltaY);
@@ -352,11 +324,11 @@ void writeShadowMapEntities(void *data_) {
     data->dirtyMinIndex = localDirtyMin;
     data->dirtyMaxIndex = localDirtyMax;
 }
-
 void updateShadowMapMultThreaded(GameState *gameState, u8 *destBuffer) {
-    size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH;
+    // 1. Calculate size in bits, then divide by 8 for total bytes required
+    size_t totalVoxels = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH;
+    size_t mapSizeInBytes = (totalVoxels + 7) / 8; // Clever ceil division to align bits to a byte boundary
     
-    // Fast SIMD clear of the final destination buffer
     memset(destBuffer, 0, mapSizeInBytes);
     
     float half_width  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_WIDTH)  / 2.0f;
@@ -383,15 +355,13 @@ void updateShadowMapMultThreaded(GameState *gameState, u8 *destBuffer) {
         data->endIndex = endIndex;
         data->shadowBoxMinCorner = shadowBoxMinCorner;
 
-        // FIX 1: Point to our persistent, pre-allocated pool instead of making a new allocation!
+        // Remember, gameState->persistentThreadBuffers must be allocated 
+        // to fit (mapSizeInBytes * maxThreads) during engine initialization!
         data->destBuffer = &gameState->persistentThreadBuffers[i * mapSizeInBytes];
-        
-        // Fast SIMD clear on memory that is already warm and mapped by the OS
         memset(data->destBuffer, 0, mapSizeInBytes);
 
-        // Track the bounding box indices of what this thread actually alters
-        // (Initialize to inverted extremes)
-        data->dirtyMinIndex = mapSizeInBytes;
+        // Boundary parameters are now tracking byte positions of the bit-field
+        data->dirtyMinIndex = (int)mapSizeInBytes;
         data->dirtyMaxIndex = 0;
 
         jobPackets[i] = data;
@@ -403,30 +373,28 @@ void updateShadowMapMultThreaded(GameState *gameState, u8 *destBuffer) {
     waitForPerFrameWorkToFinish(&gameState->threadsInfo);
 
     // --- MERGE PHASE (Main Thread) ---
-    // FIX 2: Process 8 bytes (voxels) at a time using uint64_t operations
+    // Merge 8 bytes (64 bits/voxels) at a time using uint64_t operations
     uint64_t *destAsU64 = (uint64_t *)destBuffer;
     
     for (int i = 0; i < threadCount; i++) {
         ShadowMapData *packet = jobPackets[i];
         
-        // FIX 3: Skip completely if the thread didn't write any shadow voxels
         if (packet->dirtyMinIndex > packet->dirtyMaxIndex) {
             continue; 
         }
 
-        // Align our dirty boundaries to 8-byte (uint64_t) chunks
+        // Convert byte index boundaries to 8-byte (uint64_t) chunk alignments
         size_t startChunk = packet->dirtyMinIndex / sizeof(uint64_t);
         size_t endChunk   = (packet->dirtyMaxIndex / sizeof(uint64_t)) + 1;
         
         uint64_t *srcAsU64 = (uint64_t *)packet->destBuffer;
         
-        // Only merge the narrow window of memory that was actually touched!
+        // This loop collapses 64 voxels simultaneously per iteration!
         for (size_t chunkIdx = startChunk; chunkIdx < endChunk; ++chunkIdx) {
             destAsU64[chunkIdx] |= srcAsU64[chunkIdx];
         }
     }
 }
-
 void singleThreadedShadowMap(GameState *gameState) {
     // Note: Syncing now happens inside the function below before it returns!
     updateShadowMapMultThreaded(gameState, gameState->shadowMapGPUReady);

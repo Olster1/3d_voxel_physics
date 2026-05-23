@@ -4,8 +4,8 @@
 #define STR(x) #x
 #define TOSTR(x) STR(x)
 // #define SUN_DIRECTION vec3(0.17364817766, 0.98480775301, 0)
-// #define SUN_DIRECTION vec3(0, 1, 0)
-#define SUN_DIRECTION vec3(0.70710678118, 0.70710678118, 0)
+#define SUN_DIRECTION vec3(0, 1, 0)
+// #define SUN_DIRECTION vec3(0.70710678118, 0.70710678118, 0)
 
 
 #include "./shaders/shaders_opengl.cpp"
@@ -858,7 +858,7 @@ Texture loadTextureArrayToGPU(char *fileName, int fileNameCount) {
     return t;
 }
 
-Texture loadTextureToGPU(char *fileName) {
+Texture loadTextureToGPU(char *fileName, bool blueNoise = false) {
     Texture t = {};
     // stbi_set_flip_vertically_on_load(true);
     unsigned char *imageData = (unsigned char *)stbi_load(fileName, &t.w, &t.h, 0, STBI_rgb_alpha);
@@ -877,15 +877,22 @@ Texture loadTextureToGPU(char *fileName) {
     glBindTexture(GL_TEXTURE_2D, resultId);
     renderCheckError();
     
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    renderCheckError();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    renderCheckError();
+    if(blueNoise) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        renderCheckError();
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    renderCheckError();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        renderCheckError();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        renderCheckError();
+    }
     
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t.w, t.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
     renderCheckError();
@@ -926,70 +933,76 @@ uint32_t render_createPBOTexture() {
     glGenBuffers(1, &shadowMapPBO);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, shadowMapPBO);
 
+    // Allocating storage for uncompressed data (1 byte per voxel)
     size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH * sizeof(u8);
-    // Allocate memory for the PBO buffer. GL_STREAM_DRAW means we update it every frame.
+    
+    // GL_STREAM_DRAW works perfectly on macOS for frequent CPU-to-GPU uploads
     glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-
     return shadowMapPBO;
 }
 
-
-void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *data) {
+void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bitfieldData) {
     assert(bufferHandle > 0);
     assert(pboHandle > 0);
     
-    size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH * sizeof(u8);
+    size_t totalVoxels = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH;
+    size_t mapSizeInBytes = totalVoxels * sizeof(u8);
+    size_t bitfieldSizeInBytes = (totalVoxels + 7) / 8;
 
-    // 1. Bind the PBO and stream the CPU data into it
+    u8 *bitfield = (u8 *)bitfieldData;
+
+    // 1. Bind the PBO Staging Buffer
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboHandle);
     
-    // Orphans the old buffer to prevent driver stalling, then uploads fresh data
+    // ORPHAN THRESHOLD (Crucial on Mac): Re-allocate with NULL to prevent the CPU 
+    // from stalling if the GPU is still drawing with last frame's texture.
     glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
-    glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, mapSizeInBytes, data);
 
-    // 2. Bind the 3D texture
+    // 2. Map the buffer range to a temporary CPU pointer
+    // INVALIDATE_BUFFER_BIT confirms we are overwriting the whole buffer range.
+    GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+    u8 *pboDest = (u8 *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, mapSizeInBytes, mapFlags);
+    
+    if (pboDest) {
+        // 3. Unpack our compressed bitfield into full u8 bytes directly inside the PBO memory
+        size_t pboIndex = 0;
+        for (size_t i = 0; i < bitfieldSizeInBytes; ++i) {
+            u8 mask = bitfield[i];
+            
+            // Fast loop unrolling to unpack 8 bits to 8 bytes instantly
+            pboDest[pboIndex++] = (mask & (1 << 0)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 1)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 2)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 3)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 4)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 5)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 6)) ? 1 : 0;
+            pboDest[pboIndex++] = (mask & (1 << 7)) ? 1 : 0;
+        }
+        
+        // Unmap immediately so the GPU gains ownership of the data block
+        glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+    }
+
+    // 4. Bind the 3D texture and trigger the asynchronous GPU copy
     glBindTexture(GL_TEXTURE_3D, bufferHandle);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    // 3. Trigger the asynchronous GPU-to-GPU transfer
-    // Because a PBO is bound, the last argument '0' is an offset, NOT a pointer!
     glTexSubImage3D(GL_TEXTURE_3D,
                     0,            
                     0, 0, 0,      
                     SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH,
                     GL_RED_INTEGER,         
                     GL_UNSIGNED_BYTE,
-                    (void*)0); 
+                    (void*)0); // Reads asynchronously out of the currently bound PBO
 
-    // 4. Clean up state bindings
+    // 5. Reset device state bindings
     glBindTexture(GL_TEXTURE_3D, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-void update3dTextureData(uint32_t bufferHandle, void *data) {
-    assert(bufferHandle > 0);
-   
-    glBindTexture(GL_TEXTURE_3D, bufferHandle);
-    renderCheckError();
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // must be before glTexImage3D
-    renderCheckError();
-
-    glTexSubImage3D(GL_TEXTURE_3D,
-                    0,            
-                    0, 0, 0,      
-                    SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH,
-                    GL_RED_INTEGER,         
-                    GL_UNSIGNED_BYTE,
-                    data);
-    renderCheckError();
-
-    
-    glBindTexture(GL_TEXTURE_3D, 0);
-    renderCheckError();
-}
 
 
 void updateInstanceDataSub(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
@@ -1102,8 +1115,16 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     bindTexture("hyperbolicDepth", 6, renderer->gBuffer.depth.handle, shader, 0);
     renderCheckError();
 
-    bindTexture("voxels", 7, renderer->shadowMapVoxelHandle, shader, SHADER_3D_TEXTURE);
+    bindTexture("blueNoise", 7, renderer->blueNoiseTexture, shader, 0);
     renderCheckError();
+
+    bindTexture("voxels", 8, renderer->shadowMapVoxelHandle, shader, SHADER_3D_TEXTURE);
+    renderCheckError();
+
+    glUniform2f(glGetUniformLocation(shader->handle, "screenSize"), 
+            renderer->viewport.x, renderer->viewport.y);
+            renderCheckError();
+    
 
     float half_width  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_WIDTH)  / 2.0f;
     float half_height = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_HEIGHT) / 2.0f;

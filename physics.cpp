@@ -82,17 +82,27 @@ float calculateInverseMassNormal(CollisionPoint *p, VoxelEntity *a, VoxelEntity 
     float12 inverseI_bWorld = modelIntertiaTensorToWorld(b->invI, b->T.rotation);
 
     float3 relA = minus_float3(p->point, a->T.pos);
-	float3 relB = minus_float3(p->point, b->T.pos);
+    float3 relB = minus_float3(p->point, b->T.pos);
 
+    // 1. Compute the raw torque vectors (r x n)
+    float3 torqueA = float3_cross(relA, p->normal);
+    float3 torqueB = float3_cross(relB, p->normal);
+
+    // 2. Pass them through your custom multiplier
+    float3 angVelChangeA = float12_scale(inverseI_aWorld, torqueA);
+    float3 angVelChangeB = float12_scale(inverseI_bWorld, torqueB);
+
+    // 3. Dot the torque with the angular velocity change
     float kNormal = (a->inverseMass + b->inverseMass);
-    kNormal += float3_dot(p->normal, float12_scale(inverseI_aWorld, float3_cross(float3_cross(relA, p->normal), relA)));
-    kNormal += float3_dot(p->normal, float12_scale(inverseI_bWorld, float3_cross(float3_cross(relB, p->normal), relB)));
+    kNormal += float3_dot(torqueA, angVelChangeA);
+    kNormal += float3_dot(torqueB, angVelChangeB);
     
-    if(kNormal == 0) {
-        kNormal = 1;
+    // 4. Solid safety check against negative or zero mass denominators
+    if(kNormal <= 0.0f) {
+        kNormal = 1.0f;
     }
+    
     return 1.0f / kNormal;
-
 }
 void classifyPhysicsShapeAndIntertia(MultiThreadedMeshList *meshGenerator, VoxelEntity *e);
 void prestepAllArbiters(PhysicsWorld *world, float inverseDt) {

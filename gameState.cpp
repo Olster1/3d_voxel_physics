@@ -367,6 +367,7 @@ void initGameState(GameState *gameState) {
     Texture breakBlockTexture = loadTextureToGPU("./images/break_block.png");
     Texture atlasTexture = loadTextureToGPU("./images/atlas.png");
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
+    Texture blueNoise = loadTextureToGPU("./images/blueNoise.png", true);
 
     int maxRowCount = 4;
     int maxColumnCount = 512;
@@ -379,14 +380,14 @@ void initGameState(GameState *gameState) {
     u32 *colors = loadVoxelModels(gameState, maxRowCount, maxColumnCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], true);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, -1, 0), CAN_BE_DESTORYED | GRAVITY_AFFECTED, &gameState->buildingModels[1], true);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, -1, 0), 1 / 50.0f, &gameState->buildingModels[1], true);
     // createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[2], true);
 
     Texture voxelColorPallete = createGPUTexture(maxColumnCount, maxRowCount, colors);
 
     gameState->currentMiningBlock = 0;
 
-    gameState->renderer = initRenderer(gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete, make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x));
+    gameState->renderer = initRenderer(blueNoise, gameState->grassTexture, breakBlockTexture, atlasTexture, whiteTexture, voxelColorPallete, make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x));
     gameState->renderer->numColorPalettes = maxRowCount;
 
     gameState->mainFont = initFontAtlas("./fonts/Medieval.ttf");

@@ -71,7 +71,9 @@ struct GameState {
     float mineBlockTimer;
     float showCircleTimer;
 
-    u8 *shadowMapGPUReady; 
+    VoxelEntity *followingEntity;
+
+    u8 *shadowMapGPUReady;
     // Pointer to the buffer the background thread is currently writing to
     u8 *shadowMapWorkerBackbuffer;
     u8 *persistentThreadBuffers;
@@ -318,16 +320,20 @@ void initGameState(GameState *gameState) {
 
     float inverseMass = 1.0f / 50.0f;
     {
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass);
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 2, 0), inverseMass);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4, 0), inverseMass);
-        createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 20, 0), inverseMass);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 12, 0), inverseMass);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 14, 0), inverseMass);
-        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 16, 0), inverseMass);
+        // createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 0, 0), inverseMass);
+        // createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(2, 2, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, -1.9, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, -0.8, 0), inverseMass);
+        // createVoxelCircleEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1.0f, make_float3(0, 20, 0), inverseMass);
+        createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 0.7, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 3.4, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 4.5, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 5.6, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 6.7, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 7.8, 0), inverseMass);
+        // createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 1, 1, 1, make_float3(0, 8.9, 0), inverseMass);
         createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 50.0f, make_float3(0, -3, 0), 0, 0);
-        createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 30.0f, make_float3(0, 5, 0), 0, 0);
+        // createVoxelPlaneEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 30.0f, make_float3(0, 5, 0), 0, 0);
         // gameState->grabbed = &gameState->voxelEntities[2];
     }
 
@@ -369,18 +375,13 @@ void initGameState(GameState *gameState) {
     Texture whiteTexture = loadTextureToGPU("./images/white.png");
     Texture blueNoise = loadTextureToGPU("./images/blueNoise.png", true);
 
-    int maxRowCount = 4;
+    int maxRowCount = 512;
     int maxColumnCount = 512;
-    // u32 *colors = pushArray(&globalPerFrameArena, maxRowCount*maxColumnCount, u32);
-    // u32 forestGreen = 0x228B22; 
-    // int totalElements = maxRowCount * maxColumnCount;
-    // for (int i = 0; i < totalElements; ++i){
-    //     colors[i] = forestGreen;
-    // }
     u32 *colors = loadVoxelModels(gameState, maxRowCount, maxColumnCount);
 
     createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(10, 0, 10), 0, &gameState->buildingModels[0], true);
-    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, -1, 0), 1 / 50.0f, &gameState->buildingModels[1], true);
+    createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, -1, 0), 1 / 20000.0f, &gameState->buildingModels[1], true);
+
     // createVoxelModelEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, make_float3(20, 2, 5), 0, &gameState->buildingModels[2], true);
 
     Texture voxelColorPallete = createGPUTexture(maxColumnCount, maxRowCount, colors);

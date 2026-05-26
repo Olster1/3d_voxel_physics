@@ -11,9 +11,9 @@
 #define TEXTURE_ATLAS_WRITE_IMAGE "/Users/olivermarsh/dev/jungle_runner/assets/texture_atlas.png"
 #define TEXTURE_ATLAS_WRITE_DATA "/Users/olivermarsh/dev/jungle_runner/assets/texture_atlas.json"
 
-// #define TEXTURE_ATLAS_DIM 4096 
+// #define TEXTURE_ATLAS_DIM 4096
 
-#define TEXTURE_ATLAS_DIM 1000 
+#define TEXTURE_ATLAS_DIM 1000
 
 
 
@@ -27,7 +27,7 @@
 #define STAMINA_DRAIN_SPEED 0.1f
 #define STAMINA_RECHARGE_SPEED 0.1f
 #define WATER_ELEVATION 40 //NOTE: This is 62 in actual minecraft
-#define BLOCK_SIZE 1 
+#define BLOCK_SIZE 1
 #define AO_BIT_NOT_VISIBLE 61
 #define AO_BIT_CREATING 62
 #define AO_BIT_INVALID 63
@@ -53,13 +53,15 @@
 
 #define INVERSE_CHUNK_DIM_METRES 0.625 //NOTE: 1 / (CHUNK_DIM * VOXEL_SIZE_IN_METERS)
 #define CHUNK_SIZE_IN_METERS 1.6 //NOTE: 16 * 0.1
+#define CHUNK_DIM 16
+#define BLOCKS_PER_CHUNK CHUNK_DIM *CHUNK_DIM *CHUNK_DIM
 
 //NOTE: DEBUGGING CONSTANTS
 #define PERLIN_SIZE 128
 #define MAX_BONES_PER_MODEL 1000
 
-#define SHADOW_MAP_WIDTH 512 
-#define SHADOW_MAP_HEIGHT 512 
+#define SHADOW_MAP_WIDTH 512
+#define SHADOW_MAP_HEIGHT 512
 #define SHADOW_MAP_DEPTH 512
 
 #define CHUNK_LIST_SIZE 4096*4

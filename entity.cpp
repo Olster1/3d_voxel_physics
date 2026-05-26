@@ -18,10 +18,10 @@ enum BlockType
     BLOCK_TREE_WOOD,
     BLOCK_TREE_LEAVES,
     BLOCK_WATER,
-    BLOCK_GRASS_SHORT_ENTITY,
-    BLOCK_GRASS_TALL_ENTITY,
     BLOCK_COAL,
     BLOCK_IRON,
+    BLOCK_GRASS_SHORT_ENTITY,
+    BLOCK_GRASS_TALL_ENTITY,
     BLOCK_OUTLINE,
     BLOCK_BUILDING,
 
@@ -154,8 +154,8 @@ struct VoxelEntity
 
     int occupiedCount;
     u8 *data; //NOTE: Corners, edges, flat, inside
-    u8 *material; 
-    u8 *colorData; 
+    u8 *material;
+    u8 *colorData;
     int stride; // x
     int pitch;  // y
     int depth;  // z
@@ -717,7 +717,7 @@ VoxelEntity *createVoxelModelEntity(VoxelEntity *e, MultiThreadedMeshList *meshG
         e->data[getVoxelIndex(e, x, y, z)] = VOXEL_OCCUPIED;
         assert(colorId >= 0 && colorId < 256);
         e->colorData[getVoxelIndex(e, x, y, z)] = colorId;
-        
+
         e->material[getVoxelIndex(e, x, y, z)] = 1;
         e->occupiedCount++;
     }
@@ -775,9 +775,6 @@ struct Entity
     uint32_t flags;
     BlockType itemType;
 };
-
-#define CHUNK_DIM 16
-#define BLOCKS_PER_CHUNK CHUNK_DIM *CHUNK_DIM *CHUNK_DIM
 
 struct Chunk
 {

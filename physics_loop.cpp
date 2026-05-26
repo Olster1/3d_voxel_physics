@@ -92,6 +92,38 @@ void updatePhysicsSim(GameState *gameState) {
         e->inBounds = false;
     }
 
+    //  if(gameState->followingEntity) {
+    //     VoxelEntity *e = gameState->followingEntity;
+    //     float16 rot = eulerAnglesToTransform(e->T.rotation.y, e->T.rotation.x, e->T.rotation.z);
+
+    //     float3 zAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
+    //     float3 xAxis = make_float3(rot.E_[0][0], rot.E_[0][1], rot.E_[0][2]);
+        
+    //     float forceMagnitude = 1000; // Adjusted for removing the extra DT multiplier
+    //     float turnSpeed = 30.0f;     // Radians per second
+
+    //     // Forward / Backward (Longitudinal)
+    //     if(gameState->keys.keys[KEY_UP]) {
+    //         e->ddPForFrame = plus_float3(e->ddPForFrame, scale_float3(gameState->dt*forceMagnitude, zAxis));
+    //     }
+    //     if(gameState->keys.keys[KEY_DOWN]) {
+    //         e->ddPForFrame = plus_float3(e->ddPForFrame, scale_float3(-gameState->dt*forceMagnitude, zAxis));
+    //     }
+
+    //     // Left / Right turns the car body (Angular), it doesn't push it sideways!
+    //     if(gameState->keys.keys[KEY_LEFT]) {
+    //         e->dA.y += gameState->dt*turnSpeed; // Add angular velocity around world Y
+    //     }
+    //     if(gameState->keys.keys[KEY_RIGHT]) {
+    //         e->dA.y -= gameState->dt*turnSpeed;
+    //     }
+
+    //     // Tire Lateral Friction Simulation (Kills side-drifting sliding)
+    //     float sideSpeed = float3_dot(e->dP, xAxis);
+    //     float3 lateralGripImpulse = scale_float3(-sideSpeed *gameState->dt*100, xAxis);
+    //     e->ddPForFrame = plus_float3(e->ddPForFrame, lateralGripImpulse);
+    // }
+
     physicsLoopsCount = 0;
     Uint32 startPhysics = profiler_getCount();
 

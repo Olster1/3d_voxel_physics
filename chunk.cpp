@@ -4,6 +4,26 @@ enum DimensionEnum {
     DIMENSION_Z
 };
 
+//NOTE: Helper funciton since the simplex lib I'm using for 3d noise maps between -1 -> 1, and we want 0 -> 1
+float mapSimplexNoiseTo01(float value) {
+    value += 1;
+    value *= 0.5f;
+
+    assert(value >= 0 && value <= 1);
+
+    return value;
+}
+
+float mapSimplexNoiseTo11(float value) {
+    return value;
+}
+
+float convertRealWorldToWorldVoxelCoords(float p) {
+    p = (round(p*10)*0.1)*VOXELS_PER_METER;
+
+    return p;
+}
+
 void initPickupItem(GameState *gameState, Chunk *chunk, float3 pos, BlockType itemType) {
     if(!chunk->entities) {
         chunk->entities = initResizeArray(Entity);
@@ -91,7 +111,7 @@ float getBlockTime(BlockType type) {
 struct AoMaskData {
     GameState *gameState;
     float3 worldP;
-    BlockFlags blockFlags; 
+    BlockFlags blockFlags;
     Block *b;
 };
 
@@ -100,20 +120,34 @@ uint64_t getInvalidAoMaskValue() {
 }
 
 float2 getBlockColorIdRange(BlockType type) {
-    float2 result = make_float2(0, 255);
+    float2 result = make_float2(1, 28);
 
-    if(type == BLOCK_GRASS) {
-        result = make_float2(0, 2);
-    } else if(type == BLOCK_SOIL) {
-        result = make_float2(3, 5);
-    } else if(type == BLOCK_STONE) {
-        result = make_float2(6, 8);
+    if (type == BLOCK_NONE) {
+        result = make_float2(0, 0);
+    } else if (type == BLOCK_GRASS) {
+        result = make_float2(1, 28);
+    } else if (type == BLOCK_SOIL) {
+        result = make_float2(29, 56);
+    } else if (type == BLOCK_STONE) {
+        result = make_float2(57, 84);
+    } else if (type == BLOCK_TREE_WOOD) {
+        result = make_float2(85, 112);
+    } else if (type == BLOCK_TREE_LEAVES) {
+        result = make_float2(113, 140);
+    } else if (type == BLOCK_WATER) {
+        result = make_float2(141, 168);
+    } else if (type == BLOCK_COAL) {
+        result = make_float2(169, 196);
+    } else if (type == BLOCK_IRON) {
+        result = make_float2(197, 255);
+    } else {
+        result = make_float2(1, 28);
     }
 
     return result;
 }
 
-Block spawnBlock(int x, int y, int z, BlockType type, int colorPalleteId = -1, int palletteId = 0) {
+Block spawnBlock(float worldX, float worldY, float worldZ, int x, int y, int z, BlockType type, int colorPalleteId = -1, int palletteId = 0) {
     //NOTE: Input positions are local to chunk
     Block b = {};
 
@@ -124,19 +158,36 @@ Block spawnBlock(int x, int y, int z, BlockType type, int colorPalleteId = -1, i
     b.type = type;
     if(colorPalleteId < 0) {
         float2 range = getBlockColorIdRange(type);
-        b.colorId = round(randomBetween(range.x, range.y)); //NOTE: Random color between 0 - 255 inclusive. 
+
+        // 1. Get your 0.0 to 1.0 noise value using global world coordinates
+        // (Adjust the 0.007143 frequency if you want the color patches larger or smaller!)
+        float t0 = SimplexNoise_fractal_3d(16, worldX, worldY, worldZ, 5);
+        t0 = mapSimplexNoiseTo01(t0);
+
+        // 2. Map the 0.0 - 1.0 value smoothly across your block's allowed index range
+        float floatColorId = range.x + t0 * (range.y - range.x);
+
+        // 3. Cast to integer and enforce strict bounds clamping
+        b.colorId = (int)round(floatColorId);
+
+        if (b.colorId < (int)range.x) b.colorId = (int)range.x;
+        if (b.colorId > (int)range.y) b.colorId = (int)range.y;
+
+        assert(b.colorId >= range.x && b.colorId <= range.y);
+        assert(palletteId == 0);
     } else {
         b.colorId = colorPalleteId;
     }
-    
-    b.palleteId = palletteId;
+    // b.colorId = 0;
 
+    b.palleteId = palletteId;
+    assert(b.palleteId >= 0);
     b.timeLeft = getBlockTime((BlockType)type);
 
     b.aoMask = 0;
 
     b.exists = true;
-    
+
     return b;
 }
 
@@ -163,7 +214,7 @@ Chunk *getChunk_(GameState *gameState, int x, int y, int z, bool shouldGenerateC
 
 Chunk *getChunk_(GameState *gameState, int x, int y, int z, bool shouldGenerateChunk, bool shouldGenerateFully) {
     uint32_t hash = getHashForChunk(x, y, z);
-    
+
     Chunk *chunk = gameState->chunks[hash];
 
     bool found = false;
@@ -183,7 +234,7 @@ Chunk *getChunk_(GameState *gameState, int x, int y, int z, bool shouldGenerateC
     if(chunk && shouldGenerateFully && (chunk->generateState & CHUNK_NOT_GENERATED)) {
         //NOTE: Launches multi-thread work
         fillChunk(gameState, chunk);
-    } 
+    }
 
     return chunk;
 }
@@ -202,10 +253,10 @@ void getAOMaskForBlock(GameState *gameState, const float3 worldP, BlockFlags blo
 
         //NOTE: Multi-threaded version
         AoMaskData *data = (AoMaskData *)malloc(sizeof(AoMaskData));
-        
+
         data->gameState = gameState;
         data->worldP = worldP;
-        data->blockFlags = blockFlags; 
+        data->blockFlags = blockFlags;
         data->b = b;
 
         pushWorkOntoQueue(&gameState->threadsInfo, getAOMask_multiThreaded, data);
@@ -242,7 +293,7 @@ Block *blockExistsReadOnly_withBlock(GameState *gameState, float worldx, float w
     assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
     assert(localz < CHUNK_DIM);
-    
+
     Chunk *c = getChunkReadOnly(gameState, chunkX, chunkY, chunkZ);
     Block *found = 0;
     if(c && c->blocks) {
@@ -251,7 +302,7 @@ Block *blockExistsReadOnly_withBlock(GameState *gameState, float worldx, float w
         if(blockIndex < BLOCKS_PER_CHUNK && c->blocks[blockIndex].exists && (getBlockFlags(gameState, c->blocks[blockIndex].type) & flags)) {
             found = &c->blocks[blockIndex];
         }
-    } 
+    }
 
     return found;
 }
@@ -265,11 +316,11 @@ bool blockExistsReadOnly(GameState *gameState, float worldx, float worldy, float
     int localx = worldPToVoxelLocalP(chunkX, worldx);
     int localy = worldPToVoxelLocalP(chunkY, worldy);
     int localz = worldPToVoxelLocalP(chunkZ, worldz);
-    
-    assert(localx < CHUNK_DIM);     
+
+    assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
     assert(localz < CHUNK_DIM);
-    
+
     Chunk *c = getChunkReadOnly(gameState, chunkX, chunkY, chunkZ);
     bool found = false;
     if(c && c->blocks) {
@@ -296,7 +347,7 @@ void getAOMask_multiThreaded(void *data_) {
 
     GameState *gameState = data->gameState;
     float3 worldP = data->worldP;
-    BlockFlags blockFlags = data->blockFlags; 
+    BlockFlags blockFlags = data->blockFlags;
     Block *b = data->b;
 
     // assert((b->aoMask & (((uint64_t)(1)) << 62))); //NOTE: It might get invalidated while it's on the queue, so we want to ignore this work
@@ -309,11 +360,11 @@ void getAOMask_multiThreaded(void *data_) {
             Vertex v = global_cubeData[i];
 
             bool blockValues[3] = {false, false, false};
-            
+
             for(int j = 0; j < arrayCount(blockValues); j++) {
                 float3 p = plus_float3(worldP, gameState->aoOffsets[i].offsets[j]);
                 if(blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
-                    blockValues[j] = true; 
+                    blockValues[j] = true;
                 }
             }
 
@@ -340,9 +391,9 @@ void getAOMask_multiThreaded(void *data_) {
                 assert(!blockValues[0]);
                 assert(!blockValues[1]);
                 value = 1;
-            } 
-            
-            //NOTE: Times 2 because each value need 2 bits to write 0 - 3. 
+            }
+
+            //NOTE: Times 2 because each value need 2 bits to write 0 - 3.
             result |= (value << (uint64_t)(i*2)); //NOTE: Add the mask value
             assert(((i + 1)*2) < AO_BIT_NOT_VISIBLE); //NOTE: +1 to account for the top bit
         }
@@ -363,7 +414,7 @@ void getAOMask_multiThreaded(void *data_) {
     ReadWriteBarrier();
 
     b->aoMask = result;
-    
+
     //NOTE: make sure these bits aren't set
     assert(!(b->aoMask & (((uint64_t)(1)) << AO_BIT_CREATING)));
     assert(!(b->aoMask & (((uint64_t)(1)) << AO_BIT_INVALID)));
@@ -390,15 +441,14 @@ void pushQuadIndicies(unsigned int **array, int vertexCount) {
 #include "./multi_thread_chunk_mesh_builder.cpp"
 
 void drawChunk(GameState *gameState, Renderer *renderer, Chunk *c) {
-    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING)) 
+    if((c->generateState & CHUNK_MESH_DIRTY) || (c->generateState & CHUNK_MESH_BUILDING))
     {
         if(c->generateState & CHUNK_MESH_DIRTY) {
             pushCreateMeshToThreads(gameState, c);
         }
     } else if(c->modelBuffer.indexCount > 0) {
-        glDrawElements(GL_TRIANGLES, c->modelBuffer.indexCount, GL_UNSIGNED_INT, 0); 
+        glDrawElements(GL_TRIANGLES, c->modelBuffer.indexCount, GL_UNSIGNED_INT, 0);
         renderCheckError();
-        
     }
 }
 
@@ -431,7 +481,7 @@ void addItemToInventory(GameState *gameState, Entity *e, int count) {
             foundItem = item;
         }
     }
-    
+
     if(!foundItem && gameState->inventoryCount < arrayCount(gameState->playerInventory)) {
         //NOTE: Has room in the inventory
         foundItem = &gameState->playerInventory[gameState->inventoryCount++];
@@ -445,10 +495,10 @@ void addItemToInventory(GameState *gameState, Entity *e, int count) {
 
 void updateParticlers(GameState *gameState) {
     float3 cameraPos = plus_float3(gameState->cameraOffset, gameState->player.T.pos);
-    
+
     for(int i = 0; i < gameState->particlerCount; ) {
         int addend = 1;
-        
+
 
         Particler *p = &gameState->particlers[i];
 
@@ -458,11 +508,11 @@ void updateParticlers(GameState *gameState) {
             //NOTE: Move from the end
             gameState->particlers[i] = gameState->particlers[--gameState->particlerCount];
             addend = 0;
-        } 
+        }
 
         i += addend;
     }
-    
+
 }
 
 
@@ -474,14 +524,14 @@ BlockChunkPartner blockExists(GameState *gameState, float worldx, float worldy, 
     int chunkY = roundChunkCoord((float)worldy * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord((float)worldz * INVERSE_CHUNK_DIM_METRES);
 
-    int localx = round(worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS) * VOXELS_PER_METER); 
-    int localy = round(worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER); 
-    int localz = round(worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER); 
+    int localx = round(worldx - (CHUNK_DIM*chunkX*VOXEL_SIZE_IN_METERS) * VOXELS_PER_METER);
+    int localy = round(worldy - (CHUNK_DIM*chunkY*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER);
+    int localz = round(worldz - (CHUNK_DIM*chunkZ*VOXEL_SIZE_IN_METERS)  * VOXELS_PER_METER);
 
     assert(localx < CHUNK_DIM);
     assert(localy < CHUNK_DIM);
     assert(localz < CHUNK_DIM);
-    
+
     Chunk *c = getChunk(gameState, chunkX, chunkY, chunkZ);
 
     if(c && c->blocks) {
@@ -530,7 +580,7 @@ float3 findClosestFreePosition(GameState *gameState, float3 startP, float3 defau
             }
         }
     }
-    
+
     return result;
 }
 
@@ -543,25 +593,25 @@ void updateRecoverMovement(GameState *gameState, Entity *e) {
     e->T.pos = plus_float3(e->T.pos, scale_float3(gameState->dt, e->recoverDP));
 }
 
-void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, float3 lookingAxis, float16 rot) {
+void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, float3 lookingAxis) {
     // float3 worldP = convertRealWorldToBlockCoords(gameState->camera.T.pos);
     float3 worldP = make_float3(1, 1, 1);
-    
+
     int chunkX = roundChunkCoord(worldP.x * INVERSE_CHUNK_DIM_METRES);
     int chunkY = roundChunkCoord(worldP.y * INVERSE_CHUNK_DIM_METRES);
     int chunkZ = roundChunkCoord(worldP.z * INVERSE_CHUNK_DIM_METRES);
-    
-    int chunkRadiusY = 4;
+
+    int chunkRadiusY = 3;
     int chunkRadiusXZ = 10;
 
     for(int z = -chunkRadiusXZ; z <= chunkRadiusXZ; ++z) {
         for(int x = -chunkRadiusXZ; x <= chunkRadiusXZ; ++x) {
             for(int y = -chunkRadiusY; y <= chunkRadiusY; ++y) {
-    
+
                 Chunk *chunk = getChunk(gameState, chunkX + x, chunkY + y, chunkZ + z);
                 if(chunk) {
                     // Rect3f rect = make_rec   t3f_min_dim((chunkX + x)*CHUNK_SIZE_IN_METERS, (chunkY + y)*CHUNK_SIZE_IN_METERS, (chunkZ + z)*CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS, CHUNK_SIZE_IN_METERS);
-                    // if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_y_over_x)) 
+                    // if(rect3fInsideViewFrustrum(rect, worldP, rot, gameState->camera.fov, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE, gameState->aspectRatio_y_over_x))
                     {
                         if(chunk->modelBuffer.indexCount > 0) {
                             assert(chunk->generateState == CHUNK_GENERATED);
@@ -574,8 +624,8 @@ void drawChunkWorld(GameState *gameState, float16 screenT, float16 cameraT, floa
                             assert(chunk->generateState == CHUNK_GENERATED);
                             endChunkRender();
                         }
-                    } 
-                    
+                    }
+
                 } else {
                     int h = 0;
                 }

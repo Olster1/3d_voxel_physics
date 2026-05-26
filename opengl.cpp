@@ -56,34 +56,34 @@ struct FrameBuffer {
 };
 
 void rendererBindFrameBuffer(FrameBuffer *b) {
-    glBindFramebuffer(GL_FRAMEBUFFER, b->handle);  
+    glBindFramebuffer(GL_FRAMEBUFFER, b->handle);
 }
 
 FrameBuffer createFrameBuffer(int width, int height, void *data = 0) {
     FrameBuffer result;
     glGenFramebuffers(1, &result.handle);
-    glBindFramebuffer(GL_FRAMEBUFFER, result.handle);  
+    glBindFramebuffer(GL_FRAMEBUFFER, result.handle);
 
     unsigned int texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
     result.textureHandle = texture;
-    
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
-    glBindTexture(GL_TEXTURE_2D, 0);    
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         assert(false);
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     return result;
 }
@@ -114,10 +114,10 @@ GBuffer createGBuffer(int width, int height) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         renderCheckError();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
         renderCheckError();
 
         result.albedo.handle = texture;
@@ -133,10 +133,10 @@ GBuffer createGBuffer(int width, int height) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         renderCheckError();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture, 0);
         renderCheckError();
 
         result.normal.handle = texture;
@@ -152,10 +152,10 @@ GBuffer createGBuffer(int width, int height) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         renderCheckError();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texture, 0);
         renderCheckError();
 
         result.material.handle = texture;
@@ -171,10 +171,10 @@ GBuffer createGBuffer(int width, int height) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         renderCheckError();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, texture, 0);
         renderCheckError();
 
         result.motion.handle = texture;
@@ -190,48 +190,48 @@ GBuffer createGBuffer(int width, int height) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         renderCheckError();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         renderCheckError();
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, texture, 0); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, texture, 0);
         renderCheckError();
 
         result.worldPosition.handle = texture;
     }
 
     unsigned int attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
-    glDrawBuffers(5, attachments);    
-    
+    glDrawBuffers(5, attachments);
+
     {
         GLuint depthId;
         glGenTextures(1, &depthId);
         renderCheckError();
-        
+
         glBindTexture(GL_TEXTURE_2D, depthId);
         renderCheckError();
-        
+
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
         renderCheckError();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);  
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-    
+
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthId, 0);
-        renderCheckError();  
+        renderCheckError();
 
         result.depth.handle = depthId;
     }
-    
+
     assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     renderCheckError();
 
-    
+
     return result;
 }
 
@@ -246,19 +246,19 @@ enum AttribInstancingType {
 
 Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType attributeType = ATTRIB_INSTANCE_TYPE_DEFAULT) {
     Shader result = {};
-    
+
     result.valid = true;
-    
+
     GLuint vertexShaderHandle = glCreateShader(GL_VERTEX_SHADER);
     renderCheckError();
     GLuint fragShaderHandle = glCreateShader(GL_FRAGMENT_SHADER);
     renderCheckError();
-    
+
     glShaderSource(vertexShaderHandle, 1, (const GLchar **)(&vertexShader), 0);
     renderCheckError();
     glShaderSource(fragShaderHandle, 1, (const GLchar **)(&fragShader), 0);
     renderCheckError();
-    
+
     glCompileShader(vertexShaderHandle);
     renderCheckError();
     glCompileShader(fragShaderHandle);
@@ -268,11 +268,11 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
     GLint success = 0;
     glGetShaderiv(vertexShaderHandle, GL_COMPILE_STATUS, &success);
     renderCheckError();
-    
+
     GLint success1 = 0;
-    glGetShaderiv(fragShaderHandle, GL_COMPILE_STATUS, &success1); 
+    glGetShaderiv(fragShaderHandle, GL_COMPILE_STATUS, &success1);
     renderCheckError();
-    
+
     if(success == GL_FALSE || success1 == GL_FALSE) {
         result.valid = false;
         int  vlength,    flength,    plength;
@@ -282,14 +282,14 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
         glGetShaderInfoLog(vertexShaderHandle, 2048, &vlength, vlog);
         glGetShaderInfoLog(fragShaderHandle, 2048, &flength, flog);
         glGetProgramInfoLog(result.handle, 2048, &plength, plog);
-        
+
         if(vlength || flength || plength) {
             printf("%s\n", vertexShader);
             printf("%s\n", fragShader);
             printf("%s\n", vlog);
             printf("%s\n", flog);
             printf("%s\n", plog);
-            
+
         }
     }
 
@@ -317,7 +317,7 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
         renderCheckError();
         glBindAttribLocation(result.handle, VOXEL_MODEL_TRANSFORM_ATTRIB_LOCATION, "M");
         renderCheckError();
-        
+
     } else {
         glBindAttribLocation(result.handle, VERTEX_ATTRIB_LOCATION, "vertex");
         renderCheckError();
@@ -353,8 +353,8 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
     renderCheckError();
     glUseProgram(result.handle);
     renderCheckError();
-    
-    
+
+
     assert(result.valid);
 
     renderCheckError();
@@ -363,9 +363,9 @@ Shader loadShader(char *vertexShader, char *fragShader, AttribInstancingType att
 }
 
 static inline void addInstanceAttribForMatrix(int index, GLuint attribLoc, int numOfFloats, size_t offsetForStruct, size_t offsetInStruct) {
-    glEnableVertexAttribArray(attribLoc + index);  
+    glEnableVertexAttribArray(attribLoc + index);
     renderCheckError();
-    
+
     glVertexAttribPointer(attribLoc + index, numOfFloats, GL_FLOAT, GL_FALSE, offsetForStruct, (void *)(intptr_t)(offsetInStruct + index * 4 * sizeof(float)));
     renderCheckError();
     glVertexAttribDivisor(attribLoc + index, 1);
@@ -380,22 +380,22 @@ static inline void addInstancingAttrib (GLuint attribLoc, int numOfFloats, size_
         addInstanceAttribForMatrix(2, attribLoc, 4, offsetForStruct, offsetInStruct);
         addInstanceAttribForMatrix(3, attribLoc, 4, offsetForStruct, offsetInStruct);
     } else {
-        glEnableVertexAttribArray(attribLoc);  
+        glEnableVertexAttribArray(attribLoc);
         renderCheckError();
-        
+
         assert(numOfFloats <= 4);
         glVertexAttribPointer(attribLoc, numOfFloats, GL_FLOAT, GL_FALSE, offsetForStruct, ((char *)0) + offsetInStruct);
         renderCheckError();
-        
+
         glVertexAttribDivisor(attribLoc, 1);
         renderCheckError();
     }
 }
 
 void addInstancingAttrib_int32(GLuint attribLoc, int numOfInt32s, size_t offsetForStruct, size_t offsetInStruct) {
-    glEnableVertexAttribArray(attribLoc);  
+    glEnableVertexAttribArray(attribLoc);
     renderCheckError();
-    
+
     glVertexAttribIPointer(attribLoc, numOfInt32s, GL_UNSIGNED_INT, offsetForStruct, ((char *)0) + offsetInStruct);
     renderCheckError();
 
@@ -407,7 +407,7 @@ void addInstancingAttribsForShader(AttribInstancingType type) {
     if(type == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK) {
         //NOTE: DO nothing, doens't have any instanced data
     } else if(type == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
-        size_t offsetForStruct = sizeof(InstanceDataWithRotation); 
+        size_t offsetForStruct = sizeof(InstanceDataWithRotation);
 
         unsigned int colorOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->color));
         addInstancingAttrib (COLOR_ATTRIB_LOCATION, 4, offsetForStruct, colorOffset);
@@ -417,7 +417,7 @@ void addInstancingAttribsForShader(AttribInstancingType type) {
         renderCheckError();
 
     } else if(type == ATTRIB_INSTANCE_TYPE_DEFAULT) {
-        size_t offsetForStruct = sizeof(InstanceData); 
+        size_t offsetForStruct = sizeof(InstanceData);
 
         addInstancingAttrib (POS_ATTRIB_LOCATION, 3, offsetForStruct, 0);
         unsigned int uvOffset = (intptr_t)(&(((InstanceData *)0)->uv));
@@ -435,7 +435,7 @@ void addInstancingAttribsForShader(AttribInstancingType type) {
         addInstancingAttrib_int32(SAMPLER_INDEX_ATTRIB_LOCATION, 1, offsetForStruct, samplerIndexOffset);
         renderCheckError();
     } else if(type == ATTRIB_INSTANCE_TYPE_MODEL_MATRIX || type == ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL) {
-        size_t offsetForStruct = sizeof(InstanceDataWithRotation); 
+        size_t offsetForStruct = sizeof(InstanceDataWithRotation);
 
         unsigned int uvOffset = (intptr_t)(&(((InstanceDataWithRotation *)0)->uv));
         addInstancingAttrib (UVATLAS_ATTRIB_LOCATION, 4, offsetForStruct, uvOffset);
@@ -452,7 +452,7 @@ void addInstancingAttribsForShader(AttribInstancingType type) {
     } else {
         assert(false);
     }
-    
+
 }
 
 void deleteVao(GLuint handle) {
@@ -465,48 +465,48 @@ ModelBuffer generateRayTraceVertexBuffer(void *triangleData, int vertexCount, un
     renderCheckError();
     glBindVertexArray(result.handle);
     renderCheckError();
-    
-    
+
+
     GLuint indices;
     glGenBuffers(1, &result.instanceBufferhandle);
     renderCheckError();
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, result.instanceBufferhandle);
     renderCheckError();
 
     size_t sizeOfVertex = sizeof(Vertex);
-    
+
     glBufferData(GL_ARRAY_BUFFER, vertexCount*sizeOfVertex, triangleData, GL_STATIC_DRAW);
     renderCheckError();
-    
+
     glGenBuffers(1, &indices);
     renderCheckError();
-    
+
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
     renderCheckError();
-    
+
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount*sizeof(unsigned int), indicesData, GL_DYNAMIC_DRAW);
     renderCheckError();
-    
+
     result.indexCount = indexCount;
 
     //NOTE: Assign the attribute locations with the data offsets & types
     GLint vertexAttrib = VERTEX_ATTRIB_LOCATION;
     renderCheckError();
-    glEnableVertexAttribArray(vertexAttrib);  
+    glEnableVertexAttribArray(vertexAttrib);
     renderCheckError();
     glVertexAttribPointer(vertexAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
     renderCheckError();
-    
+
     GLint texUVAttrib = UV_ATTRIB_LOCATION;
-    glEnableVertexAttribArray(texUVAttrib);  
+    glEnableVertexAttribArray(texUVAttrib);
     renderCheckError();
     unsigned int uvByteOffset = (intptr_t)(&(((Vertex *)0)->texUV));
     glVertexAttribPointer(texUVAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + uvByteOffset);
     renderCheckError();
 
     GLint normalsAttrib = NORMAL_ATTRIB_LOCATION;
-    glEnableVertexAttribArray(normalsAttrib);  
+    glEnableVertexAttribArray(normalsAttrib);
     renderCheckError();
     unsigned int normalOffset = (intptr_t)(&(((Vertex *)0)->normal));
     glVertexAttribPointer(normalsAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + normalOffset);
@@ -523,13 +523,13 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
     renderCheckError();
     glBindVertexArray(result.handle);
     renderCheckError();
-    
+
     GLuint vertices;
     GLuint indices;
-    
+
     glGenBuffers(1, &vertices);
     renderCheckError();
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, vertices);
     renderCheckError();
 
@@ -539,53 +539,53 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
     } else if(attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK || attribInstancingType == ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY) {
         sizeOfVertex = sizeof(VoxelVertex);
     }
-    
+
     glBufferData(GL_ARRAY_BUFFER, vertexCount*sizeOfVertex, triangleData, GL_STATIC_DRAW);
     renderCheckError();
-    
+
     glGenBuffers(1, &indices);
     renderCheckError();
-    
+
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
     renderCheckError();
-    
+
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount*sizeof(unsigned int), indicesData, GL_STATIC_DRAW);
     renderCheckError();
-    
+
     result.indexCount = indexCount;
 
     if(attribInstancingType == ATTRIB_INSTANCE_TYPE_MODEL_MATRIX_SKELETAL) {
          //NOTE: Assign the attribute locations with the data offsets & types
         GLint vertexAttrib = VERTEX_ATTRIB_LOCATION;
         renderCheckError();
-        glEnableVertexAttribArray(vertexAttrib);  
+        glEnableVertexAttribArray(vertexAttrib);
         renderCheckError();
         glVertexAttribPointer(vertexAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(VertexWithJoints), 0);
         renderCheckError();
-        
+
         GLint texUVAttrib = UV_ATTRIB_LOCATION;
-        glEnableVertexAttribArray(texUVAttrib);  
+        glEnableVertexAttribArray(texUVAttrib);
         renderCheckError();
         unsigned int uvByteOffset = (intptr_t)(&(((VertexWithJoints *)0)->texUV));
         glVertexAttribPointer(texUVAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(VertexWithJoints), ((char *)0) + uvByteOffset);
         renderCheckError();
 
         GLint normalsAttrib = NORMAL_ATTRIB_LOCATION;
-        glEnableVertexAttribArray(normalsAttrib);  
+        glEnableVertexAttribArray(normalsAttrib);
         renderCheckError();
         unsigned int normalOffset = (intptr_t)(&(((VertexWithJoints *)0)->normal));
         glVertexAttribPointer(normalsAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(VertexWithJoints), ((char *)0) + normalOffset);
         renderCheckError();
 
         GLint weightAttrib = JOINT_WEIGHTS;
-        glEnableVertexAttribArray(weightAttrib);  
+        glEnableVertexAttribArray(weightAttrib);
         renderCheckError();
         unsigned int weigthOffset = (intptr_t)(&(((VertexWithJoints *)0)->jointWeights));
         glVertexAttribPointer(weightAttrib, 4, GL_FLOAT, GL_FALSE, sizeof(VertexWithJoints), ((char *)0) + weigthOffset);
         renderCheckError();
 
         GLint jointAttrib = JOINT_INDEXES;
-        glEnableVertexAttribArray(jointAttrib);  
+        glEnableVertexAttribArray(jointAttrib);
         renderCheckError();
         unsigned int jointIndexOffset = (intptr_t)(&(((VertexWithJoints *)0)->jointIndexes));
         glVertexAttribPointer(jointAttrib, 4, GL_INT, GL_FALSE, sizeof(VertexWithJoints), ((char *)0) + jointIndexOffset);
@@ -594,23 +594,23 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
          //NOTE: Assign the attribute locations with the data offsets & types
         GLint vertexAttrib = VOXEL_POS_ATTRIB_LOCATION;
         renderCheckError();
-        glEnableVertexAttribArray(vertexAttrib);  
+        glEnableVertexAttribArray(vertexAttrib);
         renderCheckError();
         glVertexAttribPointer(vertexAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(VoxelVertex), 0);
         renderCheckError();
 
         {
             GLint normalAttrib = VOXEL_NORMAL_ATTRIB_LOCATION;
-            glEnableVertexAttribArray(normalAttrib);  
+            glEnableVertexAttribArray(normalAttrib);
             renderCheckError();
             unsigned int normalByteOffset = (intptr_t)(&(((VoxelVertex *)0)->normal));
             glVertexAttribPointer(normalAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(VoxelVertex), ((char *)0) + normalByteOffset);
             renderCheckError();
         }
-        
+
         {
-             GLint colorAttrib = VOXEL_COLOR_INDEX_ATTRIB_LOCATION;
-            glEnableVertexAttribArray(colorAttrib);  
+            GLint colorAttrib = VOXEL_COLOR_INDEX_ATTRIB_LOCATION;
+            glEnableVertexAttribArray(colorAttrib);
             renderCheckError();
             unsigned int byteOffset = (intptr_t)(&(((VoxelVertex *)0)->colorId));
             glVertexAttribIPointer(colorAttrib, 1, GL_INT, sizeof(VoxelVertex), ((char *)0) + byteOffset);
@@ -619,7 +619,7 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
 
         {
             GLint palleteAttrib = VOXEL_PALLETE_INDEX_ATTRIB_LOCATION;
-            glEnableVertexAttribArray(palleteAttrib);  
+            glEnableVertexAttribArray(palleteAttrib);
             renderCheckError();
             unsigned int byteOffset = (intptr_t)(&(((VoxelVertex *)0)->palleteId));
             glVertexAttribIPointer(palleteAttrib, 1, GL_INT, sizeof(VoxelVertex), ((char *)0) + byteOffset);
@@ -629,20 +629,20 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
         //NOTE: Assign the attribute locations with the data offsets & types
         GLint vertexAttrib = VERTEX_ATTRIB_LOCATION;
         renderCheckError();
-        glEnableVertexAttribArray(vertexAttrib);  
+        glEnableVertexAttribArray(vertexAttrib);
         renderCheckError();
         glVertexAttribPointer(vertexAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
         renderCheckError();
-        
+
         GLint texUVAttrib = UV_ATTRIB_LOCATION;
-        glEnableVertexAttribArray(texUVAttrib);  
+        glEnableVertexAttribArray(texUVAttrib);
         renderCheckError();
         unsigned int uvByteOffset = (intptr_t)(&(((Vertex *)0)->texUV));
         glVertexAttribPointer(texUVAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + uvByteOffset);
         renderCheckError();
 
         GLint normalsAttrib = NORMAL_ATTRIB_LOCATION;
-        glEnableVertexAttribArray(normalsAttrib);  
+        glEnableVertexAttribArray(normalsAttrib);
         renderCheckError();
         unsigned int normalOffset = (intptr_t)(&(((Vertex *)0)->normal));
         glVertexAttribPointer(normalsAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ((char *)0) + normalOffset);
@@ -660,7 +660,7 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
         renderCheckError();
 
         glBufferData(GL_ARRAY_BUFFER, 0, 0, GL_DYNAMIC_DRAW);
-        
+
         addInstancingAttribsForShader(attribInstancingType);
     }
 
@@ -691,10 +691,10 @@ ModelBuffer generateVertexBuffer(void *triangleData, int vertexCount, unsigned i
         glBindBuffer(GL_TEXTURE_BUFFER, 0);
         renderCheckError();
     }
-    
+
     glBindVertexArray(0);
-        
-    //we can delete these buffers since they are still referenced by the VAO 
+
+    //we can delete these buffers since they are still referenced by the VAO
     glDeleteBuffers(1, &vertices);
     glDeleteBuffers(1, &indices);
 
@@ -707,9 +707,9 @@ void updateSkinningTexture(ModelBuffer *modelBuffer, float16 *skinningMatrix, in
 
     size_t sizeInBytes = sizeof(float16)*jointCount;
 
-    glBufferData(GL_TEXTURE_BUFFER, sizeInBytes, skinningMatrix, GL_STREAM_DRAW); 
+    glBufferData(GL_TEXTURE_BUFFER, sizeInBytes, skinningMatrix, GL_STREAM_DRAW);
     renderCheckError();
-    
+
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
     renderCheckError();
 }
@@ -718,10 +718,10 @@ void initBackendRenderer() {
     //TODO: Enable the back face culling
     // glEnable(GL_CULL_FACE);
     // glCullFace(GL_FRONT);
-    // glFrontFace(GL_CCW);  
+    // glFrontFace(GL_CCW);
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL); 
+    glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
 
     glEnable(GL_BLEND);
@@ -748,16 +748,16 @@ Texture createGPUTexture(int width, int height, void *data = 0) {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 
-    glBindTexture(GL_TEXTURE_2D, 0); 
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-    result.handle = texture;   
+    result.handle = texture;
 
     return result;
 }
@@ -775,7 +775,7 @@ Texture loadCubeMapTextureToGPU(char *folderName) {
     "bottom.jpg",
     "front.jpg",
     "back.jpg"};
-    
+
     int width, height, nrChannels;
     for (unsigned int i = 0; i < arrayCount(faces); i++)
     {
@@ -785,7 +785,7 @@ Texture loadCubeMapTextureToGPU(char *folderName) {
         unsigned char *data = stbi_load(concatFileName, &width, &height, &nrChannels, 0);
         if (data)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                          0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
             );
             stbi_image_free(data);
@@ -824,10 +824,10 @@ Texture loadTextureArrayToGPU(char *fileName, int fileNameCount) {
     GLuint resultId;
     glGenTextures(1, &resultId);
     renderCheckError();
-    
+
     glBindTexture(GL_TEXTURE_2D_ARRAY, resultId);
     renderCheckError();
-    
+
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     renderCheckError();
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -849,7 +849,7 @@ Texture loadTextureArrayToGPU(char *fileName, int fileNameCount) {
 
     glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
     renderCheckError();
-    
+
     glBindTexture(GL_TEXTURE_2D, 0);
     renderCheckError();
 
@@ -862,7 +862,7 @@ Texture loadTextureToGPU(char *fileName, bool blueNoise = false) {
     Texture t = {};
     // stbi_set_flip_vertically_on_load(true);
     unsigned char *imageData = (unsigned char *)stbi_load(fileName, &t.w, &t.h, 0, STBI_rgb_alpha);
-    
+
     if(imageData) {
         // assert(result.comp == 4);
     } else {
@@ -873,10 +873,10 @@ Texture loadTextureToGPU(char *fileName, bool blueNoise = false) {
     GLuint resultId;
     glGenTextures(1, &resultId);
     renderCheckError();
-    
+
     glBindTexture(GL_TEXTURE_2D, resultId);
     renderCheckError();
-    
+
     if(blueNoise) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -893,13 +893,13 @@ Texture loadTextureToGPU(char *fileName, bool blueNoise = false) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         renderCheckError();
     }
-    
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t.w, t.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
     renderCheckError();
 
     glGenerateMipmap(GL_TEXTURE_2D);
     renderCheckError();
-    
+
     glBindTexture(GL_TEXTURE_2D, 0);
     renderCheckError();
 
@@ -909,21 +909,21 @@ Texture loadTextureToGPU(char *fileName, bool blueNoise = false) {
     imageData = 0;
 
     return t;
-    
+
 }
 
 void updateInstanceData(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
     renderCheckError();
-    
+
     //send the data to GPU. glBufferData deletes the old one
-    //NOTE(ollie): We were using glBufferData which deletes the old buffer and resends the create a new buffer, but 
+    //NOTE(ollie): We were using glBufferData which deletes the old buffer and resends the create a new buffer, but
     //NOTE(ollie): I saw on Dungeoneer code using glsubbufferdata is faster because it doesn't have to delete it.
     // glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes, data);
-    glBufferData(GL_ARRAY_BUFFER, sizeInBytes, data, GL_STREAM_DRAW); 
+    glBufferData(GL_ARRAY_BUFFER, sizeInBytes, data, GL_STREAM_DRAW);
     renderCheckError();
 
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     renderCheckError();
 }
@@ -935,9 +935,9 @@ uint32_t render_createPBOTexture() {
 
     // Allocating storage for uncompressed data (1 byte per voxel)
     size_t mapSizeInBytes = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH * sizeof(u8);
-    
+
     // GL_STREAM_DRAW works perfectly on macOS for frequent CPU-to-GPU uploads
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW);
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     return shadowMapPBO;
@@ -946,7 +946,7 @@ uint32_t render_createPBOTexture() {
 void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bitfieldData) {
     assert(bufferHandle > 0);
     assert(pboHandle > 0);
-    
+
     size_t totalVoxels = SHADOW_MAP_WIDTH * SHADOW_MAP_HEIGHT * SHADOW_MAP_DEPTH;
     size_t mapSizeInBytes = totalVoxels * sizeof(u8);
     size_t bitfieldSizeInBytes = (totalVoxels + 7) / 8;
@@ -955,22 +955,22 @@ void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bit
 
     // 1. Bind the PBO Staging Buffer
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboHandle);
-    
-    // ORPHAN THRESHOLD (Crucial on Mac): Re-allocate with NULL to prevent the CPU 
+
+    // ORPHAN THRESHOLD (Crucial on Mac): Re-allocate with NULL to prevent the CPU
     // from stalling if the GPU is still drawing with last frame's texture.
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW); 
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, mapSizeInBytes, NULL, GL_STREAM_DRAW);
 
     // 2. Map the buffer range to a temporary CPU pointer
     // INVALIDATE_BUFFER_BIT confirms we are overwriting the whole buffer range.
     GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
     u8 *pboDest = (u8 *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, mapSizeInBytes, mapFlags);
-    
+
     if (pboDest) {
         // 3. Unpack our compressed bitfield into full u8 bytes directly inside the PBO memory
         size_t pboIndex = 0;
         for (size_t i = 0; i < bitfieldSizeInBytes; ++i) {
             u8 mask = bitfield[i];
-            
+
             // Fast loop unrolling to unpack 8 bits to 8 bytes instantly
             pboDest[pboIndex++] = (mask & (1 << 0)) ? 1 : 0;
             pboDest[pboIndex++] = (mask & (1 << 1)) ? 1 : 0;
@@ -981,7 +981,7 @@ void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bit
             pboDest[pboIndex++] = (mask & (1 << 6)) ? 1 : 0;
             pboDest[pboIndex++] = (mask & (1 << 7)) ? 1 : 0;
         }
-        
+
         // Unmap immediately so the GPU gains ownership of the data block
         glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
     }
@@ -991,10 +991,10 @@ void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bit
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     glTexSubImage3D(GL_TEXTURE_3D,
-                    0,            
-                    0, 0, 0,      
+                    0,
+                    0, 0, 0,
                     SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, SHADOW_MAP_DEPTH,
-                    GL_RED_INTEGER,         
+                    GL_RED_INTEGER,
                     GL_UNSIGNED_BYTE,
                     (void*)0); // Reads asynchronously out of the currently bound PBO
 
@@ -1008,14 +1008,14 @@ void update3dTextureDataPbo(uint32_t bufferHandle, uint32_t pboHandle, void *bit
 void updateInstanceDataSub(uint32_t bufferHandle, void *data, size_t sizeInBytes) {
     glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
     renderCheckError();
-    
+
     //send the data to GPU. glBufferData deletes the old one
-    //NOTE(ollie): We were using glBufferData which deletes the old buffer and resends the create a new buffer, but 
+    //NOTE(ollie): We were using glBufferData which deletes the old buffer and resends the create a new buffer, but
     //NOTE(ollie): I saw on Dungeoneer code using glsubbufferdata is faster because it doesn't have to delete it.
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes, data);
     renderCheckError();
 
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     renderCheckError();
 }
@@ -1027,34 +1027,34 @@ enum ShaderFlags {
 };
 
 void bindTexture(char *uniformName, int slotId, GLint textureId, Shader *shader, uint32_t flags) {
-    GLint texUniform = glGetUniformLocation(shader->handle, uniformName); 
+    GLint texUniform = glGetUniformLocation(shader->handle, uniformName);
     renderCheckError();
-    
+
     glUniform1i(texUniform, slotId);
     renderCheckError();
-    
+
     glActiveTexture(GL_TEXTURE0 + slotId);
     renderCheckError();
-    
+
     if(flags & SHADER_CUBE_MAP) {
-        // glBindTexture(GL_TEXTURE_CUBE_MAP, textureId); 
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, textureId);
         // renderCheckError();
-    } else if(flags & SHADER_TEXTURE_BUFFER) { 
-        glBindTexture(GL_TEXTURE_BUFFER, textureId); 
+    } else if(flags & SHADER_TEXTURE_BUFFER) {
+        glBindTexture(GL_TEXTURE_BUFFER, textureId);
         renderCheckError();
     } else if(flags & SHADER_3D_TEXTURE) {
-        glBindTexture(GL_TEXTURE_3D, textureId); 
+        glBindTexture(GL_TEXTURE_3D, textureId);
         renderCheckError();
     } else {
-        glBindTexture(GL_TEXTURE_2D, textureId); 
+        glBindTexture(GL_TEXTURE_2D, textureId);
         renderCheckError();
     }
 }
 
 void prepareChunkRender(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater) {
-     glUseProgram(shader->handle);
+    glUseProgram(shader->handle);
     renderCheckError();
-    
+
     glBindVertexArray(model->handle);
     renderCheckError();
 
@@ -1087,13 +1087,13 @@ void prepareChunkRender(Renderer *renderer, ModelBuffer *model, Shader *shader, 
 
     bindTexture("diffuse", 1, textureId, shader, 0);
     renderCheckError();
-   
+
 }
 
 void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     glUseProgram(shader->handle);
     renderCheckError();
-    
+
     glBindVertexArray(model->handle);
     renderCheckError();
 
@@ -1121,28 +1121,28 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
     bindTexture("voxels", 8, renderer->shadowMapVoxelHandle, shader, SHADER_3D_TEXTURE);
     renderCheckError();
 
-    glUniform2f(glGetUniformLocation(shader->handle, "screenSize"), 
+    glUniform2f(glGetUniformLocation(shader->handle, "screenSize"),
             renderer->viewport.x, renderer->viewport.y);
             renderCheckError();
-    
+
 
     float half_width  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_WIDTH)  / 2.0f;
     float half_height = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_HEIGHT) / 2.0f;
     float half_depth  = (VOXEL_SIZE_IN_METERS * SHADOW_MAP_DEPTH)  / 2.0f;
 
-    glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"), 
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_min_metres"),
             -half_width, -half_height, -half_depth);
             renderCheckError();
 
-    glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"), 
+    glUniform3f(glGetUniformLocation(shader->handle, "AABB_max_metres"),
             half_width, half_height, half_depth);
             renderCheckError();
 
-    glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1); 
+    glDrawElementsInstanced(GL_TRIANGLES, model->indexCount, GL_UNSIGNED_INT, 0, 1);
     renderCheckError();
-    
+
     glBindVertexArray(0);
-    renderCheckError();    
+    renderCheckError();
 
     glUseProgram(0);
     renderCheckError();
@@ -1151,7 +1151,7 @@ void drawGBuffer(Renderer *renderer, ModelBuffer *model, Shader *shader) {
 void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t textureId, int instanceCount, float16 cameraToWorldT, float16 projectionTransform, float16 modelViewTransform, float3 lookingAxis, bool underWater, TimeOfDayValues timeOfDayValues, uint32_t flags = 0, int skinningTextureId = -1, GLenum primitive = GL_TRIANGLES, int voxelTextureHandle = -1, int paletteId = 0) {
     glUseProgram(shader->handle);
     renderCheckError();
-    
+
     glBindVertexArray(model->handle);
     renderCheckError();
 
@@ -1219,26 +1219,26 @@ void drawModels(Renderer *renderer, ModelBuffer *model, Shader *shader, uint32_t
 
     glUniform1i(glGetUniformLocation(shader->handle, "palleteIndex"), paletteId);
     renderCheckError();
-    
+
     if(skinningTextureId >= 0) {
         bindTexture("boneMatrixBuffer", 2, skinningTextureId, shader, SHADER_TEXTURE_BUFFER);
-        renderCheckError(); 
+        renderCheckError();
     }
 
-    glDrawElementsInstanced(primitive, model->indexCount, GL_UNSIGNED_INT, 0, instanceCount); 
+    glDrawElementsInstanced(primitive, model->indexCount, GL_UNSIGNED_INT, 0, instanceCount);
     renderCheckError();
-    
+
     glBindVertexArray(0);
-    renderCheckError();    
+    renderCheckError();
 
     glUseProgram(0);
     renderCheckError();
-    
+
 }
 
 void endChunkRender() {
     glBindVertexArray(0);
-    renderCheckError();    
+    renderCheckError();
 
     glUseProgram(0);
     renderCheckError();
@@ -1268,16 +1268,16 @@ Texture3d upload3dTexture(int width, int height, int depth, void *data = 0) {
     renderCheckError();
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     renderCheckError();
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     renderCheckError();
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // default value
     renderCheckError();
 
-    glBindTexture(GL_TEXTURE_3D, 0); 
+    glBindTexture(GL_TEXTURE_3D, 0);
     renderCheckError();
 
-    result.handle = texture;   
+    result.handle = texture;
 
     return result;
 }
@@ -1298,14 +1298,6 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         renderer->blockItemsCount = 0;
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer->gBuffer.frameHandle);
-    renderCheckError();
-
-    glClearColor(0.678, 0.847, 0.902, 1);
-    renderCheckError();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
-    renderCheckError();
-    
     {
         ModelBufferList *l = renderer->voxelEntityMeshes;
         while(l) {
@@ -1327,16 +1319,16 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
     renderCheckError();
 
     glDepthMask(GL_FALSE); //NOTE: Disable WRITING to the depth buffer
-    
+
     //NOTE: Composite the G-Buffer
     InstanceDataWithRotation data = getInstanceDataWithRotation(float16_scale(float16_identity(), make_float3(2, 2, 2)),
     make_float4(1, 1, 1, 1),
     make_float4(1, 1, 1, 1));
     updateInstanceData(renderer->quadModel.instanceBufferhandle, &data, sizeof(InstanceDataWithRotation));
     drawGBuffer(renderer, &renderer->quadModel, &renderer->compositeGBufferShader);
-    
+
     glDepthMask(GL_TRUE);
-    
+
 
     if(renderer->alphaBlockCount > 0) {
         //NOTE: Draw Cubes
@@ -1386,5 +1378,5 @@ void rendererFinish(Renderer *renderer, float16 projectionTransform, float16 mod
         renderer->lineCount = 0;
     }
 
-   
+
 }

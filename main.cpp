@@ -35,15 +35,15 @@ static float global_totalLoopTime = 0;
 #include "./load_gltf.cpp"
 
 Renderer *initRenderer(Texture blueNoiseTexture, Texture grassTexture, Texture breakBlockTexture, Texture atlasTexture, Texture whiteTexture, Texture voxelColorPallete, float2 resolution) {
-    
+
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
-    
+
     renderer->cubeCount = 0;
     renderer->atlasQuadCount = 0;
     renderer->glyphCount = 0;
     renderer->terrainTextureHandle = grassTexture.handle;
     renderer->blueNoiseTexture = blueNoiseTexture.handle;
-    
+
     renderer->breakBlockTexture = breakBlockTexture.handle;
     renderer->atlasTexture = atlasTexture.handle;
     renderer->whiteTexture = whiteTexture.handle;
@@ -68,14 +68,14 @@ Renderer *initRenderer(Texture blueNoiseTexture, Texture grassTexture, Texture b
     renderer->skeletalModelShader = loadShader(skeletalVertexShader, skeletalFragShader);
     renderer->blockSameTextureShader = loadShader(blockSameTextureVertexShader, blockPickupFragShader);
     renderer->blockColorShader = loadShader(blockVertexShader, blockFragShader);
-    renderer->voxelChunkShader = loadShader(voxelChunkVertexShader, voxelChunkFragShader);
+    renderer->voxelChunkShader = loadShader(voxelChunkVertexShader, voxelChunkFragShader, ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK);
 
     renderer->plainBlockColorShader = loadShader(blockSameColorVertexShader, blockSameColorFragShader);
-    
+
     renderer->blockModel = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36);
     renderer->quadModel = generateVertexBuffer(global_quadData, 4, global_quadIndices, 6, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->rayTraceModel = generateRayTraceVertexBuffer(global_quadRaytraceData, 4, global_quadIndices, 6);
-    
+
     renderer->lineModel = generateVertexBuffer(global_lineModelData, 2, global_lineIndicies, 2, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelWithInstancedT = generateVertexBuffer(global_cubeData, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
     renderer->blockModelSameTexture = generateVertexBuffer(global_cubeData_sameTexture, 24, global_cubeIndices, 36, ATTRIB_INSTANCE_TYPE_MODEL_MATRIX);
@@ -112,7 +112,7 @@ TimeOfDayValues getTimeOfDayValues(GameState *gameState) {
 
     float4 dayA = make_float4(0.678, 0.847, 0.901, 1);
     float4 dayB = make_float4(0.126, 0.162, 0.529, 1);
-    
+
     TimeOfDayValues result = {};
     result.skyColorA = dayA;
     result.skyColorB = dayB;
@@ -174,7 +174,7 @@ void processBuildingStructures(GameState *gameState) {
 
     PoolChunkGeneration **p = &gameState->chunkPostFillInfo.generationPools;
 
-    //NOTE: Check all inflight chunk pools to see if they have finished 
+    //NOTE: Check all inflight chunk pools to see if they have finished
     //      so we can label them as generated.
     while(*p) {
         assert((*p)->next != *p);
@@ -190,14 +190,14 @@ void processBuildingStructures(GameState *gameState) {
                 }
                 easyPlatform_freeMemory(d);
             }
-            
+
             //NOTE: Remove from the parent list
             *p = (*p)->next;
 
             // //NOTE: Add to this free list
             entry->next = gameState->chunkPostFillInfo.generationPoolFreeList;
             gameState->chunkPostFillInfo.generationPoolFreeList = entry;
-            
+
         } else {
             p = &((*p)->next);
         }
@@ -209,24 +209,24 @@ void processVoxelMeshes(GameState *gameState) {
         int count = 0;
         ChunkVertexToCreate **infoPtr = &gameState->meshGenerator.meshesToCreate;
         int maxLoopCount = 10;
-        
+
         while(*infoPtr && count < maxLoopCount) {
             ChunkVertexToCreate *info = *infoPtr;
             if(info->ready) {
                 if(info->voxelEntity) {
                     assert(false);
-                    // processVoxelEntityMeshData(info);
+                    processVoxelEntityMeshData(info);
                 } else {
                     processMeshData(info);
                 }
-                
+
                 //NOTE: Take off list
                 *infoPtr = info->next;
 
                 //NOTE: Add to free list
                 info->next = gameState->meshGenerator.meshesToCreateFreeList;
                 gameState->meshGenerator.meshesToCreateFreeList = info;
-                
+
                 count++;
             } else {
                 infoPtr = &info->next;
@@ -247,7 +247,7 @@ void updateHotKeys(GameState *gameState) {
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_R] == MOUSE_BUTTON_PRESSED && !gameState->grabbed) {
-        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, GRAVITY_AFFECTED);    
+        VoxelEntity *e = createVoxelSquareEntity(&gameState->voxelEntities[gameState->voxelEntityCount++], &gameState->meshGenerator, 0.4f, 0.4f, 0.4f, startP, 1.0f / 1.0f, GRAVITY_AFFECTED);
         e->dP = scale_float3(speed, zAxis);
     }
     if(gameState->keys.keys[KEY_P] == MOUSE_BUTTON_PRESSED) {
@@ -259,21 +259,32 @@ void updateGame(GameState *gameState) {
     Uint32 start = SDL_GetTicks();
 
     clearProfiler();
-    
+
     if(!gameState->inited) {
         globalLongTermArena = createArena(Kilobytes(200));
         globalPerFrameArena = createArena(Kilobytes(100));
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
         initGameState(gameState);
         // DEBUG_ArrayTests();
-    } else { 
+    } else {
         releaseMemoryMark(&perFrameArenaMark);
         perFrameArenaMark = takeMemoryMark(&globalPerFrameArena);
         gameState->renderer->voxelEntityMeshes = 0;
     }
-    
+
     updateCamera(gameState);
-  
+    if(gameState->followingEntity) {
+        float16 rot = eulerAnglesToTransform(gameState->followingEntity->T.rotation.y, gameState->followingEntity->T.rotation.x, gameState->followingEntity->T.rotation.z);
+
+        float3 yAxis = make_float3(rot.E_[1][0], rot.E_[1][1], rot.E_[1][2]);
+        float3 zAxis = make_float3(rot.E_[2][0], rot.E_[2][1], rot.E_[2][2]);
+
+        float scale = 8;
+
+        float3 offset = plus_float3(scale_float3(-scale, zAxis), scale_float3(scale, yAxis));
+        gameState->camera.T.pos = plus_float3(offset, gameState->followingEntity->T.pos);
+    }
+
     float16 screenGuiT = make_ortho_matrix_origin_center(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
     float16 textGuiT = make_ortho_matrix_top_left_corner_y_down(100, 100*gameState->aspectRatio_y_over_x, MATH_3D_NEAR_CLIP_PlANE, MATH_3D_FAR_CLIP_PlANE);
 
@@ -282,7 +293,7 @@ void updateGame(GameState *gameState) {
     float16 cameraToWorldT = getModelToViewSpace(gameState->camera.T);
     float16 cameraTWithoutTranslation = getCameraX_withoutTranslation(gameState->camera.T);
 
-    gameState->renderer->viewport = make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x) ; 
+    gameState->renderer->viewport = make_float2(gameState->screenWidth, gameState->screenWidth * gameState->aspectRatio_y_over_x) ;
     gameState->renderer->projectionPlaneSize = getProjectionPlaneSize(gameState->camera.fov, gameState->aspectRatio_y_over_x);
     gameState->renderer->invViewMatrix = cameraToWorldT;
 
@@ -294,17 +305,21 @@ void updateGame(GameState *gameState) {
     updatePlayer(gameState);
 
     processVoxelMeshes(gameState);
-
     updatePhysicsSim(gameState);
+    // singleThreadedShadowMap(gameState);
 
-    // mainThread_signifyRebuild(gameState);
-    singleThreadedShadowMap(gameState);
+    glBindFramebuffer(GL_FRAMEBUFFER, gameState->renderer->gBuffer.frameHandle);
+    renderCheckError();
 
+    glClearColor(0.678, 0.847, 0.902, 1);
+    renderCheckError();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderCheckError();
+
+    drawChunkWorld(gameState, screenT, cameraT, lookingAxis);
     renderVoxelEntities(gameState);
-    // drawChunkWorld(gameState, screenT, cameraT, lookingAxis, rot);
-
     updateHotKeys(gameState);
-    
+
     processBuildingStructures(gameState);
 
     // completePhysicsDestructionForFrame(&gameState->physicsWorld, &gameState->meshGenerator);

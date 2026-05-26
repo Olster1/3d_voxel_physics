@@ -1,7 +1,8 @@
 
 void generateVoxelEntityMesh_multiThread(void *data_) {
+
     /*
-        This is the function that turns the voxel data into a drawable mesh. 
+        This is the function that turns the voxel data into a drawable mesh.
     */
     GenerateMeshDataWithList *data = (GenerateMeshDataWithList *)data_;
 
@@ -24,7 +25,7 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
                         //NOTE: Run Greedy mesh algorithm
                         for(int k = 0; k < arrayCount(meshGenerator->cardinalOffsets); k++) {
                             float3 p = plus_float3(voxelP, meshGenerator->cardinalOffsets[k]);
-                            
+
                             if(!isVoxelOccupied(e, p.x, p.y, p.z))
                             {
                                 //NOTE: Face is exposed so add it to the mesh
@@ -53,7 +54,7 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
             }
         }
     }
-    
+
     MemoryBarrier();
     ReadWriteBarrier();
 
@@ -61,20 +62,20 @@ void generateVoxelEntityMesh_multiThread(void *data_) {
 
     free(data_);
     data_ = 0;
-    
+
 }
 
 void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
     assert(info->ready);
     VoxelEntity *e = info->voxelEntity;
-    
+
     if(e->mesh.generationAt <= info->generation && e->mesh.generateState & CHUNK_MESH_BUILDING) {
         {
-            
+
             int indexCount = getArrayLength(info->indicesData);
             int vertexCount = getArrayLength(info->triangleData);
             if(indexCount > 0 && vertexCount > 0) {
-                
+
                 if(e->mesh.modelBuffer.handle) {
                     //TODO: Change to just do sub-buffer data and not delete the vao
                     deleteVao(e->mesh.modelBuffer.handle);
@@ -82,7 +83,7 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
                 }
                 e->mesh.modelBuffer = generateVertexBuffer(info->triangleData, vertexCount, info->indicesData, indexCount, ATTRIB_INSTANCE_TYPE_VOXEL_ENTITY);
                 assert(e->mesh.modelBuffer.handle > 0);
-            } 
+            }
         }
 
         e->mesh.generationAt = info->generation;
@@ -93,7 +94,7 @@ void processVoxelEntityMeshData(ChunkVertexToCreate *info) {
 
     freeResizeArray(info->triangleData);
     freeResizeArray(info->indicesData);
-} 
+}
 
 void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, VoxelEntity *e) {
     assert(e->mesh.generateState & CHUNK_MESH_DIRTY);
@@ -101,8 +102,8 @@ void pushCreateVoxelEntityMeshToThreads(MultiThreadedMeshList *meshGenerator, Vo
     e->mesh.generateState |= CHUNK_MESH_BUILDING;
     assert(e->mesh.generateState & CHUNK_MESH_BUILDING);
     assert(!(e->mesh.generateState & CHUNK_MESH_DIRTY));
-    
-    
+
+
     MemoryBarrier();
     ReadWriteBarrier();
 

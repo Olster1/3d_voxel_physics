@@ -7,7 +7,7 @@ struct FillChunkData {
 
     int postFillInfoCount;
     ChunkPostFill postFillInfo[32];
-    
+
 };
 
 struct GenerateMeshData {
@@ -30,7 +30,7 @@ struct BuildingInfo {
 };
 
 int worldPToVoxelLocalP(int chunkX, float worldx) {
-    int value = round((worldx - (CHUNK_SIZE_IN_METERS*chunkX)) * VOXELS_PER_METER); 
+    int value = round((worldx - (CHUNK_SIZE_IN_METERS*chunkX)) * VOXELS_PER_METER);
     assert(value >= 0 && value < CHUNK_DIM);
     return value;
 }
@@ -38,28 +38,28 @@ int worldPToVoxelLocalP(int chunkX, float worldx) {
 void getAOMask_multiThreaded(void *data_);
 
 void addBlock(GameState *gameState, float3 worldP, BlockType type) {
-    int chunkX = roundChunkCoord(worldP.x / (float)CHUNK_DIM);
-    int chunkY = roundChunkCoord(worldP.y / (float)CHUNK_DIM);
-    int chunkZ = roundChunkCoord(worldP.z / (float)CHUNK_DIM);
+    int chunkX = roundChunkCoord(worldP.x * INVERSE_CHUNK_DIM_METRES);
+    int chunkY = roundChunkCoord(worldP.y * INVERSE_CHUNK_DIM_METRES);
+    int chunkZ = roundChunkCoord(worldP.z * INVERSE_CHUNK_DIM_METRES);
 
     Chunk *c = getChunkNoGenerate(gameState, chunkX, chunkY, chunkZ);
-   
+
     if(c) {
         if(!c->blocks) {
             c->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
         }
-        int localX = worldP.x - (CHUNK_DIM*chunkX); 
-        int localY = worldP.y - (CHUNK_DIM*chunkY); 
-        int localZ = worldP.z - (CHUNK_DIM*chunkZ); 
+        int localX = worldPToVoxelLocalP(chunkX, worldP.x);
+        int localY = worldPToVoxelLocalP(chunkY, worldP.y);
+        int localZ = worldPToVoxelLocalP(chunkZ, worldP.z);
 
         int blockIndex = getBlockIndex(localX, localY, localZ);
         assert(blockIndex < BLOCKS_PER_CHUNK);
         if(blockIndex < BLOCKS_PER_CHUNK) {
-            c->blocks[blockIndex] = spawnBlock(localX, localY, localZ, type);
+            c->blocks[blockIndex] = spawnBlock(worldP.x, worldP.y, worldP.z, localX, localY, localZ, type);
         } else {
             assert(false);
         }
-    } 
+    }
 }
 
 #include "./perlin_noise_values.cpp"
@@ -79,10 +79,10 @@ void generateTree_multiThread(GameState *gameState, Chunk *chunk, float3 worldP)
     float3 p = plus_float3(worldP, make_float3(x, (treeHeight + 1), z));
     addBlock(gameState, p, BLOCK_TREE_LEAVES);
 
-    float3 offsets[] = {make_float3(1, treeHeight, 0), make_float3(1, treeHeight, 1), 
-                        make_float3(-1, treeHeight, -1), make_float3(1, treeHeight, -1), 
+    float3 offsets[] = {make_float3(1, treeHeight, 0), make_float3(1, treeHeight, 1),
+                        make_float3(-1, treeHeight, -1), make_float3(1, treeHeight, -1),
                         make_float3(-1, treeHeight, 1), make_float3(0, treeHeight, 1),
-                        make_float3(-1, treeHeight, 0), make_float3(0, treeHeight, -1), 
+                        make_float3(-1, treeHeight, 0), make_float3(0, treeHeight, -1),
                         };
 
     for(int j = 0; j < 2; ++j) {
@@ -95,14 +95,14 @@ void generateTree_multiThread(GameState *gameState, Chunk *chunk, float3 worldP)
     }
     treeHeight -=1;
 
-    float3 offsets2[] = {make_float3(2, treeHeight, 0), make_float3(2, treeHeight, 1), make_float3(2, treeHeight, 2), 
-                        make_float3(1, treeHeight, 2), make_float3(0, treeHeight, 2), 
+    float3 offsets2[] = {make_float3(2, treeHeight, 0), make_float3(2, treeHeight, 1), make_float3(2, treeHeight, 2),
+                        make_float3(1, treeHeight, 2), make_float3(0, treeHeight, 2),
 
-                        make_float3(-1, treeHeight, 2), make_float3(-2, treeHeight, 2), make_float3(-2, treeHeight, 1), 
-                        make_float3(-2, treeHeight, 0), make_float3(-2, treeHeight, -1), 
+                        make_float3(-1, treeHeight, 2), make_float3(-2, treeHeight, 2), make_float3(-2, treeHeight, 1),
+                        make_float3(-2, treeHeight, 0), make_float3(-2, treeHeight, -1),
 
-                        make_float3(-2, treeHeight, -2), make_float3(-1, treeHeight, -2), 
-                        make_float3(0, treeHeight, -2), make_float3(1, treeHeight, -2),  make_float3(2, treeHeight, -2), make_float3(2, treeHeight, -1), 
+                        make_float3(-2, treeHeight, -2), make_float3(-1, treeHeight, -2),
+                        make_float3(0, treeHeight, -2), make_float3(1, treeHeight, -2),  make_float3(2, treeHeight, -2), make_float3(2, treeHeight, -1),
                         };
 
     for(int i = 0; i < arrayCount(offsets2); ++i) {
@@ -133,8 +133,8 @@ BlockType worldGeneration_shouldBlockExist(float worldX, float worldY, float wor
         //TODO: Handle Tree building based on perlin noise
         // if(worldY > waterElevation && isTop && isTreeLocation(worldX, worldZ)) {
             // generateTree_multiThread(gameState, chunk, make_float3(worldX, worldY + 1, worldZ));
-        // } 
-        
+        // }
+
     } else if(worldY < WATER_ELEVATION) {
         type = BLOCK_WATER;
     }
@@ -169,11 +169,11 @@ void addBuilding(FillChunkData *data, GameState *gameState, VoxelModel *model, f
             assert(blockIndex < BLOCKS_PER_CHUNK);
             if(blockIndex < BLOCKS_PER_CHUNK) {
                 checkInitBlocksForChunk(chunk);
-                chunk->blocks[blockIndex] = spawnBlock(localVoxelP.x, localVoxelP.y, localVoxelP.z, BLOCK_BUILDING, colorPalleteId, 1);
+                chunk->blocks[blockIndex] = spawnBlock(localVoxelP.x, localVoxelP.y, localVoxelP.z, localVoxelP.x, localVoxelP.y, localVoxelP.z, BLOCK_BUILDING, colorPalleteId, 1);
             }
-        } 
+        }
     }
-    
+
     assert(data->postFillInfoCount < arrayCount(data->postFillInfo));
     if(data->postFillInfoCount < arrayCount(data->postFillInfo)) {
         // data->postFillInfo[data->postFillInfoCount++] = initChunkPostFill(model, 0, float3 localVoxelStart, int chunkX, int chunkY, int chunkZ);
@@ -181,7 +181,7 @@ void addBuilding(FillChunkData *data, GameState *gameState, VoxelModel *model, f
 }
 
 void fillChunk_multiThread(void *data_) {
-    
+
     FillChunkData *data = (FillChunkData *)data_;
 
     GameState *gameState = data->gameState;
@@ -192,7 +192,7 @@ void fillChunk_multiThread(void *data_) {
 
     int buildingCount = 0;
     BuildingInfo buildings[MAX_BUILDING_COUNT_PER_CHUNK];
-    
+
 
     for(int z = 0; z < CHUNK_DIM; ++z) {
         for(int x = 0; x < CHUNK_DIM; ++x) {
@@ -211,9 +211,11 @@ void fillChunk_multiThread(void *data_) {
 
                 if(worldY < terrainHeight) {
                     checkInitBlocksForChunk(chunk);
-                    
                     BlockType type = BLOCK_GRASS;
-                    
+
+                    if(soilOnTop(worldX, worldY, worldZ)) {
+                        type = BLOCK_SOIL;
+                    }
 
                     if(underWater) {
                         //NOTE: Vary underwater terrain (grass can't grow underwater)
@@ -233,18 +235,46 @@ void fillChunk_multiThread(void *data_) {
                             } else {
                                 type = BLOCK_STONE;
                             }
-                            
+
                         }
                     } else {
                         isTop = true;
+
+                        if(isBushLocation(worldX, worldZ)) {
+                            float height = randomBetween(4, 10);
+
+                            float d = VOXEL_SIZE_IN_METERS;
+                            float dy = d;
+
+                            for(int i = 0; i < height; i++) {
+                                if(i > 0.8f*height) {
+
+                                    for(int j = 0; j < 4; j++) {
+                                        //NOTE: Add leaves
+                                        float t = randomBetween(0, 1);
+                                        float dx = 0;
+                                        float dz = 0;
+                                        if(j == 0) { dx = d; }
+                                        if(j == 1) { dx = -d; }
+                                        if(j == 2) { dz = d; }
+                                        if(j == 3) { dz = -d; }
+                                        if(t < 0.5f) {
+                                            addBlock(gameState, make_float3(worldX + dx, worldY + dy*i, worldZ + dz), BLOCK_TREE_LEAVES);
+                                        }
+                                    }
+                                }
+
+                                addBlock(gameState, make_float3(worldX, worldY + dy*i, worldZ), BLOCK_TREE_LEAVES);
+                            }
+                        }
                     }
 
                     int blockIndex = getBlockIndex(x, y, z);
                     assert(blockIndex < BLOCKS_PER_CHUNK);
                     if(blockIndex < BLOCKS_PER_CHUNK) {
-                        chunk->blocks[blockIndex] = spawnBlock(x, y, z, type);
+                        chunk->blocks[blockIndex] = spawnBlock(worldX, worldY, worldZ, x, y, z, type);
                     }
-                    
+
                 } else if(worldY < waterElevation) {
                     // if(!chunk->blocks) {
                     //     chunk->blocks = (Block *)easyPlatform_allocateMemory(BLOCKS_PER_CHUNK*sizeof(Block), EASY_PLATFORM_MEMORY_ZERO);
@@ -282,7 +312,7 @@ void fillChunk_multiThread(void *data_) {
 
     MemoryBarrier();
     ReadWriteBarrier();
-    
+
     //NOTE: Not generated yet, we can now notify this chunk is finished terrain generation, and can
     //      move to post fill with building data.
     addAtomicInt(&generationPool->value, 1);
@@ -296,7 +326,7 @@ void fillChunk_multiThread(void *data_) {
 void fillChunk(GameState *gameState, Chunk *chunk) {
     if(!gameState->chunkPostFillInfo.currentPool ||
         gameState->chunkPostFillInfo.currentPool->chunksInPoolCount < arrayCount(gameState->chunkPostFillInfo.currentPool->chunksInPool)) {
-        
+
         assert(chunk->generateState & CHUNK_NOT_GENERATED);
         chunk->generateState = CHUNK_GENERATING;
 
@@ -368,7 +398,7 @@ void fillChunkWithPostBuildingData(GameState *gameState, Chunk *chunk) {
     PoolChunkGeneration *generationPool = 0;
     data->generationPool = generationPool;
     data->generationPool = generationPool;
-    
+
 
     //NOTE: Multi-threaded version
     pushWorkOntoQueue(&gameState->threadsInfo, fillChunk_multiThread, data);

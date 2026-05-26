@@ -14,8 +14,8 @@ struct VertexForChunk {
 struct VoxelVertex {
     float3 pos;
     float3 normal;
-    int colorId;
-    int palleteId;
+    int32_t colorId;
+    int32_t palleteId;
 };
 
 VoxelVertex initVoxelVertex(float3 pos, float3 normal, int colorId, int palleteId) {
@@ -25,7 +25,7 @@ VoxelVertex initVoxelVertex(float3 pos, float3 normal, int colorId, int palleteI
     result.normal = normal;
     result.colorId = colorId;
     result.palleteId = palleteId;
-    
+
     return result;
 
 }
@@ -52,7 +52,7 @@ struct VertexFullScreen {
 
 Vertex makeVertex(float3 pos, float2 texUV, float3 normal) {
     Vertex v = {};
-    
+
     v.pos = pos;
     v.texUV = texUV;
     v.normal = normal;
@@ -62,7 +62,7 @@ Vertex makeVertex(float3 pos, float2 texUV, float3 normal) {
 
 VertexForChunk makeVertexForChunk(float3 pos, float2 texUV, float3 normal) {
     VertexForChunk v = {};
-    
+
     v.pos = pos;
     v.texUV = texUV;
     v.normal = normal;

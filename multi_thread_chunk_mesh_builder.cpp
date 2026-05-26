@@ -8,18 +8,18 @@ void generateChunkMesh_multiThread(void *data_) {
 
     // assert(c->generateState & CHUNK_MESH_BUILDING);
     if(c->generateState & CHUNK_MESH_BUILDING) {
-    
+
         int blockCount = (c->blocks) ? BLOCKS_PER_CHUNK : 0;
         for(int i = 0; i < blockCount; ++i) {
             Block *b = &c->blocks[i];
-            
+
             if(b->exists) {
                 float3 worldP = make_float3(c->x*CHUNK_SIZE_IN_METERS + b->x*VOXEL_SIZE_IN_METERS, c->y*CHUNK_SIZE_IN_METERS + b->y*VOXEL_SIZE_IN_METERS, c->z*CHUNK_SIZE_IN_METERS + b->z*VOXEL_SIZE_IN_METERS);
                 BlockType t = (BlockType)b->type;
                 b->aoMask = 0;
 
                  if(t == BLOCK_WATER) {
-                    if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + VOXEL_SIZE_IN_METERS, worldP.z, (BlockFlags)0xFFFFFFFF)) 
+                    if(!blockExistsReadOnly(gameState, worldP.x, worldP.y + VOXEL_SIZE_IN_METERS, worldP.z, (BlockFlags)0xFFFFFFFF))
                     {
                         //NOTE: Draw the water
                         int vertexCount = getArrayLength(info->alphaTriangleData);
@@ -34,13 +34,14 @@ void generateChunkMesh_multiThread(void *data_) {
 
                             pushArrayItem(&info->alphaTriangleData, vForChunk, VoxelVertex);
                         }
-                        
+
                         pushQuadIndicies(&info->alphaIndicesData, vertexCount);
                     }
                 } else {
                     //NOTE: Run Greedy mesh algorithm
                     for(int k = 0; k < arrayCount(gameState->cardinalOffsets); k++) {
                         float3 p = plus_float3(worldP, gameState->cardinalOffsets[k]);
+
                         if(!blockExistsReadOnly(gameState, p.x, p.y, p.z, BLOCK_FLAGS_AO)) {
                             //NOTE: Face is exposed so add it to the mesh
                             int vertexCount = getArrayLength(info->triangleData);
@@ -50,6 +51,9 @@ void generateChunkMesh_multiThread(void *data_) {
                                 const VertexForChunk v = global_cubeDataForChunk[indexIntoCubeData];
 
                                 float3 finalP = plus_float3(worldP, scale_float3(VOXEL_SIZE_IN_METERS, v.pos));
+                                assert(b->colorId >= 0);
+                                assert(b->palleteId >= 0);
+                                assert(b->palleteId == 0);
                                 VoxelVertex vForChunk = initVoxelVertex(finalP, v.normal, (int)b->colorId, (int)b->palleteId);
 
                                 pushArrayItem(&info->triangleData, vForChunk, VoxelVertex);
@@ -61,7 +65,7 @@ void generateChunkMesh_multiThread(void *data_) {
             }
         }
     }
-    
+
     MemoryBarrier();
     ReadWriteBarrier();
 
@@ -69,7 +73,7 @@ void generateChunkMesh_multiThread(void *data_) {
 
     free(data_);
     data_ = 0;
-    
+
 }
 
 void processMeshData(ChunkVertexToCreate *info) {
@@ -86,7 +90,7 @@ void processMeshData(ChunkVertexToCreate *info) {
                     c->modelBuffer.indexCount = 0;
                 }
                 c->modelBuffer = generateVertexBuffer(info->triangleData, vertexCount, info->indicesData, indexCount, ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK);
-            } 
+            }
         }
         {
             int indexCount = getArrayLength(info->alphaIndicesData);
@@ -98,13 +102,13 @@ void processMeshData(ChunkVertexToCreate *info) {
                     c->alphaModelBuffer.indexCount = 0;
                 }
                 c->alphaModelBuffer = generateVertexBuffer(info->alphaTriangleData, vertexCount, info->alphaIndicesData, indexCount, ATTRIB_INSTANCE_TYPE_VOXEL_CHUNK);
-            } 
+            }
         }
 
         assert(c->generateState & CHUNK_MESH_BUILDING);
         c->generateState &= ~CHUNK_MESH_BUILDING;
         assert(!(c->generateState & CHUNK_MESH_BUILDING));
-        
+
         c->meshGenerationAt = info->generation;
     }
 
@@ -112,7 +116,7 @@ void processMeshData(ChunkVertexToCreate *info) {
     freeResizeArray(info->indicesData);
     freeResizeArray(info->alphaTriangleData);
     freeResizeArray(info->alphaIndicesData);
-} 
+}
 
 void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
     assert(chunk->generateState & CHUNK_MESH_DIRTY);
@@ -120,7 +124,7 @@ void pushCreateMeshToThreads(GameState *gameState, Chunk *chunk) {
     chunk->generateState |= CHUNK_MESH_BUILDING;
     assert(chunk->generateState & CHUNK_MESH_BUILDING);
     assert(!(chunk->generateState & CHUNK_MESH_DIRTY));
-    
+
     MemoryBarrier();
     ReadWriteBarrier();
 

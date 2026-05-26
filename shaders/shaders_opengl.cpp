@@ -1,4 +1,4 @@
-static char *blockSameColorVertexShader = 
+static char *blockSameColorVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -31,9 +31,9 @@ static char *blockSameColorVertexShader =
 "}";
 
 
-static char *blockSameColorFragShader = 
+static char *blockSameColorFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec2 uv_frag; "
 "in vec3 sunAngle;"
@@ -56,7 +56,7 @@ static char *blockSameColorFragShader =
 "}";
 
 
-static char *blockPickupVertexShader = 
+static char *blockPickupVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -90,9 +90,9 @@ static char *blockPickupVertexShader =
    " uv_frag = texUV;"
 "}";
 
-static char *blockPickupFragShader = 
+static char *blockPickupFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec2 uv_frag; "
 "in vec3 sunAngle;"
@@ -108,7 +108,7 @@ static char *blockPickupFragShader =
     "color = vec4((diffuseAngle*diffSample*c).xyz, 1);"
 "}";
 
-static char *voxelEntityVertexShader = 
+static char *voxelEntityVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -143,9 +143,9 @@ static char *voxelEntityVertexShader =
     "palleteIndex = palleteId;"
 "}";
 
-static char *voxelEntityFragShader = 
+static char *voxelEntityFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec2 uv_frag; "
 "in vec3 sunAngle;"
@@ -172,7 +172,7 @@ static char *voxelEntityFragShader =
 
 
 
-static char *lineVertexShader = 
+static char *lineVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -198,16 +198,16 @@ static char *lineVertexShader =
 "}";
 
 
-static char *lineFragShader = 
+static char *lineFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "out vec4 color;"
 "void main() {"
     "color = color_frag;"
 "}";
 
 
-static char *skeletalVertexShader = 
+static char *skeletalVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -268,9 +268,9 @@ static char *skeletalVertexShader =
    " uv_frag = vec2(texUV.x, mix(uvAtlas.x, uvAtlas.y, texUV.y));"
 "}";
 
-static char *skeletalFragShader = 
+static char *skeletalFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec2 uv_frag; "
 "in vec3 sunAngle;"
@@ -285,7 +285,7 @@ static char *skeletalFragShader =
     "color = diffSample*c;"
 "}";
 
-static char *blockSameTextureVertexShader = 
+static char *blockSameTextureVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -320,7 +320,7 @@ static char *blockSameTextureVertexShader =
 "}";
 
 
-static char *blockVertexShader = 
+static char *blockVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -373,7 +373,7 @@ static char *blockVertexShader =
 //    "samplerIndexOut = float(samplerIndex);"
 "}";
 
-static char *blockGreedyVertexShader = 
+static char *blockGreedyVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -411,7 +411,7 @@ static char *blockGreedyVertexShader =
     "uv_frag = texUV;"
 "}";
 
-static char *voxelChunkVertexShader = 
+static char *voxelChunkVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 pos;"
@@ -446,7 +446,7 @@ static char *voxelChunkVertexShader =
     "palleteIndex = palleteId;"
 "}";
 
-static char *voxelChunkFragShader = 
+static char *voxelChunkFragShader =
 "#version 330\n"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec3 sunAngle;"
@@ -459,8 +459,8 @@ static char *voxelChunkFragShader =
 "out vec4 color;"
 
 "vec4 getColor(int index) {"
-    "float x = (float(index) + 0.5) / 256.0;"
-    "float y = (float(palleteIndex) + 0.5) / float(numPalettes);"
+    "float x = (float(index) + 0.5) / 512;"
+    "float y = (float(palleteIndex) + 0.5) / 512;"
     "return texture(diffuse, vec2(x, y));"
 "}"
 
@@ -470,9 +470,9 @@ static char *voxelChunkFragShader =
     "color = vec4((diffuseAngle*diffSample).xyz, 1);"
 "}";
 
-static char *blockFragShader = 
+static char *blockFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normal_frag_view_space;"//viewspace
 "in vec2 uv_frag; "
 "in vec3 sunAngle;"
@@ -504,13 +504,13 @@ static char *blockFragShader =
     "c = vec4(AOValue*c.xyz, c.w);"
     "vec4 fogFactor = mix(diffSample*c, vec4(fogColor), clamp(((distanceFromEye - fogSeeDistance) / fogFadeDistance), 0.0, 1.0));"
     // "vec4 fogFactor = diffSample*c;"
-    
+
     "color = vec4((fogFactor).xyz, 1);"//fogFactor
 "}";
 
-static char *blockColorShader = 
+static char *blockColorShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec3 normalInModelSpace;"
 "in float distanceFromEye;"
 "out vec4 color;"
@@ -523,7 +523,7 @@ static char *blockColorShader =
     "color = mix(c, vec4(0.8, 0.8, 0.8, 1), (distanceFromEye - 10) / 50);"
 "}";
 
-static char *fullScreenVertexShader = 
+static char *fullScreenVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -537,7 +537,7 @@ static char *fullScreenVertexShader =
     "gl_Position = vec4(vertex, 1);"
 "}";
 
-static char *rayCastFragShader = 
+static char *rayCastFragShader =
 "#version 330\n"
 "in vec3 rayDir; "
 "out vec4 color;"
@@ -545,7 +545,7 @@ static char *rayCastFragShader =
     "color = vec4(1, 0, 0, 1);"
 "}";
 
-static char *quadVertexShader = 
+static char *quadVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -573,9 +573,9 @@ static char *quadVertexShader =
    "uv_frag = vec2(mix(uvAtlas.x, uvAtlas.y, texUV.x), mix(uvAtlas.z, uvAtlas.w, texUV.y));"
 "}";
 
-static char *quadTextureFragShader = 
+static char *quadTextureFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec2 uv_frag; "
 "uniform sampler2D diffuse;"
 "out vec4 color;"
@@ -603,9 +603,9 @@ static char *quadTextureFragShader =
     "}"
 "}";
 
-static char *fontTextureFragShader = 
+static char *fontTextureFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec2 uv_frag; "
 "uniform sampler2D diffuse;"
 "out vec4 color;"
@@ -614,16 +614,16 @@ static char *fontTextureFragShader =
     "color = vec4(diffSample.r)*color_frag;"
 "}";
 
-static char *quadFragShader = 
+static char *quadFragShader =
 "#version 330\n"
-"in vec4 color_frag;" 
+"in vec4 color_frag;"
 "in vec2 uv_frag; "
 "out vec4 color;"
 "void main() {"
     "color = color_frag;"
 "}";
 
-static char *skyboxVertexShader = 
+static char *skyboxVertexShader =
 "#version 330\n"
 //per vertex variables
 "in vec3 vertex;"
@@ -644,7 +644,7 @@ static char *skyboxVertexShader =
     "gl_Position = pos.xyww;"
 "}";
 
-static char *skyboxFragShader = 
+static char *skyboxFragShader =
 "#version 330\n"
 "in vec3 uv_frag; "
 "uniform samplerCube diffuse;"
